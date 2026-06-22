@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none';" />
+    <title>bWeb</title>
+    <link rel="stylesheet" href="./index.css" />
+    <script src="./i18n.js"></script>
+    <script>if(/Mac/.test(navigator.userAgent))document.documentElement.classList.add('platform-mac');</script>
+</head>
+
+<body>
+
+<!-- Lucide SVG sprite -->
+<svg aria-hidden="true" style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ic-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+  </symbol>
+  <symbol id="ic-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+  </symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </symbol>
+  <symbol id="ic-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>
+  </symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+  </symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+  </symbol>
+  <symbol id="ic-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+  </symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+  </symbol>
+  <symbol id="ic-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+  </symbol>
+  <symbol id="ic-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m8 2 1.88 1.88M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+  </symbol>
+  <symbol id="ic-coffee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/>
+  </symbol>
+  <symbol id="ic-github" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+  </symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+  </symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+  </symbol>
+  <symbol id="ic-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M3 7.5h4M3 12h18M3 16.5h4M17 3v18M17 7.5h4M17 16.5h4"/>
+  </symbol>
+  <symbol id="ic-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>
+  </symbol>
+</svg>
+
+<div class="app-shell">
+    <div id="depBanner" class="dep-banner"></div>
+    <div id="updateBanner" class="update-banner"></div>
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div class="app-body">
+
+        <!-- Sidebar navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
+            <div class="sidebar-header">
+                <img class="sidebar-logo bweb-logo" src="./bweb-blue.png" alt="bWeb" />
+                <span class="sidebar-app-name">bWeb</span>
+            </div>
+
+            <div class="sidebar-nav">
+                <button class="nav-item active" data-tab="download" onclick="switchTab('download')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-download"/></svg>
+                    <span class="nav-label" data-i18n="nav.download">Download</span>
+                </button>
+                <button class="nav-item" data-tab="queue" onclick="switchTab('queue')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-layers"/></svg>
+                    <span class="nav-label" data-i18n="nav.queue">Queue</span>
+                    <span id="queueCount" class="nav-badge" style="display:none">0</span>
+                    <span id="queueActivityDot" class="nav-activity-dot" style="display:none"></span>
+                </button>
+                <button class="nav-item" data-tab="history" onclick="switchTab('history')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-clock"/></svg>
+                    <span class="nav-label" data-i18n="nav.history">History</span>
+                    <span id="historyCount" class="nav-badge" style="display:none">0</span>
+                </button>
+                <button class="nav-item" data-tab="convert" onclick="switchTab('convert')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-scissors"/></svg>
+                    <span class="nav-label" data-i18n="nav.convert">Convert</span>
+                </button>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-settings"/></svg>
+                    <span class="nav-label" data-i18n="nav.settings">Settings</span>
+                </button>
+                <button class="nav-item" data-tab="about" onclick="switchTab('about')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-info"/></svg>
+                    <span class="nav-label" data-i18n="nav.about">About</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Content area -->
+        <div class="content-area">
+
+            <!-- Download view -->
+            <div id="tab-download" class="view active">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="dl.title">Download</h1>
+                    <p class="view-subtitle" data-i18n="dl.subtitle">YouTube · Vimeo · Instagram · Twitter · 1000+ sites</p>
+                </div>
+                <div class="dl-mode-tabs">
+                    <button class="dl-mode-tab active" data-mode="single" onclick="setDlMode('single')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-download"/></svg>
+                        <span data-i18n="dl.mode.single">Single video</span>
+                    </button>
+                    <button class="dl-mode-tab" data-mode="batch" onclick="setDlMode('batch')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-layers"/></svg>
+                        <span data-i18n="dl.mode.batch">Batch</span>
+                    </button>
+                </div>
+
+                <div id="dlModeSingle">
+                <div class="url-bar">
+                    <input id="urlInput" class="url-input" type="url" placeholder="Paste a video or playlist URL…"
+                        data-i18n-ph="dl.url.placeholder" spellcheck="false" autocomplete="off" />
+                    <button id="clearBtn" class="btn btn-clear" onclick="doClear()" style="display: none">
+                        <span data-i18n="dl.btn.clear">Clear</span>
+                    </button>
+                    <button id="fetchBtn" class="btn btn-primary" onclick="doFetch()">
+                        <span data-i18n="dl.btn.fetch">Fetch</span>
+                    </button>
+                </div>
+                <div id="clipPreview" class="clip-preview" style="display:none">
+                    <img id="clipThumb" class="clip-thumb" src="" alt="" />
+                    <div class="clip-info">
+                        <span id="clipTitle" class="clip-title"></span>
+                        <span id="clipDomain" class="clip-domain"></span>
+                    </div>
+                </div>
+
+                <div class="dl-content">
+                    <div class="dl-main">
+                        <div id="errorMsg" class="error-msg"></div>
+
+                        <!-- Single Video Card -->
+                        <div id="videoCard" class="video-card">
+                            <div class="video-top">
+                                <div id="thumbWrap" class="video-thumb-wrap">
+                                    <img id="vThumb" class="video-thumb" src="" alt="" />
+                                    <div class="thumb-error"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><use href="#ic-film"/></svg></div>
+                                    <div id="vDuration" class="video-duration"></div>
+                                </div>
+                                <div class="video-info">
+                                    <div id="vTitle" class="video-title"></div>
+                                    <div id="vChannel" class="video-channel"></div>
+                                    <div id="vMeta" class="video-meta"></div>
+                                </div>
+                            </div>
+
+                            <div class="section-label" data-i18n="dl.section.video">Video</div>
+                            <div id="videoFormats" class="format-list"></div>
+                            <div id="videoCodecRow" class="codec-row" style="display:none">
+                                <span class="codec-label" data-i18n="dl.codec.label">Video codec</span>
+                                <select id="videoCodecSelect" class="codec-select">
+                                    <option value="copy" data-i18n="dl.codec.copy">Original — Copy (recommended)</option>
+                                    <option value="libx264" data-i18n="dl.codec.h264">H.264 — Reduces size, universal compatibility</option>
+                                    <option value="libx265" data-i18n="dl.codec.h265">H.265 — More compact, for recent devices</option>
+                                </select>
+                            </div>
+
+                            <hr class="sep" />
+
+                            <div class="section-label" data-i18n="dl.section.audio">Audio only</div>
+                            <div id="audioFormats" class="format-list"></div>
+
+                            <div id="dlTrimSection" class="dl-trim-section" style="display:none">
+                                <div class="dl-trim-header">
+                                    <span class="dl-trim-title"><svg class="icon-svg" width="14" height="14" style="margin-right:4px"><use href="#ic-scissors"/></svg><span data-i18n="dl.trim.title">Trim clip</span></span>
+                                    <span id="dlTrimDuration" class="dl-trim-duration"></span>
+                                    <button class="trim-clear-btn" data-i18n="dl.trim.clear" onclick="clearDlTrim()">Clear</button>
+                                    <button class="trim-clear-btn" data-i18n="dl.trim.open" onclick="openSourceInBrowser()">Open ↗</button>
+                                </div>
+                                <div class="dual-range-wrap" id="dlSliderWrap">
+                                    <input class="dual-range" id="dlRangeStart" type="range" min="0" max="100" value="0" step="0.1" oninput="onDlRangeStartInput()" />
+                                    <input class="dual-range" id="dlRangeEnd" type="range" min="0" max="100" value="100" step="0.1" oninput="onDlRangeEndInput()" />
+                                    <div class="dual-range-track">
+                                        <div class="dual-range-fill" id="dlRangeFill"></div>
+                                    </div>
+                                </div>
+                                <div id="trimSegmentsList">
+                                    <div class="trim-segment">
+                                        <input id="dlTrimStart" class="trim-time-input" type="text" placeholder="00:00" oninput="onSegmentInput(this)" />
+                                        <span class="trim-time-sep">→</span>
+                                        <input id="dlTrimEnd" class="trim-time-input" type="text" placeholder="end" oninput="onSegmentInput(this)" />
+                                    </div>
+                                </div>
+                                <button class="trim-add-seg-btn" data-i18n="dl.trim.addSeg" onclick="addTrimSegment()">+ Add segment</button>
+                            </div>
+
+                            <button id="dlBtn" class="btn-download" onclick="doDownload()">
+                                <span data-i18n="dl.btn.addQueue">Add to Queue</span>
+                            </button>
+                        </div>
+
+                        <!-- Playlist Card -->
+                        <div id="playlistCard" class="playlist-card">
+                            <div class="playlist-header">
+                                <div class="playlist-header-info">
+                                    <div class="playlist-badge" data-i18n="dl.pl.badge">PLAYLIST</div>
+                                    <span id="plItemCount" class="playlist-count">0 items</span>
+                                </div>
+                                <div class="playlist-header-actions">
+                                    <button class="btn-sm" data-i18n="dl.pl.selectAll" onclick="playlistSelectAll()">Select all</button>
+                                    <button class="btn-sm" data-i18n="dl.pl.deselectAll" onclick="playlistDeselectAll()">Deselect all</button>
+                                </div>
+                            </div>
+
+                            <div id="playlistItems" class="playlist-items"></div>
+
+                            <div id="plFooter" class="playlist-footer" style="display: none">
+                                <div class="playlist-format-row">
+                                    <div class="section-label" style="margin-bottom: 0" data-i18n="dl.pl.formatAll">Format for all</div>
+                                    <select id="plFormatSelect" class="pl-format-select">
+                                        <option value="bv*+ba/b" data-i18n="dl.pl.best">Best quality</option>
+                                        <option value="bv*[height<=2160]+ba/b[height<=2160]/b">4K</option>
+                                        <option value="bv*[height<=1440]+ba/b[height<=1440]/b">2K</option>
+                                        <option value="bv*[height<=1080]+ba/b[height<=1080]/b" selected>
+                                            1080p
+                                        </option>
+                                        <option value="bv*[height<=720]+ba/b[height<=720]/b">720p</option>
+                                        <option value="bv*[height<=480]+ba/b[height<=480]/b">480p</option>
+                                        <option value="ba/b" data-audio="true" data-format="mp3" data-i18n="dl.audio.mp3">MP3 (audio only)</option>
+                                        <option value="ba/b" data-audio="true" data-format="m4a" data-i18n="dl.audio.m4a">M4A (audio only)</option>
+                                        <option value="ba/b" data-audio="true" data-format="opus" data-i18n="dl.audio.opus">OPUS (audio only)</option>
+                                        <option value="ba/b" data-audio="true" data-format="flac" data-i18n="dl.audio.flac">FLAC (lossless)</option>
+                                        <option value="ba/b" data-audio="true" data-format="wav" data-i18n="dl.audio.wav">WAV (lossless)</option>
+                                    </select>
+                                </div>
+                                <div class="pl-format-note" data-i18n="dl.pl.note">If a video doesn't have the selected quality, the best available will be used.</div>
+                                <button id="plDownloadBtn" class="btn-download" data-i18n="dl.pl.addSelected" onclick="doPlaylistDownload()">Add Selected to Queue</button>
+                            </div>
+                        </div>
+
+                        <div id="emptyState" class="empty-state">
+                            <div class="icon">
+                                <svg class="icon-svg" width="44" height="44"><use href="#ic-download"/></svg>
+                            </div>
+                            <div class="title" data-i18n="dl.empty.title">Paste a video or playlist URL</div>
+                            <div class="sub">
+                                <span data-i18n="dl.empty.sub1">Press <kbd>Ctrl</kbd> + <kbd>V</kbd> or <kbd>⌘</kbd> + <kbd>V</kbd></span>
+                            </div>
+                            <div class="sub" data-i18n="dl.empty.sub2">YouTube, Vimeo, Twitter, Instagram collections, and thousands more</div>
+                        </div>
+                    </div>
+
+                    <div id="fetchPanel" class="fetch-panel">
+                        <div class="fetch-panel-header">
+                            <span class="fetch-panel-title" data-i18n="dl.fetchQ.title">Fetch Queue</span>
+                            <button class="btn-ghost fetch-panel-clear" data-i18n="dl.fetchQ.clear" onclick="clearFetchQueue()">Clear</button>
+                        </div>
+                        <div id="fetchPanelItems" class="fetch-panel-items"></div>
+                    </div>
+                </div>
+                </div><!-- /dlModeSingle -->
+
+                <div id="dlModeBatch" style="display:none">
+                    <div class="batch-body">
+                        <textarea id="batchUrls" class="batch-textarea" placeholder="Paste URLs here, one per line…&#10;https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=..." oninput="onBatchUrlsInput()" spellcheck="false"></textarea>
+                        <div class="batch-quality-label" data-i18n="dl.batch.quality">Quality</div>
+                        <div class="batch-quality-row">
+                            <button class="batch-q-btn" data-preset="best" data-i18n="dl.batch.best" onclick="selectBatchPreset('best')">Best</button>
+                            <button class="batch-q-btn" data-preset="4k" data-i18n="dl.batch.4k" onclick="selectBatchPreset('4k')">Up to 4K</button>
+                            <button class="batch-q-btn" data-preset="2k" data-i18n="dl.batch.2k" onclick="selectBatchPreset('2k')">Up to 2K</button>
+                            <button class="batch-q-btn active" data-preset="1080p" data-i18n="dl.batch.1080p" onclick="selectBatchPreset('1080p')">Up to 1080p</button>
+                            <button class="batch-q-btn" data-preset="mp3" onclick="selectBatchPreset('mp3')">MP3</button>
+                            <button class="batch-q-btn" data-preset="wav" onclick="selectBatchPreset('wav')">WAV</button>
+                        </div>
+                        <button id="batchAddBtn" class="btn-download" data-i18n="dl.batch.addQueue" onclick="doBatchAdd()" disabled>Add to Queue</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue view -->
+            <div id="tab-queue" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="queue.title">Queue</h1>
+                </div>
+                <div id="queueToolbar" class="queue-toolbar" style="display: none">
+                    <div class="queue-toolbar-info">
+                        <span id="queueStatus" class="queue-status-text">0 items</span>
+                    </div>
+                    <div class="queue-toolbar-actions">
+                        <button id="qStartBtn" class="btn-sm btn-sm-primary" data-i18n="queue.start" onclick="doQueueStart()" style="display: none">Start Queue</button>
+                        <button id="qPauseBtn" class="btn-sm" data-i18n="queue.pause" onclick="doQueuePause()" style="display: none">Pause</button>
+                        <button class="btn-sm" data-i18n="queue.openFolder" onclick="doOpenFolder()">Open folder</button>
+                        <button id="qRetryFailedBtn" class="btn-sm" data-i18n="queue.retryFailed" onclick="doRetryFailed()" style="display: none">Retry failed</button>
+                        <button id="qClearDoneBtn" class="btn-sm" data-i18n="queue.clearDone" onclick="doClearCompleted()" style="display: none">Clear done</button>
+                        <button id="qCancelAllBtn" class="btn-sm btn-sm-danger" data-i18n="queue.cancelAll" onclick="doCancelAll()" style="display: none">Cancel all</button>
+                    </div>
+                </div>
+                <div id="queueItems" class="queue-items"></div>
+                <div id="queueEmpty" class="queue-empty">
+                    <div class="icon">
+                        <svg class="icon-svg" width="36" height="36"><use href="#ic-inbox"/></svg>
+                    </div>
+                    <div class="title" data-i18n="queue.empty.title">Queue is empty</div>
+                    <div class="sub" data-i18n="queue.empty.sub">Fetch videos and click "Add to Queue" — then hit Start Queue when ready</div>
+                </div>
+            </div>
+
+            <!-- History view -->
+            <div id="tab-history" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="history.title">History</h1>
+                </div>
+                <div id="historyToolbar" class="history-toolbar" style="display: none">
+                    <span id="historyCountLabel" class="count"></span>
+                    <button class="btn-ghost" data-i18n="history.clearAll" onclick="doClearHistory()">Clear all</button>
+                </div>
+                <div id="historyList" class="history-list"></div>
+                <div id="historyEmpty" class="history-empty">
+                    <div class="icon">
+                        <svg class="icon-svg" width="36" height="36"><use href="#ic-clock"/></svg>
+                    </div>
+                    <div class="title" data-i18n="history.empty.title">No history yet</div>
+                    <div class="sub" data-i18n="history.empty.sub">Videos you fetch will appear here</div>
+                </div>
+            </div>
+
+            <!-- Convert view -->
+            <div id="tab-convert" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="convert.title">Convert</h1>
+                    <p class="view-subtitle" data-i18n="convert.subtitle">Trim and convert local media files</p>
+                </div>
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="convertDropZone" onclick="doConvertChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="convert.drop.title">Drop a media file or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="convert.drop.sub">MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A…</div>
+                    </div>
+
+                    <div id="convertFileInfo" class="convert-file-info" style="display:none">
+                        <div class="convert-file-name" id="convertFileName"></div>
+                        <div class="convert-file-actions">
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.changeFile" onclick="doConvertChooseFile()">Change file</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doConvertClear()">Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- Video player + Trim -->
+                    <div id="convertPlayerWrap" class="convert-player-wrap" style="display:none">
+                        <video id="convertVideo" class="convert-video" controls></video>
+                        <div class="convert-trim">
+                            <div class="convert-trim-header">
+                                <span class="convert-trim-label"><svg class="icon-svg" width="14" height="14" style="margin-right:4px"><use href="#ic-scissors"/></svg><span data-i18n="convert.trim.label">Trim</span> <span class="convert-trim-optional" data-i18n="convert.trim.optional">(optional)</span></span>
+                                <span id="convertTrimDuration" class="dl-trim-duration"></span>
+                                <button class="trim-clear-btn" data-i18n="convert.trim.clear" onclick="clearConvertTrim()">Clear</button>
+                            </div>
+                            <div class="dual-range-wrap">
+                                <input class="dual-range" id="convertRangeStart" type="range" min="0" max="100" value="0" step="0.1" oninput="onConvertRangeInput()" />
+                                <input class="dual-range" id="convertRangeEnd" type="range" min="0" max="100" value="100" step="0.1" oninput="onConvertRangeInput()" />
+                                <div class="dual-range-track">
+                                    <div class="dual-range-fill" id="convertRangeFill"></div>
+                                </div>
+                            </div>
+                            <div class="trim-time-row">
+                                <button class="trim-set-btn" data-i18n="convert.trim.now1" onclick="setConvertTrimStart()">◀ Now</button>
+                                <input id="convertTrimStart" class="trim-time-input" type="text" placeholder="00:00:00" oninput="onConvertTimeInput()" />
+                                <span class="trim-time-sep">→</span>
+                                <input id="convertTrimEnd" class="trim-time-input" type="text" placeholder="00:00:00" oninput="onConvertTimeInput()" />
+                                <button class="trim-set-btn" data-i18n="convert.trim.now2" onclick="setConvertTrimEnd()">Now →</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="convert-options">
+                        <div class="convert-option-group">
+                            <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
+                            <select id="convertFormat" class="convert-select" onchange="onConvertFormatChange(this)">
+                                <optgroup label="Video — fast, no quality loss">
+                                    <option value="mp4" selected>MP4</option>
+                                    <option value="mkv">MKV</option>
+                                    <option value="mov">MOV</option>
+                                </optgroup>
+                                <optgroup label="Audio only">
+                                    <option value="mp3">MP3</option>
+                                    <option value="m4a">M4A</option>
+                                    <option value="opus">Opus</option>
+                                </optgroup>
+                                <optgroup label="Video — re-encode (smaller file, slower)">
+                                    <option value="mp4-h264">MP4 · H.264</option>
+                                    <option value="mp4-h265">MP4 · H.265</option>
+                                    <option value="webm">WebM</option>
+                                </optgroup>
+                                <optgroup label="Audio lossless — only useful if source is uncompressed">
+                                    <option value="flac">FLAC</option>
+                                    <option value="wav">WAV</option>
+                                </optgroup>
+                                <optgroup label="Rare formats">
+                                    <option value="avi">AVI</option>
+                                    <option value="ts">TS</option>
+                                    <option value="mts">MTS</option>
+                                    <option value="vob">VOB</option>
+                                    <option value="flv">FLV</option>
+                                    <option value="3gp">3GP</option>
+                                    <option value="dav">DAV</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div id="convertLossyWarn" class="convert-lossy-warn" style="display:none">
+                            ⚠ FLAC/WAV ne s'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.
+                        </div>
+                    </div>
+
+                    <div id="convertProgressWrap" class="convert-progress-wrap" style="display:none">
+                        <div class="convert-progress-bar-track">
+                            <div id="convertProgressBar" class="convert-progress-bar" style="width:0%"></div>
+                        </div>
+                        <div id="convertProgressLabel" class="convert-progress-label">0%</div>
+                    </div>
+
+                    <button id="convertBtn" class="btn-download convert-btn" data-i18n="convert.btn" onclick="doConvert()" disabled>Convert</button>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+            </div>
+
+            <!-- Settings view -->
+            <div id="tab-settings" class="view">
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.appearance">Appearance</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.theme">Theme</div>
+                            <div id="themeLabel" class="settings-row-value" data-i18n="settings.theme.system">Follows system</div>
+                        </div>
+                        <div class="settings-row-action">
+                            <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">
+                                <svg class="toggle-icon icon-svg" id="themeIcon"><use href="#ic-sun"/></svg>
+                                <span id="themeToggleLabel" data-i18n="settings.theme.light">Light</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.accentColor">Accent color</div>
+                        </div>
+                        <div class="settings-row-action">
+                            <div class="accent-swatches">
+                                <button class="accent-swatch" data-accent="blue"   style="--sw:oklch(0.55 0.18 258)" onclick="setAccent('blue')"></button>
+                                <button class="accent-swatch" data-accent="indigo" style="--sw:oklch(0.52 0.22 280)" onclick="setAccent('indigo')"></button>
+                                <button class="accent-swatch" data-accent="purple" style="--sw:oklch(0.52 0.20 305)" onclick="setAccent('purple')"></button>
+                                <button class="accent-swatch" data-accent="teal"   style="--sw:oklch(0.53 0.14 185)" onclick="setAccent('teal')"></button>
+                                <button class="accent-swatch" data-accent="tomato" style="--sw:oklch(0.57 0.24 28)"  onclick="setAccent('tomato')"></button>
+                                <button class="accent-swatch" data-accent="amber"  style="--sw:oklch(0.62 0.20 55)"  onclick="setAccent('amber')"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.language">Language</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">English / Français</div>
+                        </div>
+                        <div class="settings-row-action">
+                            <div class="lang-toggle">
+                                <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
+                                <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.storage">Storage</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.dlFolder">Download folder</div>
+                            <div id="settingsPath" class="settings-row-value">-</div>
+                        </div>
+                        <div class="settings-row-action settings-row-action--gap">
+                            <button class="btn-sm" data-i18n="settings.change" onclick="doChooseFolder()">Change</button>
+                            <button class="btn-sm" data-i18n="settings.open" onclick="doOpenFolder()">Open</button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.reset.label">Reset app (clear cache)</div>
+                            <div class="settings-row-value" data-i18n="settings.reset.desc">Deletes all app data and restarts</div>
+                        </div>
+                        <div class="settings-row-action">
+                            <button class="btn-sm btn-sm-danger" data-i18n="settings.reset.btn" onclick="doResetApp()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.yt.title">YouTube Account</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.yt.signin">YouTube sign-in</div>
+                            <div id="authStatus" class="settings-row-value">
+                                <span class="auth-signed-out" data-i18n="settings.notSignedIn">Not signed in</span>
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <button id="authActionBtn" class="btn-sm" data-i18n="settings.signIn" onclick="doLogin()">Sign in</button>
+                        </div>
+                    </div>
+                    <div class="settings-hint" data-i18n="settings.yt.hint">
+                        Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google — this app never sees your password.
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.insta.title">Instagram Account</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.insta.signin">Instagram sign-in</div>
+                            <div id="instaAuthStatus" class="settings-row-value">
+                                <span class="auth-signed-out" data-i18n="settings.notSignedIn">Not signed in</span>
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <button id="instaAuthActionBtn" class="btn-sm" data-i18n="settings.signIn" onclick="doInstaLogin()">Sign in</button>
+                        </div>
+                    </div>
+                    <div class="settings-hint" data-i18n="settings.insta.hint">
+                        Sign in to download from your saved collections. Your credentials go directly to Instagram — this app never sees your password.
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.deps">Dependencies</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">yt-dlp <span id="depYtdlpVersion"
+                                    class="dep-version"></span></div>
+                            <div id="depYtdlpPath" class="settings-row-value">
+                                Checking...
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <div id="depYtdlpStatus" class="settings-dep-status">
+                                <span class="dep-dot"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">ffmpeg <span id="depFfmpegVersion"
+                                    class="dep-version"></span></div>
+                            <div id="depFfmpegPath" class="settings-row-value">
+                                Checking...
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <div id="depFfmpegStatus" class="settings-dep-status">
+                                <span class="dep-dot"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">deno <span id="depDenoVersion" class="dep-version"></span>
+                            </div>
+                            <div id="depDenoPath" class="settings-row-value">
+                                Checking...
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <div id="depDenoStatus" class="settings-dep-status">
+                                <span class="dep-dot"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About view -->
+            <div id="tab-about" class="view">
+                <div class="about-hero">
+                    <img class="about-icon bweb-logo" src="./bweb-blue.png" alt="bWeb" />
+                    <div class="about-name">bWeb</div>
+                    <div id="aboutVersion" class="about-version">
+                        -
+                    </div>
+                    <div id="aboutUpdateStatus" class="about-update-status"></div>
+                    <button id="checkUpdateBtn" class="btn-sm about-update-btn" data-i18n="about.checkUpdates" onclick="doCheckForUpdates()">Check for updates</button>
+                </div>
+
+                <div class="about-description" data-i18n="about.description">
+                    A desktop app for downloading videos and audio from YouTube, Vimeo, Twitter/X, Instagram,
+                    and thousands of other sites. Everything runs locally — no cloud, no accounts, no tracking.
+                </div>
+
+                <div class="about-links">
+                    <a class="about-link" href="#" onclick="openExternal('https://github.com/CellPod/bweb/issues'); return false;">
+                        <span class="about-link-icon"><svg class="icon-svg" width="18" height="18"><use href="#ic-bug"/></svg></span>
+                        <span data-i18n="about.reportBug">Report a Bug</span>
+                    </a>
+                    <a class="about-link" href="#" onclick="openExternal('https://github.com/CellPod/bweb'); return false;">
+                        <span class="about-link-icon"><svg class="icon-svg" width="18" height="18"><use href="#ic-github"/></svg></span>
+                        <span data-i18n="about.github">GitHub</span>
+                    </a>
+                </div>
+
+                <div class="about-section">
+                    <div class="about-section-title" data-i18n="about.howWorks.title">How it works</div>
+                    <div class="about-text" data-i18n="about.howWorks.text">
+                        Paste a URL, pick a quality, and download. Videos save as MP4, audio as MP3, OPUS, M4A, or FLAC.
+                        Multiple URLs can be fetched back-to-back — results queue up in the side panel.
+                    </div>
+                </div>
+
+                <div class="about-section">
+                    <div class="about-section-title" data-i18n="about.downloads.title">Where are my downloads?</div>
+                    <div class="about-text">
+                        <span data-i18n="about.downloads.text">Files are saved to your Downloads folder inside a bWeb subfolder by default. Change the location in</span>
+                        <a href="#" onclick="switchTab('settings'); return false;" data-i18n="about.downloads.link">Settings</a>.
+                    </div>
+                </div>
+
+                <div class="about-footer-text">
+                    <span data-i18n="about.footer">Open source · MIT License · Made by Baba</span>
+                    <br />
+                    <span data-i18n="about.poweredBy">Powered by</span> <a href="#" onclick="openExternal('https://github.com/yt-dlp/yt-dlp'); return false;">yt-dlp</a>
+                    · <span data-i18n="about.basedOn">Based on</span> <a href="#" onclick="openExternal('https://github.com/archisvaze/arcdlp'); return false;">ArcDLP</a> <span data-i18n="about.by">by Archis</span>
+                </div>
+            </div>
+
+        </div><!-- /content-area -->
+    </div><!-- /app-body -->
+
+    <!-- Active download strip -->
+    <div id="downloadStrip" class="download-strip" style="display:none">
+        <div class="ds-left">
+            <span class="ds-pulse-dot"></span>
+            <span class="ds-name" id="dsName"></span>
+        </div>
+        <div class="ds-bar-bg"><div class="ds-bar" id="dsBar" style="width:0%"></div></div>
+        <div class="ds-meta" id="dsMeta"></div>
+    </div>
+
+    <!-- Log Panel (resizable) -->
+    <div id="logPanel" class="log-panel">
+        <div class="log-resize-handle" id="logResizeHandle"></div>
+        <div class="log-header" onclick="toggleLog()">
+            <div class="log-header-title">Log</div>
+            <div class="log-header-actions">
+                <button onclick="event.stopPropagation(); clearLog()">Clear</button>
+                <button onclick="event.stopPropagation(); doOpenFolder()">Open folder</button>
+            </div>
+        </div>
+        <div id="logBody" class="log-body"></div>
+    </div>
+
+</div><!-- /app-shell -->
+
+<!-- Playlist choice modal -->
+<div id="playlistChoiceModal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+        <div class="modal-title">Playlist link detected</div>
+        <div class="modal-body">This URL contains a playlist parameter. What do you want to download?</div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-primary" onclick="resolvePlaylistChoice('single')">Single video only</button>
+            <button class="modal-btn" onclick="resolvePlaylistChoice('playlist')">Entire playlist</button>
+        </div>
+    </div>
+</div>
+
+<script src="./renderer.js"></script>
+</body>
+
+</html>

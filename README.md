@@ -1,0 +1,212 @@
+<div align="center">
+
+<img src="build/icon.png" width="128" alt="bWeb icon" />
+
+# bWeb
+
+Download videos and audio from anywhere — YouTube, Vimeo, Twitter/X, Instagram,
+and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
+Everything runs locally on your machine. No cloud, no subscriptions, no tracking.
+
+**[Download the latest release](https://github.com/CellPod/bweb/releases/latest)**
+
+</div>
+
+<br/>
+
+<p align="center">
+  <img src="screenshots/screenshot-download.png" width="80%" alt="bWeb — download a video" />
+</p>
+
+---
+
+## Download & Install
+
+**[→ Download the latest release](https://github.com/CellPod/bweb/releases/latest)**
+
+Go to the Releases page, scroll down to **Assets**, and pick the file for your system:
+
+| Platform | File |
+|---|---|
+| macOS (Apple Silicon) | `bWeb-x.x.x-arm64.dmg` |
+| macOS (Intel) | `bWeb-x.x.x.dmg` |
+| Windows | `bWeb Setup x.x.x.exe` |
+| Linux | `bWeb-x.x.x.AppImage` |
+
+No dependencies to install. yt-dlp and ffmpeg are bundled inside the app.
+
+### macOS
+
+1. Download the `.dmg` file
+2. Open it and drag bWeb to your Applications folder
+3. Open bWeb
+
+The first time, macOS will show a security warning because the app isn't code-signed. This is normal for open-source apps.
+
+To get past it:
+1. Click **Done** on the warning
+2. Open **System Settings → Privacy & Security**
+3. Scroll down and click **Open Anyway** next to bWeb
+4. Enter your password
+
+You only need to do this once.
+
+### Windows
+
+1. Download and run the `.exe` installer
+2. If SmartScreen appears, click **More info → Run anyway**
+3. bWeb installs automatically and creates a shortcut
+
+Installs per-user — no admin required. Uninstall from **Settings → Apps**.
+
+### Linux
+
+1. Download the `.AppImage` file
+2. Make it executable: right-click → Properties → Permissions → **Allow executing as program**
+3. Double-click to run
+
+---
+
+## Features
+
+### Download
+- **Single video** — Paste a URL, preview the metadata and thumbnail, pick a quality (4K / 2K / 1080p / 720p / 480p or lower), download as MP4 or extract audio as MP3, M4A, OPUS, FLAC, or WAV
+- **Playlist** — Paste a playlist URL, select which items to download, pick a format for the whole batch
+- **Batch mode** — Paste up to 50 URLs at once, pick a quality preset, add them all to the queue
+- **Trim before download** — Set start and end points on the video timeline before adding to queue. Supports multiple segments
+
+### Queue
+- Sequential processing with real-time progress per item
+- Pause, retry failed, clear done, or cancel all — one failure never stops the rest
+- Active download strip always visible at the bottom
+
+### Convert
+- Drop any local video or audio file to convert or trim it
+- Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more
+- Trim with a visual timeline before converting
+
+### Account sign-in
+- **YouTube** — Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
+- **Instagram** — Sign in to download from your saved collections. The app opens Instagram's login page directly — your password is never stored
+
+### Instagram saved collections
+yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a built-in scraper:
+1. Sign in via **Settings → Instagram Account**
+2. Paste a saved collection URL
+3. The app opens the page in a hidden browser, scrolls through it, and collects all post links
+4. Results appear in a playlist-style picker — select what you want and queue
+
+### Interface
+- **French / English** — Full bilingual UI, toggle in Settings
+- **6 accent colors** — Blue, Indigo, Purple, Teal, Tomato, Amber — the app logo changes color with your selection
+- **Light and dark mode** — Follows your system preference, or force one in Settings
+- **Download history** — Quick access to all previously fetched videos with cached metadata
+
+---
+
+## Usage
+
+1. Paste a video or playlist URL and click **Fetch**
+2. Pick a quality or audio format
+3. Click **Add to Queue**
+4. Go to **Queue** and click **Start Queue**
+
+Files are saved to `~/Downloads/bWeb` by default. Change the location in **Settings → Storage**.
+
+You can paste and fetch multiple URLs back-to-back — each result lands in a side panel so you can review and queue them one by one.
+
+---
+
+## Build from Source
+
+```bash
+git clone https://github.com/CellPod/bweb.git
+cd bweb
+npm install
+npm run dev
+```
+
+`npm install` downloads yt-dlp and ffmpeg automatically for your platform.
+
+### Builds
+
+```bash
+npm run build:mac      # macOS — .dmg + .zip
+npm run build:win      # Windows — NSIS installer
+npm run build:linux    # Linux — AppImage
+```
+
+For Apple Silicon:
+
+```bash
+npm run build:mac -- --arm64
+```
+
+### Cross-platform builds
+
+If you're building for a different architecture, set environment variables before `npm install`:
+
+**Windows (x64) from macOS:**
+```bash
+export npm_config_platform=win32
+export npm_config_arch=x64
+rm -rf node_modules bin
+npm install
+npm run build:win
+```
+
+**Linux (x64):**
+```bash
+export npm_config_platform=linux
+export npm_config_arch=x64
+rm -rf node_modules bin
+npm install
+npm run build:linux
+```
+
+---
+
+## Project Structure
+
+```
+bweb/
+├── src/
+│   ├── main/
+│   │   ├── main.js         # Electron main process — window, IPC, history
+│   │   ├── preload.js      # Context bridge (window.api)
+│   │   ├── ytdlp.js        # yt-dlp integration — spawn, parse, download
+│   │   ├── queue.js        # Sequential download queue with per-item state
+│   │   ├── cookies.js      # YouTube + Instagram cookie auth
+│   │   ├── scraper.js      # Instagram collection scraper (BrowserWindow)
+│   │   ├── converter.js    # Local file conversion via ffmpeg
+│   │   ├── updater.js      # Update checker via GitHub Releases API
+│   │   └── utils.js        # Dev mode flag, logging helpers
+│   └── renderer/
+│       ├── index.html      # UI structure
+│       ├── renderer.js     # UI logic, state, rendering
+│       ├── i18n.js         # EN/FR translations and language toggle
+│       └── index.css       # All styles
+├── scripts/
+│   ├── postinstall.js      # Downloads yt-dlp binary on npm install
+│   └── fix-ffmpeg-win.js   # Renames ffmpeg binary for Windows builds
+├── bin/                    # yt-dlp binary (auto-populated by postinstall)
+├── build/                  # App icons (icon.icns, icon.ico, icon.png)
+├── package.json
+├── LICENSE
+└── README.md
+```
+
+---
+
+## Credits
+
+- [ArcDLP](https://github.com/archisvaze/arcdlp) by Archis — the foundation this project is built on (MIT)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the engine that does all the downloading
+- [Electron](https://www.electronjs.org/) — desktop app framework
+- [ffmpeg](https://ffmpeg.org/) — audio/video processing (bundled via ffmpeg-static)
+
+---
+
+## License
+
+[MIT](LICENSE) — see the license file for details.
