@@ -41,13 +41,20 @@ No dependencies to install. yt-dlp and ffmpeg are bundled inside the app.
 2. Open it and drag bWeb to your Applications folder
 3. Open bWeb
 
-The first time, macOS will show a security warning because the app isn't code-signed. This is normal for open-source apps.
+bWeb is not code-signed with an Apple certificate, so macOS will block it on first launch. On macOS Sequoia and Sonoma it shows **"bWeb is damaged and can't be opened"** — the app is fine, macOS is just enforcing its quarantine policy.
 
-To get past it:
-1. Click **Done** on the warning
-2. Open **System Settings → Privacy & Security**
-3. Scroll down and click **Open Anyway** next to bWeb
-4. Enter your password
+**To fix it, open Terminal and run:**
+
+```bash
+xattr -cr /Applications/bWeb.app
+```
+
+Then double-click bWeb again — it opens normally from that point on.
+
+> If you haven't moved it to Applications yet, run `xattr -cr` on the `.dmg` file first:
+> ```bash
+> xattr -cr ~/Downloads/bWeb-*.dmg
+> ```
 
 You only need to do this once.
 
