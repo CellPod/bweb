@@ -320,7 +320,13 @@ ipcMain.handle('app:info', () => ({
 ipcMain.handle('app:checkForUpdates', async () => {
     const result = await updater.checkForUpdates(app.getVersion());
     if (result.hasUpdate) {
-        send('update-available', result);
+        if (SILENT_AUTOUPDATE && store.get('autoUpdateEnabled') === true) {
+            // Already opted in — kick off the real in-app download instead of pointing
+            // at GitHub. autoUpdater's own events drive the "ready to install" banner.
+            autoUpdater.checkForUpdates().catch((err) => logError('Manual update check (autoUpdater) failed:', err.message));
+        } else {
+            send('update-available', result);
+        }
     }
     return result;
 });

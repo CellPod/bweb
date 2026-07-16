@@ -149,6 +149,7 @@ let isInstaSignedIn = false;
 let updateInfo = null;
 let updateReady = null;
 let updateConsent = null;
+let autoUpdateEnabled = false; // kept in sync with the Settings toggle
 
 const $ = (id) => document.getElementById(id);
 
@@ -2024,6 +2025,7 @@ async function loadSettings() {
 
     try {
         const enabled = await window.api.getAutoUpdateEnabled();
+        autoUpdateEnabled = enabled;
         const toggle = $('autoUpdateToggle');
         if (toggle) toggle.checked = enabled;
     } catch {}
@@ -2032,6 +2034,7 @@ async function loadSettings() {
 async function doToggleAutoUpdate(enabled) {
     try {
         await window.api.setAutoUpdateEnabled(enabled);
+        autoUpdateEnabled = enabled;
     } catch {}
 }
 
@@ -2096,6 +2099,7 @@ function doInstallUpdate() {
 
 async function doEnableAutoUpdate() {
     await window.api.setAutoUpdateEnabled(true);
+    autoUpdateEnabled = true;
     const toggle = $('autoUpdateToggle');
     if (toggle) toggle.checked = true;
     updateConsent = null;
@@ -2105,6 +2109,7 @@ async function doEnableAutoUpdate() {
 
 async function doDeclineAutoUpdate() {
     await window.api.setAutoUpdateEnabled(false);
+    autoUpdateEnabled = false;
     const toggle = $('autoUpdateToggle');
     if (toggle) toggle.checked = false;
     updateConsent = null;
@@ -2127,6 +2132,14 @@ function renderAboutUpdate() {
             `<span>${escapeHtml(t('update.downloadedAbout')(updateReady.version))}</span>` +
             `<a href="#" onclick="doInstallUpdate(); return false;">${escapeHtml(t('update.restartInstall'))}</a>` +
             `</div>`;
+    } else if (updateInfo && updateInfo.hasUpdate && autoUpdateEnabled) {
+        // Already opted in — it's downloading in the background, nothing to click yet.
+        const notes = (updateInfo.body || '').trim();
+        el.innerHTML =
+            `<div class="about-update-available">` +
+            `<span>${escapeHtml(t('update.availableAbout')(updateInfo.latest))} — downloading…</span>` +
+            `</div>` +
+            (notes ? `<div class="about-release-notes">${escapeHtml(notes)}</div>` : '');
     } else if (updateInfo && updateInfo.hasUpdate) {
         const notes = (updateInfo.body || '').trim();
         el.innerHTML =
@@ -2155,8 +2168,14 @@ async function doCheckForUpdates() {
         renderAboutUpdate();
 
         if (result.hasUpdate) {
-            addLog(`Update available: v${result.latest}`, 'highlight');
-            showUpdateBanner();
+            if (autoUpdateEnabled) {
+                // Already opted in — the main process just kicked off the real
+                // download; its own progress/ready events drive the banner from here.
+                addLog(`Update available: v${result.latest} — downloading automatically…`, 'highlight');
+            } else {
+                addLog(`Update available: v${result.latest}`, 'highlight');
+                showUpdateBanner();
+            }
         } else if (result.error) {
             addLog('Update check failed: ' + result.error, 'error');
         } else {

@@ -237,6 +237,13 @@ html.platform-mac .sidebar-header {
     padding-top: 46px;
 }
 
+/* These banners sit at the very top of the window, full-width — on macOS the traffic
+   light buttons (hiddenInset title bar) float directly over their left edge otherwise. */
+html.platform-mac .dep-banner,
+html.platform-mac .update-banner {
+    padding-left: 80px;
+}
+
 .sidebar-logo {
     width: 22px;
     height: 22px;
