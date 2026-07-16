@@ -27,7 +27,8 @@ function getYtdlpBinaryName() {
 }
 
 function getYtdlpOutputName() {
-    return process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+    const platform = process.env.npm_config_platform || process.platform;
+    return platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
 }
 
 const DENO_LATEST_URL = 'https://api.github.com/repos/denoland/deno/releases/latest';

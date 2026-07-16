@@ -68,22 +68,31 @@ function getFfmpegPath() {
 
 function getYtdlpPath() {
     const ext = process.platform === 'win32' ? '.exe' : '';
-    const binary = 'yt-dlp' + ext;
+    // Check both the expected name and its counterpart — cheap insurance against a
+    // packaging-side naming mismatch (this bit us once already: v1.1.0's Windows build
+    // shipped the binary as plain "yt-dlp" instead of "yt-dlp.exe").
+    const names = ext ? ['yt-dlp' + ext, 'yt-dlp'] : ['yt-dlp'];
 
     try {
-        const resPath = path.join(process.resourcesPath || '', 'bin', binary);
-        if (fs.existsSync(resPath)) {
-            log('Using extraResources yt-dlp:', resPath);
-            return resPath;
+        const resBase = path.join(process.resourcesPath || '', 'bin');
+        for (const name of names) {
+            const resPath = path.join(resBase, name);
+            if (fs.existsSync(resPath)) {
+                log('Using extraResources yt-dlp:', resPath);
+                return resPath;
+            }
         }
     } catch {
         //
     }
 
-    const devPath = path.join(__dirname, '..', '..', 'bin', binary);
-    if (fs.existsSync(devPath)) {
-        log('Using dev yt-dlp:', devPath);
-        return devPath;
+    const devBase = path.join(__dirname, '..', '..', 'bin');
+    for (const name of names) {
+        const devPath = path.join(devBase, name);
+        if (fs.existsSync(devPath)) {
+            log('Using dev yt-dlp:', devPath);
+            return devPath;
+        }
     }
 
     logError('yt-dlp binary not found!');
@@ -92,24 +101,30 @@ function getYtdlpPath() {
 
 function getDenoPath() {
     const ext = process.platform === 'win32' ? '.exe' : '';
-    const binary = 'deno' + ext;
+    const names = ext ? ['deno' + ext, 'deno'] : ['deno'];
 
     // Check extraResources (production)
     try {
-        const resPath = path.join(process.resourcesPath || '', 'bin', binary);
-        if (fs.existsSync(resPath)) {
-            log('Using extraResources deno:', resPath);
-            return resPath;
+        const resBase = path.join(process.resourcesPath || '', 'bin');
+        for (const name of names) {
+            const resPath = path.join(resBase, name);
+            if (fs.existsSync(resPath)) {
+                log('Using extraResources deno:', resPath);
+                return resPath;
+            }
         }
     } catch {
         //
     }
 
     // Check local bin/ (dev)
-    const devPath = path.join(__dirname, '..', '..', 'bin', binary);
-    if (fs.existsSync(devPath)) {
-        log('Using dev deno:', devPath);
-        return devPath;
+    const devBase = path.join(__dirname, '..', '..', 'bin');
+    for (const name of names) {
+        const devPath = path.join(devBase, name);
+        if (fs.existsSync(devPath)) {
+            log('Using dev deno:', devPath);
+            return devPath;
+        }
     }
 
     log('Bundled deno not found, hoping system PATH has it');
