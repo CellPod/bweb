@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('api', {
 
     getAppInfo: () => ipcRenderer.invoke('app:info'),
     checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    getAutoUpdateEnabled: () => ipcRenderer.invoke('settings:getAutoUpdateEnabled'),
+    setAutoUpdateEnabled: (enabled) => ipcRenderer.invoke('settings:setAutoUpdateEnabled', enabled),
 
     // History
     getHistory: () => ipcRenderer.invoke('history:get'),
@@ -85,10 +87,27 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('update-available', handler);
         return () => ipcRenderer.removeListener('update-available', handler);
     },
+    onUpdateConsentNeeded: (cb) => {
+        const handler = (_e, data) => cb(data);
+        ipcRenderer.on('update-consent-needed', handler);
+        return () => ipcRenderer.removeListener('update-consent-needed', handler);
+    },
+    onUpdateDownloadProgress: (cb) => {
+        const handler = (_e, data) => cb(data);
+        ipcRenderer.on('update-download-progress', handler);
+        return () => ipcRenderer.removeListener('update-download-progress', handler);
+    },
+    onUpdateReadyToInstall: (cb) => {
+        const handler = (_e, data) => cb(data);
+        ipcRenderer.on('update-ready-to-install', handler);
+        return () => ipcRenderer.removeListener('update-ready-to-install', handler);
+    },
+    installUpdate: () => ipcRenderer.invoke('update:install'),
 
     // Converter
     convertChooseFile: () => ipcRenderer.invoke('convert:chooseFile'),
     convertFile: (inputPath, format, startTime, endTime) => ipcRenderer.invoke('convert:file', { inputPath, format, startTime, endTime }),
+    convertCancel: () => ipcRenderer.invoke('convert:cancel'),
     onConvertProgress: (cb) => {
         const handler = (_e, data) => cb(data);
         ipcRenderer.on('convert:progress', handler);

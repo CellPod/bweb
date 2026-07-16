@@ -147,6 +147,8 @@ let wasQueueActive = false;
 let isSignedIn = false;
 let isInstaSignedIn = false;
 let updateInfo = null;
+let updateReady = null;
+let updateConsent = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -319,6 +321,19 @@ window.api.onScraperItem(({ item, count }) => {
 window.api.onUpdateAvailable((data) => {
     updateInfo = data;
     addLog(`Update available: v${data.latest}`, 'highlight');
+    showUpdateBanner();
+});
+
+window.api.onUpdateReadyToInstall?.((data) => {
+    updateReady = data;
+    addLog(`Update v${data.version} downloaded — restart to install`, 'highlight');
+    showUpdateBanner();
+});
+
+window.api.onUpdateConsentNeeded?.((data) => {
+    updateConsent = data;
+    updateInfo = data;
+    addLog(`Update available: v${data.latest} — asking about automatic updates`, 'highlight');
     showUpdateBanner();
 });
 
@@ -1923,6 +1938,18 @@ async function loadSettings() {
         isInstaSignedIn = await window.api.checkInstaAuth();
         updateInstaAuthUI();
     } catch {}
+
+    try {
+        const enabled = await window.api.getAutoUpdateEnabled();
+        const toggle = $('autoUpdateToggle');
+        if (toggle) toggle.checked = enabled;
+    } catch {}
+}
+
+async function doToggleAutoUpdate(enabled) {
+    try {
+        await window.api.setAutoUpdateEnabled(enabled);
+    } catch {}
 }
 
 async function doResetApp() {
@@ -1950,16 +1977,56 @@ async function loadAbout() {
 }
 
 function showUpdateBanner() {
-    if (!updateInfo || !updateInfo.hasUpdate) return;
-
     const banner = $('updateBanner');
     if (!banner) return;
 
+    if (updateConsent) {
+        banner.innerHTML =
+            `<span>${escapeHtml(t('update.consentPrompt')(updateConsent.latest))}</span>` +
+            `<button class="btn-sm" onclick="doEnableAutoUpdate()">${escapeHtml(t('update.enableAutoUpdate'))}</button>` +
+            `<button class="btn-sm" onclick="doDeclineAutoUpdate()">${escapeHtml(t('update.notNow'))}</button>`;
+        banner.classList.add('visible');
+        return;
+    }
+
+    if (updateReady) {
+        banner.innerHTML =
+            `<span>${escapeHtml(t('update.downloaded')(updateReady.version))}</span>` +
+            `<button class="btn-sm" onclick="doInstallUpdate()">${escapeHtml(t('update.restart'))}</button>` +
+            `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismissNextQuit'))}">×</button>`;
+        banner.classList.add('visible');
+        return;
+    }
+
+    if (!updateInfo || !updateInfo.hasUpdate) return;
+
     banner.innerHTML =
-        `<span>A new version is available: <strong>v${escapeHtml(updateInfo.latest)}</strong></span>` +
-        `<button class="btn-sm" onclick="openExternal('${escapeHtml(updateInfo.url)}')">Download</button>` +
-        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="Dismiss">×</button>`;
+        `<span>${escapeHtml(t('update.newVersion'))} <strong>v${escapeHtml(updateInfo.latest)}</strong></span>` +
+        `<button class="btn-sm" onclick="openExternal('${escapeHtml(updateInfo.url)}')">${escapeHtml(t('update.download'))}</button>` +
+        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}">×</button>`;
     banner.classList.add('visible');
+}
+
+function doInstallUpdate() {
+    window.api.installUpdate();
+}
+
+async function doEnableAutoUpdate() {
+    await window.api.setAutoUpdateEnabled(true);
+    const toggle = $('autoUpdateToggle');
+    if (toggle) toggle.checked = true;
+    updateConsent = null;
+    addLog('Automatic updates enabled', 'highlight');
+    dismissUpdateBanner();
+}
+
+async function doDeclineAutoUpdate() {
+    await window.api.setAutoUpdateEnabled(false);
+    const toggle = $('autoUpdateToggle');
+    if (toggle) toggle.checked = false;
+    updateConsent = null;
+    // Still let them know a new version exists — just via the plain manual-download banner.
+    showUpdateBanner();
 }
 
 function dismissUpdateBanner() {
@@ -1971,14 +2038,22 @@ function renderAboutUpdate() {
     const el = $('aboutUpdateStatus');
     if (!el) return;
 
-    if (updateInfo && updateInfo.hasUpdate) {
+    if (updateReady) {
         el.innerHTML =
             `<div class="about-update-available">` +
-            `<span>v${escapeHtml(updateInfo.latest)} is available</span>` +
-            `<a href="#" onclick="openExternal('${escapeHtml(updateInfo.url)}'); return false;">View release</a>` +
+            `<span>${escapeHtml(t('update.downloadedAbout')(updateReady.version))}</span>` +
+            `<a href="#" onclick="doInstallUpdate(); return false;">${escapeHtml(t('update.restartInstall'))}</a>` +
             `</div>`;
+    } else if (updateInfo && updateInfo.hasUpdate) {
+        const notes = (updateInfo.body || '').trim();
+        el.innerHTML =
+            `<div class="about-update-available">` +
+            `<span>${escapeHtml(t('update.availableAbout')(updateInfo.latest))}</span>` +
+            `<a href="#" onclick="openExternal('${escapeHtml(updateInfo.url)}'); return false;">${escapeHtml(t('update.viewRelease'))}</a>` +
+            `</div>` +
+            (notes ? `<div class="about-release-notes">${escapeHtml(notes)}</div>` : '');
     } else if (updateInfo && !updateInfo.hasUpdate && !updateInfo.error) {
-        el.textContent = "You're on the latest version";
+        el.textContent = t('update.upToDate');
     } else {
         el.textContent = '';
     }
@@ -2373,6 +2448,8 @@ async function doConvert() {
     if (progressWrap) progressWrap.style.display = 'block';
     if (bar) bar.style.width = '0%';
     if (label) label.textContent = '0%';
+    const cancelBtn = document.getElementById('convertCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = 'inline';
 
     addLog(`Converting: ${convertFilePath.split('/').pop()} → ${format.toUpperCase()}`, 'highlight');
 
@@ -2386,13 +2463,23 @@ async function doConvert() {
         if (bar) bar.style.width = '100%';
         if (label) label.textContent = '100% ✓';
     } catch (err) {
-        showToast('Conversion failed', 'error');
-        addLog(`Conversion error: ${err.message}`, 'error');
+        if (err.message === 'Cancelled') {
+            showToast('Conversion cancelled', 'info');
+            addLog('Conversion cancelled', 'highlight');
+        } else {
+            showToast('Conversion failed', 'error');
+            addLog(`Conversion error: ${err.message}`, 'error');
+        }
     } finally {
         convertInProgress = false;
         btn.disabled = false;
         btn.textContent = 'Convert';
+        if (cancelBtn) cancelBtn.style.display = 'none';
     }
+}
+
+async function doCancelConvert() {
+    await window.api.convertCancel();
 }
 
 initLang();

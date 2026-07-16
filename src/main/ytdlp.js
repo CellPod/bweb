@@ -327,7 +327,7 @@ function cleanInfo(raw) {
     };
 }
 
-function buildPresets(formats) {
+function buildPresets(formats, durationSeconds) {
     // Collect every unique height yt-dlp reports
     // Any format with a height is video, regardless of codec reporting.
     // Some sites report vcodec/acodec as 'none' for muxed streams.
@@ -421,11 +421,18 @@ function buildPresets(formats) {
         audioFormat: 'm4a',
     });
 
+    // FLAC/WAV are lossless: their output size tracks the PCM duration (sample rate × bit
+    // depth × channels), not the compressed source stream's filesize — using the source
+    // stream size here (like the lossy presets above) would understate the real output size
+    // by 5-10x. Estimate from duration instead (44.1kHz/16-bit/stereo), and show nothing
+    // rather than a confidently wrong number when duration isn't known.
+    const pcmBytesEstimate = durationSeconds ? Math.round(durationSeconds * 44100 * 2 * 2) : null;
+
     presets.push({
         id: 'audio-flac',
         label: 'FLAC',
         tag: '⚠ source lossy',
-        size: formatBytes(audioSize(() => true)),
+        size: formatBytes(pcmBytesEstimate ? Math.round(pcmBytesEstimate * 0.6) : null),
         formatId: 'ba/b',
         type: 'audio',
         audioFormat: 'flac',
@@ -435,7 +442,7 @@ function buildPresets(formats) {
         id: 'audio-wav',
         label: 'WAV',
         tag: '⚠ source lossy',
-        size: formatBytes(audioSize(() => true)),
+        size: formatBytes(pcmBytesEstimate),
         formatId: 'ba/b',
         type: 'audio',
         audioFormat: 'wav',
@@ -471,7 +478,13 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
     }
 
     if (extractAudio) {
-        args.push('-x', '--audio-format', audioFormat || 'mp3', '--audio-quality', '0', '--embed-thumbnail', '--add-metadata');
+        args.push('-x', '--audio-format', audioFormat || 'mp3', '--audio-quality', '0', '--add-metadata');
+        // yt-dlp only supports thumbnail embedding for mp3, mkv/mka, ogg/opus/flac, m4a/mp4/m4v/mov.
+        // WAV isn't one of them — embedding there fails postprocessing even though the download itself succeeded.
+        const THUMBNAIL_EMBED_FORMATS = new Set(['mp3', 'opus', 'flac', 'm4a']);
+        if (THUMBNAIL_EMBED_FORMATS.has(audioFormat || 'mp3')) {
+            args.push('--embed-thumbnail');
+        }
     } else if (formatId) {
         args.push('-f', formatId, '--merge-output-format', 'mp4');
         // Re-encode audio to AAC for universal playback.
@@ -498,8 +511,26 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
     return new Promise((resolve, reject) => {
         const proc = spawn(ytdlp, args, { env: getSpawnEnv() });
 
+        // Kill the process if yt-dlp produces zero output for this long — a dead socket or a
+        // stuck ffmpeg postprocess otherwise hangs the whole sequential queue indefinitely.
+        const STALL_TIMEOUT_MS = 5 * 60 * 1000;
+        let lastActivity = Date.now();
+        let stalled = false;
+        const stallTimer = setInterval(() => {
+            if (Date.now() - lastActivity > STALL_TIMEOUT_MS) {
+                stalled = true;
+                clearInterval(stallTimer);
+                logError('Download stalled — no output for', STALL_TIMEOUT_MS / 1000, 's, killing process');
+                onLog('Download stalled — no progress, cancelling.');
+                try {
+                    proc.kill('SIGTERM');
+                } catch { /**/ }
+            }
+        }, 30000);
+
         // Parse progress from both stdout and stderr
         function parseOutput(data) {
+            lastActivity = Date.now();
             const text = data.toString();
             const lines = text.split('\n');
             for (const line of lines) {
@@ -537,6 +568,10 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
         });
 
         proc.on('close', (code, signal) => {
+            clearInterval(stallTimer);
+            if (stalled) {
+                return reject(new Error(`Download stalled — no progress for ${STALL_TIMEOUT_MS / 60000} minutes`));
+            }
             if (signal) {
                 // Killed externally (pause/cancel) — reject silently, no user-facing log
                 return reject(new Error(`killed:${signal}`));
@@ -553,6 +588,7 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
         });
 
         proc.on('error', (err) => {
+            clearInterval(stallTimer);
             logError('Download spawn error:', err.message);
             reject(new Error(`Cannot run yt-dlp: ${err.message}`));
         });

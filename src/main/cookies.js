@@ -105,13 +105,14 @@ async function writeYtCookieFile() {
     const ses = session.fromPartition(YT_PARTITION);
     const cookies = await ses.cookies.get({});
 
-    const relevant = cookies.filter((c) => {
-        const d = c.domain || '';
-        return d.includes('youtube.com') || d.includes('google.com') || d.includes('googleapis.com');
-    });
+    // Scoped to youtube.com only. Google's login sets the session cookies yt-dlp needs
+    // (SID/SAPISID/LOGIN_INFO-class) directly on .youtube.com once the login window lands
+    // there — no need to also capture the broader google.com/googleapis.com account-wide
+    // session cookies, which would expose more than this feature needs if the file ever leaks.
+    const relevant = cookies.filter((c) => (c.domain || '').includes('youtube.com'));
 
     if (relevant.length === 0) {
-        log('No YouTube/Google cookies found');
+        log('No YouTube cookies found');
         return;
     }
 

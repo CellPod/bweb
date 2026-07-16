@@ -9,11 +9,42 @@ const ytdlp = require('./ytdlp');
 const cookies = require('./cookies');
 const { queue } = require('./queue');
 const updater = require('./updater');
+const { autoUpdater } = require('electron-updater');
 const scraper = require('./scraper');
 const { DEV_MODE, log, logError } = require('./utils');
 const fs = require('fs');
 
 const APP_NAME = 'bWeb';
+
+// Silent background auto-update runs on all platforms. macOS builds are ad-hoc signed
+// (see scripts/adhoc-sign-mac.js) — free, no Apple Developer account — which is enough
+// for Squirrel.Mac (electron-updater's mac mechanism) to accept and install updates.
+// It doesn't remove Gatekeeper's "unidentified developer" warning on first launch though;
+// only a paid Developer ID cert + notarization would avoid that one-time prompt.
+const SILENT_AUTOUPDATE = !DEV_MODE;
+
+if (SILENT_AUTOUPDATE) {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on('update-available', (info) => {
+        log('Auto-updater: update available', info.version);
+        autoUpdater.downloadUpdate();
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+        send('update-download-progress', { percent: progress.percent });
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+        log('Auto-updater: update downloaded', info.version);
+        send('update-ready-to-install', { version: info.version });
+    });
+
+    autoUpdater.on('error', (err) => {
+        logError('Auto-updater error:', err.message);
+    });
+}
 
 let mainWindow = null;
 
@@ -70,10 +101,29 @@ function createWindow() {
                 const result = await updater.checkForUpdates(app.getVersion());
                 if (result.hasUpdate) {
                     log('Update available:', result.latest);
-                    send('update-available', result);
+
+                    if (store.get('autoUpdateEnabled') === true) {
+                        // Already opted in — the silent flow below will download and
+                        // notify once it's ready, no need for the plain banner too.
+                    } else if (SILENT_AUTOUPDATE && store.get('autoUpdateConsentAskedForVersion') !== result.latest) {
+                        // Never force this on someone: ask once per new version instead of
+                        // silently enabling it, and don't nag again if they already answered.
+                        store.set('autoUpdateConsentAskedForVersion', result.latest);
+                        send('update-consent-needed', result);
+                    } else {
+                        send('update-available', result);
+                    }
                 }
             } catch (err) {
                 logError('Startup update check failed:', err.message);
+            }
+
+            if (SILENT_AUTOUPDATE && store.get('autoUpdateEnabled') === true) {
+                try {
+                    await autoUpdater.checkForUpdates();
+                } catch (err) {
+                    logError('Silent update check failed:', err.message);
+                }
             }
         }, 3000);
     });
@@ -92,6 +142,10 @@ app.whenReady().then(() => {
         defaults: {
             downloadPath: path.join(app.getPath('downloads'), APP_NAME),
             history: [],
+            // Undecided until the user explicitly answers the consent prompt (or flips the
+            // Settings toggle) — never silently opt them into automatic downloads.
+            autoUpdateEnabled: false,
+            autoUpdateConsentAskedForVersion: null,
         },
     });
 
@@ -210,7 +264,7 @@ ipcMain.handle('video:fetch', async (_e, url) => {
         const { info, raw } = await ytdlp.fetchInfo(url, {
             onLog: (msg) => send('log', msg),
         });
-        const presets = ytdlp.buildPresets(info.formats);
+        const presets = ytdlp.buildPresets(info.formats, info.duration);
         send('log', `Found: ${info.title}`);
         log('Presets:', presets.map((p) => p.label).join(', '));
 
@@ -267,6 +321,23 @@ ipcMain.handle('app:checkForUpdates', async () => {
         send('update-available', result);
     }
     return result;
+});
+
+ipcMain.handle('update:install', () => {
+    if (SILENT_AUTOUPDATE) {
+        autoUpdater.quitAndInstall();
+    }
+});
+
+ipcMain.handle('settings:getAutoUpdateEnabled', () => store.get('autoUpdateEnabled') === true);
+
+ipcMain.handle('settings:setAutoUpdateEnabled', (_e, enabled) => {
+    store.set('autoUpdateEnabled', !!enabled);
+    log('Auto-update enabled set to:', !!enabled);
+    if (enabled && SILENT_AUTOUPDATE) {
+        autoUpdater.checkForUpdates().catch((err) => logError('Update check after opt-in failed:', err.message));
+    }
+    return !!enabled;
 });
 
 // Auth
@@ -449,11 +520,16 @@ ipcMain.handle('convert:chooseFile', async () => {
     return result.filePaths[0];
 });
 
+let currentConvertHandle = null;
+
 ipcMain.handle('convert:file', async (_e, { inputPath, format, startTime, endTime }) => {
     log('Convert requested:', inputPath, '->', format, startTime ? `[${startTime} - ${endTime || 'end'}]` : '');
     const ffmpegBin = ytdlp.getFfmpegPath();
     const outputPath = converter.getOutputPath(inputPath, format, startTime, endTime);
     if (!outputPath) throw new Error(`Unknown format: ${format}`);
+
+    const handle = {};
+    currentConvertHandle = handle;
 
     try {
         const result = await converter.convertFile(
@@ -465,13 +541,32 @@ ipcMain.handle('convert:file', async (_e, { inputPath, format, startTime, endTim
             (msg) => send('log', msg),
             startTime || null,
             endTime || null,
+            handle,
         );
         send('log', `Conversion complete ✓ → ${outputPath}`);
         return result;
     } catch (err) {
-        send('log', `Conversion failed: ${err.message}`);
+        if (err.message === 'Cancelled') {
+            // Delete the partial/corrupt output ffmpeg was killed mid-write to.
+            try {
+                fs.unlinkSync(outputPath);
+            } catch { /**/ }
+            send('log', 'Conversion cancelled');
+        } else {
+            send('log', `Conversion failed: ${err.message}`);
+        }
         throw err;
+    } finally {
+        currentConvertHandle = null;
     }
+});
+
+ipcMain.handle('convert:cancel', () => {
+    if (currentConvertHandle && currentConvertHandle.cancel) {
+        currentConvertHandle.cancel();
+        return true;
+    }
+    return false;
 });
 
 ipcMain.handle('app:reset', async () => {

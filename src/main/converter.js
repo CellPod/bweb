@@ -43,7 +43,7 @@ function getOutputPath(inputPath, format, startTime, endTime) {
     return path.join(dir, `${base}${suffix}${trimSuffix}_converted${preset.ext}`);
 }
 
-function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime) {
+function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime, handle) {
     return new Promise((resolve, reject) => {
         const preset = FORMAT_PRESETS[format];
         if (!preset) return reject(new Error(`Unknown format: ${format}`));
@@ -73,7 +73,16 @@ function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog
         const proc = spawn(ffmpegBin, args);
         let stderrBuf = '';
         let stdoutBuf = '';
-        let killed = false;
+        let cancelled = false;
+
+        if (handle) {
+            handle.cancel = () => {
+                cancelled = true;
+                try {
+                    proc.kill('SIGTERM');
+                } catch { /**/ }
+            };
+        }
 
         proc.stderr.on('data', (d) => {
             const text = d.toString();
@@ -115,7 +124,10 @@ function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog
         });
 
         proc.on('close', (code) => {
-            if (killed) return;
+            if (cancelled) {
+                log('Convert cancelled:', inputPath);
+                return reject(new Error('Cancelled'));
+            }
             if (code !== 0) {
                 const lastLines = stderrBuf.trim().split('\n').slice(-5).join(' ');
                 logError('Convert failed (code', code + '):', lastLines);
@@ -127,7 +139,7 @@ function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog
         });
 
         proc.on('error', (err) => {
-            killed = true;
+            cancelled = true;
             logError('Convert spawn error:', err.message);
             reject(new Error(`Cannot run ffmpeg: ${err.message}`));
         });

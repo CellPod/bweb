@@ -93,6 +93,7 @@ const TRANSLATIONS = {
         'convert.og.rare':       'Rare formats',
         'convert.warn.lossy':    '⚠ FLAC/WAV only improves if source is lossless. On a compressed video, the file will be larger with no quality gain.',
         'convert.btn':           'Convert',
+        'convert.cancel':        'Cancel',
 
         // Settings view
         'settings.appearance':     'Appearance',
@@ -120,6 +121,9 @@ const TRANSLATIONS = {
         'settings.insta.hint':     'Sign in to download from your saved collections. Your credentials go directly to Instagram — this app never sees your password.',
         'settings.deps':           'Dependencies',
         'settings.checking':       'Checking…',
+        'settings.updates':            'Updates',
+        'settings.autoUpdate.label':    'Automatic updates',
+        'settings.autoUpdate.desc':     'Downloads and installs updates in the background automatically',
 
         // About view
         'about.checkUpdates':      'Check for updates',
@@ -148,6 +152,22 @@ const TRANSLATIONS = {
         'action.remove':      'Remove',
         'action.download':    'Download again',
         'msg.items':          (n) => `${n} item${n !== 1 ? 's' : ''}`,
+
+        // Update banner / About update status (dynamic, renderer.js)
+        'update.newVersion':        'A new version is available:',
+        'update.download':          'Download',
+        'update.dismiss':           'Dismiss',
+        'update.downloaded':        (v) => `Update v${v} downloaded — restart to install`,
+        'update.restart':           'Restart & Update',
+        'update.dismissNextQuit':   'Install on next quit instead',
+        'update.availableAbout':    (v) => `v${v} is available`,
+        'update.viewRelease':       'View release',
+        'update.upToDate':          "You're on the latest version",
+        'update.downloadedAbout':   (v) => `v${v} downloaded`,
+        'update.restartInstall':    'Restart & install',
+        'update.consentPrompt':     (v) => `A new version v${v} is available. Enable automatic updates?`,
+        'update.enableAutoUpdate':  'Enable auto-updates',
+        'update.notNow':            'Not now',
     },
 
     fr: {
@@ -239,6 +259,7 @@ const TRANSLATIONS = {
         'convert.og.rare':       'Formats rares',
         'convert.warn.lossy':    '⚠ FLAC/WAV ne s\'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.',
         'convert.btn':           'Convertir',
+        'convert.cancel':        'Annuler',
 
         // Settings view
         'settings.appearance':     'Apparence',
@@ -266,6 +287,9 @@ const TRANSLATIONS = {
         'settings.insta.hint':     'Connectez-vous pour télécharger depuis vos collections sauvegardées. Vos identifiants vont directement à Instagram — cette app ne voit jamais votre mot de passe.',
         'settings.deps':           'Dépendances',
         'settings.checking':       'Vérification…',
+        'settings.updates':            'Mises à jour',
+        'settings.autoUpdate.label':    'Mises à jour automatiques',
+        'settings.autoUpdate.desc':     'Télécharge et installe les mises à jour automatiquement en arrière-plan',
 
         // About view
         'about.checkUpdates':      'Vérifier les mises à jour',
@@ -294,6 +318,22 @@ const TRANSLATIONS = {
         'action.remove':      'Supprimer',
         'action.download':    'Retélécharger',
         'msg.items':          (n) => `${n} élément${n !== 1 ? 's' : ''}`,
+
+        // Update banner / About update status (dynamic, renderer.js)
+        'update.newVersion':        'Une nouvelle version est disponible :',
+        'update.download':          'Télécharger',
+        'update.dismiss':           'Ignorer',
+        'update.downloaded':        (v) => `Mise à jour v${v} téléchargée — redémarrez pour l'installer`,
+        'update.restart':           'Redémarrer et mettre à jour',
+        'update.dismissNextQuit':   'Installer à la prochaine fermeture',
+        'update.availableAbout':    (v) => `v${v} est disponible`,
+        'update.viewRelease':       'Voir la version',
+        'update.upToDate':          'Vous avez la dernière version',
+        'update.downloadedAbout':   (v) => `v${v} téléchargée`,
+        'update.restartInstall':    'Redémarrer et installer',
+        'update.consentPrompt':     (v) => `Une nouvelle version v${v} est disponible. Activer les mises à jour automatiques ?`,
+        'update.enableAutoUpdate':  'Activer les mises à jour auto',
+        'update.notNow':            'Pas maintenant',
     },
 };
 

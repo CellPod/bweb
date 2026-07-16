@@ -173,6 +173,27 @@ npm run build:linux
 
 ---
 
+## Releasing an update
+
+All three platforms auto-update silently in the background via `electron-updater` reading GitHub Releases. The macOS build is **ad-hoc signed** (`scripts/adhoc-sign-mac.js`, run as an electron-builder `afterSign` hook) — a free signature that needs no Apple Developer account. This is enough for Squirrel.Mac (electron-updater's macOS mechanism) to accept and install updates; verified end-to-end (check → download → install → relaunch) with a local test build. It does *not* remove Gatekeeper's "Apple could not verify this app is free of malware" prompt on **first** install — users right-click → Open once to bypass it. Only a paid Developer ID certificate + notarization would remove that one-time prompt; this project doesn't have one.
+
+To ship a new version:
+
+1. Bump `"version"` in `package.json` (e.g. `1.0.0` → `1.0.1`).
+2. Export a GitHub token with `repo` scope as `GH_TOKEN`. If the `gh` CLI is already authenticated on this machine (`gh auth status`), reuse its token instead of creating a new one: `export GH_TOKEN=$(gh auth token)`
+3. Build and publish per platform (each uploads the installer **and** the `latest*.yml` file electron-updater checks against):
+   ```bash
+   npm run release:mac
+   npm run release:win     # from macOS via cross-platform build vars above, or from Windows
+   npm run release:linux
+   ```
+   Each command creates/updates a draft GitHub Release tagged `vX.Y.Z` and uploads the artifacts.
+4. Publish the draft release on GitHub once all platforms you're shipping are uploaded.
+
+Users get the update automatically within ~3 seconds of their next app launch (downloaded silently, applied on next quit, or immediately if they click "Restart & Update"). They can opt out in Settings → Updates.
+
+---
+
 ## Project Structure
 
 ```
@@ -186,7 +207,8 @@ bweb/
 │   │   ├── cookies.js      # YouTube + Instagram cookie auth
 │   │   ├── scraper.js      # Instagram collection scraper (BrowserWindow)
 │   │   ├── converter.js    # Local file conversion via ffmpeg
-│   │   ├── updater.js      # Update checker via GitHub Releases API
+│   │   ├── updater.js      # Update checker via GitHub Releases API (mac: shows a banner/link)
+│   │   │                   # electron-updater (in main.js) handles silent auto-update on win/linux
 │   │   └── utils.js        # Dev mode flag, logging helpers
 │   └── renderer/
 │       ├── index.html      # UI structure

@@ -98,14 +98,15 @@ class DownloadQueue {
 
     pause() {
         this._paused = true;
-        if (this._currentProc) {
+        // Gate on _isProcessing, not _currentProc: the process handle isn't assigned until
+        // yt-dlp actually spawns (after an async cookie-file read), so relying on _currentProc
+        // alone silently drops pause/cancel requests made in that window. Always record intent
+        // here; _killCurrentProc()/the poll loop in _downloadOne() apply it as soon as possible.
+        if (this._isProcessing) {
             log('Queue: pausing — stopping current download');
             this._pauseCancelled = true;
             this._cancelled = true;
-            try {
-                this._currentProc.kill('SIGTERM');
-            } catch { /**/ }
-            this._currentProc = null;
+            this._killCurrentProc();
         }
         this._emitQueueUpdate();
     }
@@ -115,16 +116,22 @@ class DownloadQueue {
     }
 
     cancelCurrent() {
-        if (this._currentProc) {
+        if (this._isProcessing) {
             log('Queue: cancelling current');
             this._cancelled = true;
+            this._killCurrentProc();
+        }
+    }
+
+    _killCurrentProc() {
+        if (this._currentProc) {
             try {
                 this._currentProc.kill('SIGTERM');
-            } catch {
-                //
-            }
+            } catch { /**/ }
             this._currentProc = null;
         }
+        // else: yt-dlp hasn't spawned yet — the poll loop in _downloadOne() kills it
+        // the instant the process handle appears, since _cancelled is already set.
     }
 
     cancelAll() {
@@ -344,6 +351,10 @@ class DownloadQueue {
             if (callbacks._proc) {
                 this._currentProc = callbacks._proc;
                 clearInterval(pollInterval);
+                // A pause/cancel came in before yt-dlp had spawned — honor it now.
+                if (this._cancelled) {
+                    this._killCurrentProc();
+                }
             }
         }, 50);
 
@@ -382,8 +393,10 @@ class DownloadQueue {
 
     _persist() {
         if (!this._store) return;
+        // Include DOWNLOADING items too — if the app quits or crashes mid-download, that item
+        // would otherwise vanish from the queue instead of resuming as pending next launch.
         const pending = this._items
-            .filter((i) => i.state === STATE.PENDING)
+            .filter((i) => i.state === STATE.PENDING || i.state === STATE.DOWNLOADING)
             .map(({ url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments }) => ({
                 url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments,
             }));

@@ -333,6 +333,7 @@ html.platform-mac .sidebar-header {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
 }
 
 .view {
@@ -547,6 +548,7 @@ html.platform-mac .sidebar-header {
 
 .url-input {
     flex: 1;
+    min-width: 0;
     padding: 10px 14px;
     border: 1px solid var(--input-border);
     border-radius: var(--radius);
@@ -1137,6 +1139,50 @@ html.platform-mac .sidebar-header {
 .settings-row-action--gap {
     display: flex;
     gap: 6px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 21px;
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-track {
+    position: absolute;
+    inset: 0;
+    background: var(--input-border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.switch-track::before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.15s;
+    box-shadow: var(--shadow-sm);
+}
+
+.switch input:checked + .switch-track {
+    background: var(--accent);
+}
+
+.switch input:checked + .switch-track::before {
+    transform: translateX(15px);
 }
 
 .settings-placeholder {
@@ -1846,6 +1892,20 @@ html.platform-mac .sidebar-header {
     margin-top: 10px;
 }
 
+.about-release-notes {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 140px;
+    overflow-y: auto;
+    text-align: left;
+    white-space: pre-wrap;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
 .about-description {
     text-align: center;
     font-size: 14px;
@@ -1994,6 +2054,40 @@ html.platform-mac .sidebar-header {
 .fetch-panel-items::-webkit-scrollbar-thumb {
     background: var(--text-3);
     border-radius: 2px;
+}
+
+/* Narrow window: stack the fetch queue below the main panel instead of squeezing it into a sliver */
+@container (max-width: 820px) {
+    .dl-content {
+        flex-direction: column;
+    }
+
+    .fetch-panel {
+        width: 100%;
+    }
+
+    .fetch-panel-items {
+        max-height: 220px;
+    }
+}
+
+/* Narrow window: stack the thumbnail above the video info instead of crushing both */
+@container (max-width: 560px) {
+    .video-top {
+        flex-direction: column;
+    }
+
+    .video-thumb-wrap {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* Narrow window: the fixed 28px side padding eats too much of the available width */
+@container (max-width: 460px) {
+    .view {
+        padding: 16px 14px 16px;
+    }
 }
 
 .fp-item {
@@ -2526,9 +2620,28 @@ html.platform-mac .sidebar-header {
     transition: width 0.3s ease;
 }
 
+.convert-progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
 .convert-progress-label {
     font-size: 12px;
     color: var(--text-2);
+}
+
+.convert-cancel-btn {
+    font-size: 12px;
+    color: var(--danger);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.convert-cancel-btn:hover {
+    text-decoration: underline;
 }
 
 .convert-btn { margin-top: 4px; }

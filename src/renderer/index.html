@@ -435,7 +435,10 @@
                         <div class="convert-progress-bar-track">
                             <div id="convertProgressBar" class="convert-progress-bar" style="width:0%"></div>
                         </div>
-                        <div id="convertProgressLabel" class="convert-progress-label">0%</div>
+                        <div class="convert-progress-row">
+                            <div id="convertProgressLabel" class="convert-progress-label">0%</div>
+                            <button id="convertCancelBtn" class="convert-cancel-btn" data-i18n="convert.cancel" onclick="doCancelConvert()" style="display:none">Cancel</button>
+                        </div>
                     </div>
 
                     <button id="convertBtn" class="btn-download convert-btn" data-i18n="convert.btn" onclick="doConvert()" disabled>Convert</button>
@@ -510,6 +513,22 @@
                         </div>
                         <div class="settings-row-action">
                             <button class="btn-sm btn-sm-danger" data-i18n="settings.reset.btn" onclick="doResetApp()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.updates">Updates</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.autoUpdate.label">Automatic updates</div>
+                            <div class="settings-row-value" data-i18n="settings.autoUpdate.desc">Downloads and installs updates in the background automatically</div>
+                        </div>
+                        <div class="settings-row-action">
+                            <label class="switch">
+                                <input type="checkbox" id="autoUpdateToggle" onchange="doToggleAutoUpdate(this.checked)" />
+                                <span class="switch-track"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
