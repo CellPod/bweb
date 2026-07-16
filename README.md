@@ -182,27 +182,6 @@ npm run build:linux
 
 ---
 
-## Releasing an update
-
-All three platforms can auto-update via `electron-updater` reading GitHub Releases — but only once a user explicitly opts in (see Settings above); nothing downloads or installs in the background without consent. The macOS build is **ad-hoc signed** (`scripts/adhoc-sign-mac.js`, run as an electron-builder `afterSign` hook) — a free signature that needs no Apple Developer account. This is enough for Squirrel.Mac (electron-updater's macOS mechanism) to accept and install updates; verified end-to-end (check → download → install → relaunch) with a local test build. It does *not* remove Gatekeeper's "Apple could not verify this app is free of malware" prompt on **first** install — users right-click → Open once to bypass it. Only a paid Developer ID certificate + notarization would remove that one-time prompt; this project doesn't have one.
-
-To ship a new version:
-
-1. Bump `"version"` in `package.json` (e.g. `1.0.0` → `1.0.1`).
-2. Export a GitHub token with `repo` scope as `GH_TOKEN`. If the `gh` CLI is already authenticated on this machine (`gh auth status`), reuse its token instead of creating a new one: `export GH_TOKEN=$(gh auth token)`
-3. Build and publish per platform (each uploads the installer **and** the `latest*.yml` file electron-updater checks against):
-   ```bash
-   npm run release:mac
-   npm run release:win     # from macOS via cross-platform build vars above, or from Windows
-   npm run release:linux
-   ```
-   Each command creates/updates a draft GitHub Release tagged `vX.Y.Z` and uploads the artifacts.
-4. Publish the draft release on GitHub once all platforms you're shipping are uploaded.
-
-A few seconds after launch, the app checks for updates. If it's a new version, the user is asked once whether to enable automatic updates for good — decline and you just get a plain link to the release page instead. Once enabled, updates download in the background and install on next quit (or immediately via "Restart & Update"). This can be changed anytime in Settings → Updates.
-
----
-
 ## Project Structure
 
 ```
