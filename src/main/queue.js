@@ -66,6 +66,7 @@ class DownloadQueue {
                 audioFormat: item.audioFormat || 'mp3',
                 videoCodec: item.videoCodec || null,
                 trimSegments: item.trimSegments || null,
+                liveFromStart: item.liveFromStart || false,
                 state: STATE.PENDING,
                 error: null,
                 progress: null, // { percent, speed, eta }
@@ -341,6 +342,7 @@ class DownloadQueue {
                 audioFormat: item.audioFormat,
                 videoCodec: item.videoCodec,
                 trimSegments: item.trimSegments,
+                liveFromStart: item.liveFromStart,
             },
             callbacks,
         );
@@ -397,8 +399,8 @@ class DownloadQueue {
         // would otherwise vanish from the queue instead of resuming as pending next launch.
         const pending = this._items
             .filter((i) => i.state === STATE.PENDING || i.state === STATE.DOWNLOADING)
-            .map(({ url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments }) => ({
-                url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments,
+            .map(({ url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart }) => ({
+                url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart,
             }));
         this._store.set('queue.pending', pending);
     }

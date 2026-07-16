@@ -287,6 +287,19 @@ async function fetchInfo(url, { onLog } = {}) {
     });
 }
 
+// Picks a small progressive (muxed, single-file, non-fragmented) format to use as an
+// in-app scrub preview for trim marking. DASH/HLS formats can't be played directly by a
+// plain <video> tag, and most live streams only expose those — this simply returns null
+// for them, and the caller falls back to the (live-only) YouTube iframe embed instead.
+function pickPreviewUrl(rawFormats) {
+    const progressive = (rawFormats || []).filter(
+        (f) => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.url && !f.fragments && (f.protocol === 'https' || f.protocol === 'http'),
+    );
+    if (progressive.length === 0) return null;
+    progressive.sort((a, b) => (a.height || 0) - (b.height || 0));
+    return (progressive.find((f) => (f.height || 0) >= 240) || progressive[progressive.length - 1]).url;
+}
+
 function cleanInfo(raw) {
     const formats = (raw.formats || []).map((f) => ({
         format_id: f.format_id,
@@ -322,6 +335,8 @@ function cleanInfo(raw) {
         webpage_url_domain: raw.webpage_url_domain || '',
         age_limit: raw.age_limit || 0,
         live_status: raw.live_status || 'not_live',
+        release_timestamp: raw.release_timestamp || raw.timestamp || null,
+        preview_url: pickPreviewUrl(raw.formats),
         formats,
         _fetched_at: Date.now(),
     };
@@ -451,7 +466,7 @@ function buildPresets(formats, durationSeconds) {
     return presets;
 }
 
-async function download({ url, formatId, outputDir, extractAudio, audioFormat, videoCodec, trimSegments }, callbacks) {
+async function download({ url, formatId, outputDir, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart }, callbacks) {
     const { onProgress, onLog } = callbacks;
 
     const ytdlp = getYtdlpPath();
@@ -496,6 +511,9 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
     }
 
     if (trimSegments && trimSegments.length > 0) {
+        // Live streams have no known total duration, so sections must be downloaded
+        // as the broadcast plays out from its actual start rather than from "now".
+        if (liveFromStart) args.push('--live-from-start');
         for (const seg of trimSegments) {
             const start = seg.start || '0';
             const end = seg.end || 'inf';

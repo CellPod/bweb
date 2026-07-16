@@ -178,11 +178,33 @@ async function downloadDeno() {
     }
 }
 
+// Cross-platform builds (see README) reuse this same bin/ folder across platform
+// switches. Without this, a leftover binary from a previous platform's install just
+// sits there — and since electron-builder's per-platform extraResources filter only
+// looks at what's physically in bin/, a stale foreign binary would get bundled into
+// every subsequent build regardless of target OS.
+function removeForeignPlatformBinaries() {
+    const outputName = getYtdlpOutputName();
+    const denoInfo = getDenoBinaryInfo();
+    const keep = new Set([outputName, denoInfo?.exe].filter(Boolean));
+    const ALL_KNOWN_BINARIES = ['yt-dlp', 'yt-dlp.exe', 'deno', 'deno.exe'];
+
+    for (const name of ALL_KNOWN_BINARIES) {
+        if (keep.has(name)) continue;
+        const p = path.join(BIN_DIR, name);
+        if (fs.existsSync(p)) {
+            fs.unlinkSync(p);
+            console.log(`  Removed stale binary from another platform: bin/${name}`);
+        }
+    }
+}
+
 async function main() {
     if (!fs.existsSync(BIN_DIR)) {
         fs.mkdirSync(BIN_DIR, { recursive: true });
     }
 
+    removeForeignPlatformBinaries();
     await downloadYtdlp();
     await downloadDeno();
 }

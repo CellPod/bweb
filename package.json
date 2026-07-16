@@ -1,6 +1,6 @@
 {
     "name": "bweb",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Video downloader powered by yt-dlp",
     "main": "src/main/main.js",
     "author": "Baba",
@@ -36,26 +36,6 @@
             "node_modules/**/*",
             "package.json"
         ],
-        "extraResources": [
-            {
-                "from": "bin/",
-                "to": "bin/",
-                "filter": [
-                    "yt-dlp",
-                    "yt-dlp.exe",
-                    "deno",
-                    "deno.exe"
-                ]
-            },
-            {
-                "from": "node_modules/ffmpeg-static/",
-                "to": "ffmpeg-static/",
-                "filter": [
-                    "ffmpeg",
-                    "ffmpeg.exe"
-                ]
-            }
-        ],
         "afterPack": "./scripts/fix-ffmpeg-win.js",
         "afterSign": "./scripts/adhoc-sign-mac.js",
         "mac": {
@@ -67,7 +47,11 @@
             ],
             "identity": null,
             "hardenedRuntime": false,
-            "gatekeeperAssess": false
+            "gatekeeperAssess": false,
+            "extraResources": [
+                { "from": "bin/", "to": "bin/", "filter": ["yt-dlp", "deno"] },
+                { "from": "node_modules/ffmpeg-static/", "to": "ffmpeg-static/", "filter": ["ffmpeg"] }
+            ]
         },
         "win": {
             "icon": "build/icon.ico",
@@ -78,12 +62,20 @@
                         "x64"
                     ]
                 }
+            ],
+            "extraResources": [
+                { "from": "bin/", "to": "bin/", "filter": ["yt-dlp.exe", "deno.exe"] },
+                { "from": "node_modules/ffmpeg-static/", "to": "ffmpeg-static/", "filter": ["ffmpeg.exe"] }
             ]
         },
         "linux": {
             "icon": "build/icon.png",
             "target": "AppImage",
-            "category": "Utility"
+            "category": "Utility",
+            "extraResources": [
+                { "from": "bin/", "to": "bin/", "filter": ["yt-dlp", "deno"] },
+                { "from": "node_modules/ffmpeg-static/", "to": "ffmpeg-static/", "filter": ["ffmpeg"] }
+            ]
         },
         "nsis": {
             "oneClick": true,

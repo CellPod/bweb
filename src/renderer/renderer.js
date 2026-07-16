@@ -967,7 +967,13 @@ function showCard() {
     $dlBtn.textContent = 'Add to Queue';
 
     // Init trim with video duration + URL (for YouTube player)
-    initDlTrim(videoInfo.duration || 0, videoInfo.webpage_url || '');
+    initDlTrim(videoInfo.duration || 0, videoInfo.webpage_url || '', {
+        isLive: videoInfo.live_status === 'is_live',
+        releaseTimestamp: videoInfo.release_timestamp || null,
+        videoId: videoInfo.id || null,
+        extractorKey: videoInfo.extractor_key || '',
+        previewUrl: videoInfo.preview_url || null,
+    });
 
     $card.classList.add('visible');
 }
@@ -1021,17 +1027,85 @@ function hideCard() {
 // ── Download trim ────────────────────────────────────────────────
 
 let dlTrimDuration = 0; // seconds, set from videoInfo.duration
+let dlIsLive = false;
+let dlLiveReleaseTimestamp = null; // epoch seconds when the live broadcast actually started
+let dlUsingPreviewVideo = false; // true when marking reads from the <video> preview's currentTime
 
-function initDlTrim(duration, url) {
+function initDlTrim(duration, url, opts = {}) {
     dlTrimDuration = duration || 0;
+    dlIsLive = !!opts.isLive;
+    dlLiveReleaseTimestamp = opts.releaseTimestamp || null;
+
     const section = document.getElementById('dlTrimSection');
     const durEl = document.getElementById('dlTrimDuration');
     const rangeEnd = document.getElementById('dlRangeEnd');
+    const sliderWrap = document.getElementById('dlSliderWrap');
+    const embedTrim = document.getElementById('dlEmbedTrim');
+    const embedWrap = document.getElementById('dlEmbedWrap');
+    const embed = document.getElementById('dlEmbed');
+    const previewVideo = document.getElementById('dlPreviewVideo');
+    const hint = document.getElementById('dlTrimHint');
     if (!section) return;
     section.style.display = 'flex'; // always show for fetched videos
-    if (durEl) durEl.textContent = dlTrimDuration > 0 ? `Duration: ${formatTime(dlTrimDuration)}` : '';
+
+    // Live streams rarely expose a progressive (single-file) format yt-dlp can hand to a
+    // plain <video> tag — they're normally HLS/DASH-only — so live falls back to the
+    // YouTube iframe embed (playback preview only, marking uses wall-clock time instead).
+    const canIframeEmbed = opts.extractorKey === 'Youtube' && !!opts.videoId;
+    dlUsingPreviewVideo = !dlIsLive && !!opts.previewUrl;
+
+    if (dlIsLive) {
+        // Duration keeps growing while the stream is live — the range slider has nothing
+        // meaningful to seek within, so swap it for the embed + mark-in/mark-out flow.
+        if (durEl) durEl.textContent = '';
+        if (sliderWrap) sliderWrap.style.display = 'none';
+        if (hint) { hint.dataset.i18n = 'dl.trim.liveHint'; hint.textContent = t('dl.trim.liveHint'); }
+    } else {
+        if (durEl) durEl.textContent = dlTrimDuration > 0 ? `Duration: ${formatTime(dlTrimDuration)}` : '';
+        if (sliderWrap) sliderWrap.style.display = 'flex';
+        if (hint) { hint.dataset.i18n = 'dl.trim.hint'; hint.textContent = t('dl.trim.hint'); }
+    }
+
+    const showEmbedBlock = (dlIsLive && canIframeEmbed) || dlUsingPreviewVideo;
+    if (embedTrim) embedTrim.style.display = showEmbedBlock ? 'flex' : 'none';
+    if (embedWrap) embedWrap.style.display = showEmbedBlock ? 'block' : 'none';
+
+    if (embed) {
+        embed.style.display = (dlIsLive && canIframeEmbed) ? 'block' : 'none';
+        embed.src = (dlIsLive && canIframeEmbed) ? `https://www.youtube.com/embed/${opts.videoId}?autoplay=1&mute=1` : '';
+    }
+    if (previewVideo) {
+        previewVideo.style.display = dlUsingPreviewVideo ? 'block' : 'none';
+        previewVideo.src = dlUsingPreviewVideo ? opts.previewUrl : '';
+    }
+
     if (rangeEnd) rangeEnd.value = 100;
     clearDlTrim();
+}
+
+function liveElapsedSeconds() {
+    if (!dlLiveReleaseTimestamp) return 0;
+    return Math.max(0, Math.floor(Date.now() / 1000 - dlLiveReleaseTimestamp));
+}
+
+function currentMarkSeconds() {
+    if (dlIsLive) return liveElapsedSeconds();
+    if (dlUsingPreviewVideo) return document.getElementById('dlPreviewVideo')?.currentTime || 0;
+    return 0;
+}
+
+function markTrimStart() {
+    const start = document.getElementById('dlTrimStart');
+    if (!start) return;
+    start.value = formatTime(currentMarkSeconds());
+    onSegmentInput(start);
+}
+
+function markTrimEnd() {
+    const end = document.getElementById('dlTrimEnd');
+    if (!end) return;
+    end.value = formatTime(currentMarkSeconds());
+    onSegmentInput(end);
 }
 
 function clearDlTrim() {
@@ -1094,6 +1168,12 @@ function onSegmentInput(input) {
     if (firstRow && firstRow.contains(input)) onDlTimeInput();
 }
 
+function seekPreviewVideo(seconds) {
+    if (!dlUsingPreviewVideo) return;
+    const video = document.getElementById('dlPreviewVideo');
+    if (video) video.currentTime = seconds;
+}
+
 function onDlRangeStartInput() {
     const rangeStart = document.getElementById('dlRangeStart');
     const rangeEnd = document.getElementById('dlRangeEnd');
@@ -1104,9 +1184,10 @@ function onDlRangeStartInput() {
     const e = parseFloat(rangeEnd.value);
     if (s >= e) { rangeStart.value = e - 0.5; s = parseFloat(rangeStart.value); }
 
-    if (start) start.value = formatTime((s / 100) * dlTrimDuration);
+    const seconds = (s / 100) * dlTrimDuration;
+    if (start) start.value = formatTime(seconds);
     updateDlRangeFill();
-
+    seekPreviewVideo(seconds);
 }
 
 function onDlRangeEndInput() {
@@ -1119,9 +1200,10 @@ function onDlRangeEndInput() {
     const s = parseFloat(rangeStart.value);
     if (e <= s) { rangeEnd.value = s + 0.5; e = parseFloat(rangeEnd.value); }
 
-    if (end) end.value = formatTime((e / 100) * dlTrimDuration);
+    const seconds = (e / 100) * dlTrimDuration;
+    if (end) end.value = formatTime(seconds);
     updateDlRangeFill();
-
+    seekPreviewVideo(seconds);
 }
 
 function onDlTimeInput() {
@@ -1231,6 +1313,7 @@ async function doDownload() {
                 audioFormat: isAudio ? selectedPreset.audioFormat || 'mp3' : undefined,
                 videoCodec: videoCodec,
                 trimSegments: getTrimSegments(),
+                liveFromStart: videoInfo.live_status === 'is_live',
             },
         ]);
 

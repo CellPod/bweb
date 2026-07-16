@@ -29,9 +29,10 @@ Go to the Releases page, scroll down to **Assets**, and pick the file for your s
 | Platform | File |
 |---|---|
 | macOS (Apple Silicon) | `bWeb-x.x.x-arm64.dmg` |
-| macOS (Intel) | `bWeb-x.x.x.dmg` |
-| Windows | `bWeb Setup x.x.x.exe` |
+| Windows | `bWeb-Setup-x.x.x.exe` |
 | Linux | `bWeb-x.x.x.AppImage` |
+
+> Only Apple Silicon Macs are built at the moment — no Intel (`x64`) mac build is published yet.
 
 No dependencies to install. yt-dlp and ffmpeg are bundled inside the app.
 
@@ -80,17 +81,20 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 - **Single video** — Paste a URL, preview the metadata and thumbnail, pick a quality (4K / 2K / 1080p / 720p / 480p or lower), download as MP4 or extract audio as MP3, M4A, OPUS, FLAC, or WAV
 - **Playlist** — Paste a playlist URL, select which items to download, pick a format for the whole batch
 - **Batch mode** — Paste up to 50 URLs at once, pick a quality preset, add them all to the queue
-- **Trim before download** — Set start and end points on the video timeline before adding to queue. Supports multiple segments
+- **Trim before download** — Scrub a real preview player (or drag the range slider — both stay in sync) to pick start/end points before adding to queue, or use "Mark start/end" while it plays. Supports multiple segments. Works on **live streams** too: since the total duration isn't known yet, marking is based on elapsed time since the broadcast actually started, and the download uses yt-dlp's `--live-from-start` to grab just that part
 
 ### Queue
 - Sequential processing with real-time progress per item
 - Pause, retry failed, clear done, or cancel all — one failure never stops the rest
 - Active download strip always visible at the bottom
+- In-progress downloads survive an app quit or crash — they resume as pending on next launch
+- A download that stalls for 5 minutes with no progress is auto-cancelled instead of blocking the rest of the queue
 
 ### Convert
 - Drop any local video or audio file to convert or trim it
 - Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more
 - Trim with a visual timeline before converting
+- Cancel mid-conversion — no partial output file left behind
 
 ### Account sign-in
 - **YouTube** — Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
@@ -108,6 +112,11 @@ yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a b
 - **6 accent colors** — Blue, Indigo, Purple, Teal, Tomato, Amber — the app logo changes color with your selection
 - **Light and dark mode** — Follows your system preference, or force one in Settings
 - **Download history** — Quick access to all previously fetched videos with cached metadata
+
+### Settings
+- **Download location** — Change where files are saved (defaults to `~/Downloads/bWeb`)
+- **Language, theme, accent color** — see Interface above
+- **Automatic updates** — Off by default. When a new version is found, you're asked once whether to enable it — nothing is ever downloaded or installed without your say-so. If you decline, you'll still see a plain notification with a link to grab the update manually; you're only asked again for the *next* new version
 
 ---
 
@@ -175,7 +184,7 @@ npm run build:linux
 
 ## Releasing an update
 
-All three platforms auto-update silently in the background via `electron-updater` reading GitHub Releases. The macOS build is **ad-hoc signed** (`scripts/adhoc-sign-mac.js`, run as an electron-builder `afterSign` hook) — a free signature that needs no Apple Developer account. This is enough for Squirrel.Mac (electron-updater's macOS mechanism) to accept and install updates; verified end-to-end (check → download → install → relaunch) with a local test build. It does *not* remove Gatekeeper's "Apple could not verify this app is free of malware" prompt on **first** install — users right-click → Open once to bypass it. Only a paid Developer ID certificate + notarization would remove that one-time prompt; this project doesn't have one.
+All three platforms can auto-update via `electron-updater` reading GitHub Releases — but only once a user explicitly opts in (see Settings above); nothing downloads or installs in the background without consent. The macOS build is **ad-hoc signed** (`scripts/adhoc-sign-mac.js`, run as an electron-builder `afterSign` hook) — a free signature that needs no Apple Developer account. This is enough for Squirrel.Mac (electron-updater's macOS mechanism) to accept and install updates; verified end-to-end (check → download → install → relaunch) with a local test build. It does *not* remove Gatekeeper's "Apple could not verify this app is free of malware" prompt on **first** install — users right-click → Open once to bypass it. Only a paid Developer ID certificate + notarization would remove that one-time prompt; this project doesn't have one.
 
 To ship a new version:
 
@@ -190,7 +199,7 @@ To ship a new version:
    Each command creates/updates a draft GitHub Release tagged `vX.Y.Z` and uploads the artifacts.
 4. Publish the draft release on GitHub once all platforms you're shipping are uploaded.
 
-Users get the update automatically within ~3 seconds of their next app launch (downloaded silently, applied on next quit, or immediately if they click "Restart & Update"). They can opt out in Settings → Updates.
+A few seconds after launch, the app checks for updates. If it's a new version, the user is asked once whether to enable automatic updates for good — decline and you just get a plain link to the release page instead. Once enabled, updates download in the background and install on next quit (or immediately via "Restart & Update"). This can be changed anytime in Settings → Updates.
 
 ---
 
@@ -207,8 +216,10 @@ bweb/
 │   │   ├── cookies.js      # YouTube + Instagram cookie auth
 │   │   ├── scraper.js      # Instagram collection scraper (BrowserWindow)
 │   │   ├── converter.js    # Local file conversion via ffmpeg
-│   │   ├── updater.js      # Update checker via GitHub Releases API (mac: shows a banner/link)
-│   │   │                   # electron-updater (in main.js) handles silent auto-update on win/linux
+│   │   ├── updater.js      # Update checker via GitHub Releases API (shows a banner/link)
+│   │   │                   # electron-updater (in main.js) handles auto-update once opted in
+│   │   ├── localServer.js  # Loopback-only HTTP server the renderer loads from (not file://,
+│   │   │                   # so the YouTube trim preview embed is allowed to load)
 │   │   └── utils.js        # Dev mode flag, logging helpers
 │   └── renderer/
 │       ├── index.html      # UI structure
@@ -216,9 +227,9 @@ bweb/
 │       ├── i18n.js         # EN/FR translations and language toggle
 │       └── index.css       # All styles
 ├── scripts/
-│   ├── postinstall.js      # Downloads yt-dlp binary on npm install
+│   ├── postinstall.js      # Downloads yt-dlp + Deno binaries on npm install
 │   └── fix-ffmpeg-win.js   # Renames ffmpeg binary for Windows builds
-├── bin/                    # yt-dlp binary (auto-populated by postinstall)
+├── bin/                    # yt-dlp + Deno binaries (auto-populated by postinstall)
 ├── build/                  # App icons (icon.icns, icon.ico, icon.png)
 ├── package.json
 ├── LICENSE

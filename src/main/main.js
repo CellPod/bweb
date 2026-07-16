@@ -13,6 +13,7 @@ const { autoUpdater } = require('electron-updater');
 const scraper = require('./scraper');
 const { DEV_MODE, log, logError } = require('./utils');
 const fs = require('fs');
+const { startLocalServer } = require('./localServer');
 
 const APP_NAME = 'bWeb';
 
@@ -67,7 +68,7 @@ function send(channel, data) {
     }
 }
 
-function createWindow() {
+async function createWindow() {
     const isMac = process.platform === 'darwin';
 
     mainWindow = new BrowserWindow({
@@ -88,7 +89,8 @@ function createWindow() {
         show: false,
     });
 
-    mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+    const { port } = await startLocalServer(path.join(__dirname, '..', 'renderer'));
+    mainWindow.loadURL(`http://127.0.0.1:${port}/index.html`);
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();

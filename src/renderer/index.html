@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none'; media-src https:; frame-src https://www.youtube.com;" />
     <title>bWeb</title>
     <link rel="stylesheet" href="./index.css" />
     <script src="./i18n.js"></script>
@@ -200,6 +200,17 @@
                                     <input class="dual-range" id="dlRangeEnd" type="range" min="0" max="100" value="100" step="0.1" oninput="onDlRangeEndInput()" />
                                     <div class="dual-range-track">
                                         <div class="dual-range-fill" id="dlRangeFill"></div>
+                                    </div>
+                                </div>
+                                <div id="dlEmbedTrim" class="dl-embed-trim" style="display:none">
+                                    <div id="dlEmbedWrap" class="dl-embed-wrap" style="display:none">
+                                        <iframe id="dlEmbed" class="dl-embed" style="display:none" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                                        <video id="dlPreviewVideo" class="dl-embed" style="display:none" controls muted preload="metadata"></video>
+                                    </div>
+                                    <p id="dlTrimHint" class="dl-trim-hint" data-i18n="dl.trim.hint">Watch below and mark the part you want.</p>
+                                    <div class="dl-embed-mark-row">
+                                        <button class="trim-set-btn" onclick="markTrimStart()"><span data-i18n="dl.trim.markStart">● Mark start</span></button>
+                                        <button class="trim-set-btn" onclick="markTrimEnd()"><span data-i18n="dl.trim.markEnd">● Mark end</span></button>
                                     </div>
                                 </div>
                                 <div id="trimSegmentsList">
