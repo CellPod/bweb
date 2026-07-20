@@ -2584,6 +2584,86 @@ html.platform-mac .update-banner {
 .convert-file-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .convert-clear-btn { flex-shrink: 0; }
 
+.convert-batch-wrap {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+}
+
+.convert-batch-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.convert-batch-title {
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+}
+
+.convert-batch-count {
+    font-size: 12px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.convert-batch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.convert-batch-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    font-size: 13px;
+}
+
+.convert-batch-item-name {
+    flex: 1;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.convert-batch-item-status {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.convert-batch-item-done .convert-batch-item-status { color: var(--success); }
+.convert-batch-item-error .convert-batch-item-status { color: var(--danger); }
+.convert-batch-item-converting .convert-batch-item-status { color: var(--accent); }
+
+.convert-batch-item-remove {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    background: none;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+}
+
+.convert-batch-item-remove:hover { color: var(--danger); }
+.convert-batch-item-remove-spacer { width: 18px; flex-shrink: 0; }
+
 .convert-options { display: flex; flex-direction: column; gap: 12px; }
 
 .convert-option-group { display: flex; flex-direction: column; gap: 6px; }

@@ -1,7 +1,8 @@
 // Main Process
 // Electron entry point. Window, IPC, app lifecycle.
 
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, protocol, net } = require('electron');
+const { pathToFileURL } = require('url');
 const converter = require('./converter');
 const path = require('path');
 const Store = require('electron-store');
@@ -16,6 +17,15 @@ const fs = require('fs');
 const { startLocalServer } = require('./localServer');
 
 const APP_NAME = 'bWeb';
+
+// The renderer now loads over http://127.0.0.1 (see localServer.js), not file://, so
+// Electron's own URL safety check blocks a plain file:// <video src> from that origin
+// ("Media load rejected by URL safety check"). This custom scheme is the sanctioned way
+// to hand the renderer a local file it can actually play — it just proxies to a real
+// file:// read from the trusted main process, for the Convert tab's local-file preview.
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'bweb-file', privileges: { stream: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
 
 // Silent background auto-update runs on all platforms. macOS builds are ad-hoc signed
 // (see scripts/adhoc-sign-mac.js) — free, no Apple Developer account — which is enough
@@ -138,6 +148,12 @@ async function createWindow() {
 app.whenReady().then(() => {
     log('App starting, DEV_MODE:', DEV_MODE);
     log('Platform:', process.platform, process.arch);
+
+    protocol.handle('bweb-file', (request) => {
+        const encodedPath = request.url.slice('bweb-file://'.length).replace(/^\/+/, '');
+        const filePath = decodeURIComponent(encodedPath);
+        return net.fetch(pathToFileURL(filePath).href);
+    });
 
     store = new Store({
         name: 'app-config',
@@ -515,17 +531,17 @@ ipcMain.handle('queue:pause', () => {
 // Converter
 
 ipcMain.handle('convert:chooseFile', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
     const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Select a media file',
-        properties: ['openFile'],
+        title: 'Select media file(s)',
+        properties: ['openFile', 'multiSelections'],
         filters: [
             { name: 'Media files', extensions: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv', 'wmv', 'mp3', 'wav', 'flac', 'm4a', 'aac', 'opus', 'ogg'] },
             { name: 'All files', extensions: ['*'] },
         ],
     });
-    if (result.canceled || !result.filePaths[0]) return null;
-    return result.filePaths[0];
+    if (result.canceled) return [];
+    return result.filePaths;
 });
 
 let currentConvertHandle = null;

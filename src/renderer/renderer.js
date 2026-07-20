@@ -2427,16 +2427,31 @@ function initConvertTab() {
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) setConvertFile(window.api.getPathForFile(file));
+        const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
+        handleConvertFilesPicked(paths);
     });
 
     window.api.onConvertProgress((p) => {
+        if (isConvertBatchMode()) {
+            updateConvertBatchProgress(p);
+            return;
+        }
         const bar = document.getElementById('convertProgressBar');
         const label = document.getElementById('convertProgressLabel');
         if (bar) bar.style.width = p.percent;
         if (label) label.textContent = p.percent + (p.total > 0 ? ` — ${p.elapsed}s / ${p.total}s` : '');
     });
+}
+
+// Single file (no batch already running) -> the existing trim/preview flow.
+// Multiple files, or dropped while a batch is already going -> queue them.
+function handleConvertFilesPicked(paths) {
+    if (paths.length === 0) return;
+    if (paths.length === 1 && !isConvertBatchMode()) {
+        setConvertFile(paths[0]);
+    } else {
+        addFilesToConvertBatch(paths);
+    }
 }
 
 const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.opus', '.flac', '.wav', '.ogg', '.wma']);
@@ -2457,9 +2472,12 @@ function setConvertFile(filePath) {
     if (dropZone) dropZone.style.display = 'none';
     if (btn) btn.disabled = false;
 
-    // Load file into player (works for both video and audio-only)
+    // Load file into player (works for both video and audio-only).
+    // Plain file:// is blocked by Electron's URL safety check now that the renderer
+    // loads over http:// (see localServer.js) — bweb-file:// proxies to a real file
+    // read from the main process instead (see main.js's protocol.handle).
     if (playerWrap && video) {
-        video.src = `file://${filePath}`;
+        video.src = `bweb-file://${encodeURIComponent(filePath)}`;
         playerWrap.style.display = 'flex';
         if (AUDIO_EXTS.has(ext)) {
             video.style.maxHeight = '40px';
@@ -2515,8 +2533,8 @@ function clearConvertTrim() {
 }
 
 async function doConvertChooseFile() {
-    const filePath = await window.api.convertChooseFile();
-    if (filePath) setConvertFile(filePath);
+    const filePaths = await window.api.convertChooseFile();
+    handleConvertFilesPicked(filePaths);
 }
 
 function doConvertClear() {
@@ -2534,6 +2552,118 @@ function doConvertClear() {
     if (playerWrap) playerWrap.style.display = 'none';
     if (video) { video.pause(); video.src = ''; }
     clearConvertTrim();
+    clearConvertBatch();
+}
+
+// ── Convert batch (2+ files dropped/picked at once) ─────────────────────────
+
+let convertBatch = []; // [{ id, path, name, state: 'pending'|'converting'|'done'|'error'|'cancelled', percent }]
+let convertBatchRunning = false;
+let convertBatchIdCounter = 0;
+
+function isConvertBatchMode() {
+    return convertBatch.length > 0;
+}
+
+function addFilesToConvertBatch(paths) {
+    for (const p of paths) {
+        convertBatch.push({ id: ++convertBatchIdCounter, path: p, name: p.split('/').pop(), state: 'pending', percent: null });
+    }
+
+    // Coming from the single-file flow — fold that file into the batch too instead of losing it.
+    if (convertFilePath) {
+        convertBatch.unshift({ id: ++convertBatchIdCounter, path: convertFilePath, name: convertFilePath.split('/').pop(), state: 'pending', percent: null });
+        convertFilePath = null;
+        const info = document.getElementById('convertFileInfo');
+        const playerWrap = document.getElementById('convertPlayerWrap');
+        if (info) info.style.display = 'none';
+        if (playerWrap) playerWrap.style.display = 'none';
+    }
+
+    document.getElementById('convertBatchWrap').style.display = 'flex';
+    document.getElementById('convertBtn').style.display = 'none';
+    document.getElementById('convertProgressWrap').style.display = 'none';
+    renderConvertBatch();
+
+    if (!convertBatchRunning) runConvertBatch();
+}
+
+function removeConvertBatchItem(id) {
+    const item = convertBatch.find((i) => i.id === id);
+    if (!item || item.state === 'converting') return; // cancel it first
+    convertBatch = convertBatch.filter((i) => i.id !== id);
+    renderConvertBatch();
+}
+
+function clearConvertBatch() {
+    if (convertBatchRunning) window.api.convertCancel();
+    convertBatch = [];
+    convertBatchRunning = false;
+    const wrap = document.getElementById('convertBatchWrap');
+    const btn = document.getElementById('convertBtn');
+    if (wrap) wrap.style.display = 'none';
+    if (btn) btn.style.display = '';
+}
+
+function renderConvertBatch() {
+    const list = document.getElementById('convertBatchList');
+    const count = document.getElementById('convertBatchCount');
+    if (!list) return;
+
+    const done = convertBatch.filter((i) => i.state === 'done').length;
+    if (count) count.textContent = `${done}/${convertBatch.length}`;
+
+    list.innerHTML = convertBatch.map((item) => {
+        const removable = item.state === 'pending' || item.state === 'error' || item.state === 'cancelled';
+        const statusText = {
+            pending: 'Waiting…',
+            converting: item.percent ? `${item.percent}%` : 'Converting…',
+            done: '✓ Done',
+            error: 'Failed',
+            cancelled: 'Cancelled',
+        }[item.state];
+        return `<div class="convert-batch-item convert-batch-item-${item.state}">` +
+            `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
+            `<span class="convert-batch-item-status">${escapeHtml(statusText)}</span>` +
+            (removable ? `<button class="convert-batch-item-remove" onclick="removeConvertBatchItem(${item.id})">×</button>` : `<span class="convert-batch-item-remove-spacer"></span>`) +
+            `</div>`;
+    }).join('');
+}
+
+function updateConvertBatchProgress(p) {
+    const current = convertBatch.find((i) => i.state === 'converting');
+    if (!current) return;
+    current.percent = p.percent;
+    renderConvertBatch();
+}
+
+async function runConvertBatch() {
+    convertBatchRunning = true;
+    const format = document.getElementById('convertFormat').value;
+
+    while (true) {
+        const item = convertBatch.find((i) => i.state === 'pending');
+        if (!item) break;
+
+        item.state = 'converting';
+        renderConvertBatch();
+        addLog(`Converting: ${item.name} → ${format.toUpperCase()}`, 'highlight');
+
+        try {
+            const result = await window.api.convertFile(item.path, format, null, null);
+            item.state = 'done';
+            addLog(`Saved: ${result.outputPath}`, 'success');
+        } catch (err) {
+            item.state = err.message === 'Cancelled' ? 'cancelled' : 'error';
+            addLog(`Conversion failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderConvertBatch();
+    }
+
+    convertBatchRunning = false;
+    if (convertBatch.length > 0 && convertBatch.every((i) => i.state !== 'pending' && i.state !== 'converting')) {
+        showToast('Batch conversion finished', 'success');
+    }
 }
 
 async function doConvert() {

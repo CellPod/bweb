@@ -17,6 +17,13 @@ const MIME_TYPES = {
     '.svg': 'image/svg+xml',
 };
 
+// localStorage (theme, accent color, language) is scoped to the page's origin, which
+// includes the port — so this MUST be a fixed port, not a random one, or every launch
+// looks like a brand new origin with empty storage and settings silently reset. Falls
+// back to a random port only if this one is somehow already taken, so the app can still
+// start (at the cost of that single launch not seeing previously saved settings).
+const PREFERRED_PORT = 47318;
+
 function startLocalServer(rootDir) {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {
@@ -42,10 +49,16 @@ function startLocalServer(rootDir) {
             });
         });
 
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
+        server.once('error', (err) => {
+            if (err.code !== 'EADDRINUSE') return reject(err);
+            server.removeAllListeners('error');
+            server.once('error', reject);
+            server.listen(0, '127.0.0.1');
+        });
+        server.once('listening', () => {
             resolve({ server, port: server.address().port });
         });
+        server.listen(PREFERRED_PORT, '127.0.0.1');
     });
 }
 

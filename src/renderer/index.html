@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none'; media-src https:; frame-src https://www.youtube.com;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none'; media-src https: bweb-file:; frame-src https://www.youtube.com;" />
     <title>bWeb</title>
     <link rel="stylesheet" href="./index.css" />
     <script src="./i18n.js"></script>
@@ -375,6 +375,16 @@
                             <button class="btn-ghost convert-clear-btn" data-i18n="convert.changeFile" onclick="doConvertChooseFile()">Change file</button>
                             <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doConvertClear()">Reset</button>
                         </div>
+                    </div>
+
+                    <!-- Batch mode: 2+ files dropped/picked at once -->
+                    <div id="convertBatchWrap" class="convert-batch-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" data-i18n="convert.batch.title">Batch convert</span>
+                            <span id="convertBatchCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doConvertClear()">Reset</button>
+                        </div>
+                        <div id="convertBatchList" class="convert-batch-list"></div>
                     </div>
 
                     <!-- Video player + Trim -->
