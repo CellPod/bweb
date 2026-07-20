@@ -2581,11 +2581,10 @@ function addFilesToConvertBatch(paths) {
     }
 
     document.getElementById('convertBatchWrap').style.display = 'flex';
-    document.getElementById('convertBtn').style.display = 'none';
     document.getElementById('convertProgressWrap').style.display = 'none';
+    // Deliberately does NOT auto-start: dropping files shouldn't commit you to whatever
+    // format happened to be selected already. Pick a format, then hit Convert.
     renderConvertBatch();
-
-    if (!convertBatchRunning) runConvertBatch();
 }
 
 function removeConvertBatchItem(id) {
@@ -2596,22 +2595,40 @@ function removeConvertBatchItem(id) {
 }
 
 function clearConvertBatch() {
-    if (convertBatchRunning) window.api.convertCancel();
+    if (convertBatchRunning) {
+        convertBatchStopRequested = true;
+        window.api.convertCancel();
+    }
     convertBatch = [];
     convertBatchRunning = false;
     const wrap = document.getElementById('convertBatchWrap');
     const btn = document.getElementById('convertBtn');
     if (wrap) wrap.style.display = 'none';
-    if (btn) btn.style.display = '';
+    if (btn) { btn.style.display = ''; btn.textContent = 'Convert'; btn.disabled = true; }
 }
 
 function renderConvertBatch() {
     const list = document.getElementById('convertBatchList');
     const count = document.getElementById('convertBatchCount');
+    const btn = document.getElementById('convertBtn');
     if (!list) return;
 
     const done = convertBatch.filter((i) => i.state === 'done').length;
+    const pending = convertBatch.filter((i) => i.state === 'pending').length;
     if (count) count.textContent = `${done}/${convertBatch.length}`;
+
+    if (btn) {
+        btn.disabled = pending === 0 && !convertBatchRunning;
+        if (convertBatchRunning) {
+            btn.textContent = 'Converting…';
+        } else if (pending > 0) {
+            btn.textContent = `Convert ${pending} file${pending !== 1 ? 's' : ''}`;
+        } else {
+            btn.textContent = 'Convert';
+        }
+    }
+    const cancelBtn = document.getElementById('convertCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = convertBatchRunning ? 'inline' : 'none';
 
     list.innerHTML = convertBatch.map((item) => {
         const removable = item.state === 'pending' || item.state === 'error' || item.state === 'cancelled';
@@ -2637,11 +2654,15 @@ function updateConvertBatchProgress(p) {
     renderConvertBatch();
 }
 
+let convertBatchStopRequested = false;
+
 async function runConvertBatch() {
     convertBatchRunning = true;
+    convertBatchStopRequested = false;
     const format = document.getElementById('convertFormat').value;
+    renderConvertBatch();
 
-    while (true) {
+    while (!convertBatchStopRequested) {
         const item = convertBatch.find((i) => i.state === 'pending');
         if (!item) break;
 
@@ -2661,12 +2682,23 @@ async function runConvertBatch() {
     }
 
     convertBatchRunning = false;
+    // A "Cancel" click during a batch stops the whole thing, not just the current file —
+    // anything still waiting shouldn't look stuck on "Waiting…" forever.
+    if (convertBatchStopRequested) {
+        convertBatch.filter((i) => i.state === 'pending').forEach((i) => { i.state = 'cancelled'; });
+    }
+    renderConvertBatch();
+
     if (convertBatch.length > 0 && convertBatch.every((i) => i.state !== 'pending' && i.state !== 'converting')) {
-        showToast('Batch conversion finished', 'success');
+        showToast(convertBatchStopRequested ? 'Batch conversion cancelled' : 'Batch conversion finished', convertBatchStopRequested ? 'info' : 'success');
     }
 }
 
 async function doConvert() {
+    if (isConvertBatchMode()) {
+        if (!convertBatchRunning) runConvertBatch();
+        return;
+    }
     if (!convertFilePath || convertInProgress) return;
     const format = document.getElementById('convertFormat').value;
     const btn = document.getElementById('convertBtn');
@@ -2711,6 +2743,7 @@ async function doConvert() {
 }
 
 async function doCancelConvert() {
+    if (isConvertBatchMode()) convertBatchStopRequested = true;
     await window.api.convertCancel();
 }
 

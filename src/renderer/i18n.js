@@ -80,8 +80,8 @@ const TRANSLATIONS = {
         // Convert view
         'convert.title':         'Convert',
         'convert.subtitle':      'Trim and convert local media files',
-        'convert.drop.title':    'Drop a media file or click to browse',
-        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A…',
+        'convert.drop.title':    'Drop one or more media files, or click to browse',
+        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — multiple files queue up for batch conversion',
         'convert.changeFile':    'Change file',
         'convert.reset':         'Reset',
         'convert.batch.title':   'Batch convert',
@@ -251,8 +251,8 @@ const TRANSLATIONS = {
         // Convert view
         'convert.title':         'Convertir',
         'convert.subtitle':      'Couper et convertir des fichiers locaux',
-        'convert.drop.title':    'Déposer un fichier ou cliquer pour parcourir',
-        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A…',
+        'convert.drop.title':    'Déposer un ou plusieurs fichiers, ou cliquer pour parcourir',
+        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — plusieurs fichiers se mettent en file pour une conversion par lot',
         'convert.changeFile':    'Changer de fichier',
         'convert.reset':         'Réinitialiser',
         'convert.batch.title':   'Conversion par lot',
