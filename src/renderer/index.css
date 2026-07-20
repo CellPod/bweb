@@ -2516,10 +2516,18 @@ html.platform-mac .update-banner {
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* Centered only for the empty drop-zone-only state. Once a file (or batch) loads,
+       the stacked video/trim/format/button content is taller than the wrapper in most
+       window sizes — centering it then pushes the top out of the scrollable view
+       entirely, silently hiding the filename bar and its Change file/Reset buttons. */
     justify-content: center;
     width: 100%;
     padding: 8px 0 24px;
     overflow-y: auto;
+}
+
+.convert-center-wrapper.has-content {
+    justify-content: flex-start;
 }
 
 .convert-container {

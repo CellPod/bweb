@@ -2471,6 +2471,7 @@ function setConvertFile(filePath) {
     if (info) info.style.display = 'flex';
     if (dropZone) dropZone.style.display = 'none';
     if (btn) btn.disabled = false;
+    document.querySelector('.convert-center-wrapper')?.classList.add('has-content');
 
     // Load file into player (works for both video and audio-only).
     // Plain file:// is blocked by Electron's URL safety check now that the renderer
@@ -2553,6 +2554,7 @@ function doConvertClear() {
     if (video) { video.pause(); video.src = ''; }
     clearConvertTrim();
     clearConvertBatch();
+    document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
 }
 
 // ── Convert batch (2+ files dropped/picked at once) ─────────────────────────
@@ -2582,6 +2584,7 @@ function addFilesToConvertBatch(paths) {
 
     document.getElementById('convertBatchWrap').style.display = 'flex';
     document.getElementById('convertProgressWrap').style.display = 'none';
+    document.querySelector('.convert-center-wrapper')?.classList.add('has-content');
     // Deliberately does NOT auto-start: dropping files shouldn't commit you to whatever
     // format happened to be selected already. Pick a format, then hit Convert.
     renderConvertBatch();
