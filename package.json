@@ -17,7 +17,8 @@
         "build:all": "electron-builder --mac --win --linux",
         "release:mac": "electron-builder --mac --publish always",
         "release:win": "electron-builder --win --x64 --publish always",
-        "release:linux": "electron-builder --linux --x64 --publish always"
+        "release:linux": "electron-builder --linux --x64 --publish always",
+        "release:all": "node scripts/release-all.js"
     },
     "build": {
         "publish": {
