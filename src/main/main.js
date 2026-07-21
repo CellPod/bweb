@@ -1,8 +1,7 @@
 // Main Process
 // Electron entry point. Window, IPC, app lifecycle.
 
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, protocol, net } = require('electron');
-const { pathToFileURL } = require('url');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, protocol } = require('electron');
 const converter = require('./converter');
 const path = require('path');
 const Store = require('electron-store');
@@ -14,7 +13,23 @@ const { autoUpdater } = require('electron-updater');
 const scraper = require('./scraper');
 const { DEV_MODE, log, logError } = require('./utils');
 const fs = require('fs');
+const { Readable } = require('stream');
 const { startLocalServer } = require('./localServer');
+
+const MEDIA_MIME_TYPES = {
+    '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime',
+    '.mkv': 'video/x-matroska', '.webm': 'video/webm', '.avi': 'video/x-msvideo',
+    '.flv': 'video/x-flv', '.ts': 'video/mp2t', '.mts': 'video/mp2t',
+    '.vob': 'video/dvd', '.3gp': 'video/3gpp', '.dav': 'video/mp2t',
+    '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
+    '.opus': 'audio/opus', '.ogg': 'audio/ogg', '.flac': 'audio/flac',
+    '.wav': 'audio/wav', '.wma': 'audio/x-ms-wma',
+};
+
+function mimeTypeFor(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    return MEDIA_MIME_TYPES[ext] || 'application/octet-stream';
+}
 
 const APP_NAME = 'bWeb';
 
@@ -149,10 +164,49 @@ app.whenReady().then(() => {
     log('App starting, DEV_MODE:', DEV_MODE);
     log('Platform:', process.platform, process.arch);
 
-    protocol.handle('bweb-file', (request) => {
+    protocol.handle('bweb-file', async (request) => {
         const encodedPath = request.url.slice('bweb-file://'.length).replace(/^\/+/, '');
         const filePath = decodeURIComponent(encodedPath);
-        return net.fetch(pathToFileURL(filePath).href);
+
+        let stat;
+        try {
+            stat = await fs.promises.stat(filePath);
+        } catch {
+            return new Response('Not found', { status: 404 });
+        }
+
+        const contentType = mimeTypeFor(filePath);
+        const fileSize = stat.size;
+
+        // <video>/<audio> needs real byte-range support to determine duration and to seek —
+        // without it (e.g. the old plain net.fetch(file://...) passthrough), some containers
+        // like WAV never resolve a finite duration and scrubbing silently does nothing.
+        const range = request.headers.get('range');
+        if (range) {
+            const match = /bytes=(\d+)-(\d+)?/.exec(range);
+            const start = match ? parseInt(match[1], 10) : 0;
+            const end = match && match[2] ? parseInt(match[2], 10) : fileSize - 1;
+            const stream = fs.createReadStream(filePath, { start, end });
+            return new Response(Readable.toWeb(stream), {
+                status: 206,
+                headers: {
+                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': String(end - start + 1),
+                    'Content-Type': contentType,
+                },
+            });
+        }
+
+        const stream = fs.createReadStream(filePath);
+        return new Response(Readable.toWeb(stream), {
+            status: 200,
+            headers: {
+                'Accept-Ranges': 'bytes',
+                'Content-Length': String(fileSize),
+                'Content-Type': contentType,
+            },
+        });
     });
 
     store = new Store({

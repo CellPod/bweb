@@ -15,7 +15,7 @@ const TRANSLATIONS = {
 
         // Download view
         'dl.title':           'Download',
-        'dl.subtitle':        'YouTube · Vimeo · Instagram · Twitter · 1000+ sites',
+        'dl.subtitle':        'Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally',
         'dl.mode.single':     'Single video',
         'dl.mode.batch':      'Batch',
         'dl.url.placeholder': 'Paste a video or playlist URL…',
@@ -62,6 +62,7 @@ const TRANSLATIONS = {
 
         // Queue view
         'queue.title':       'Queue',
+        'queue.subtitle':    'Everything you\'ve added to download — start, pause, and track progress here',
         'queue.start':       'Start Queue',
         'queue.pause':       'Pause',
         'queue.openFolder':  'Open folder',
@@ -73,32 +74,40 @@ const TRANSLATIONS = {
 
         // History view
         'history.title':       'History',
+        'history.subtitle':    'Everything you\'ve fetched before — find it again or download it once more',
         'history.clearAll':    'Clear all',
         'history.empty.title': 'No history yet',
         'history.empty.sub':   'Videos you fetch will appear here',
 
         // Convert view
         'convert.title':         'Convert',
-        'convert.subtitle':      'Trim and convert local media files',
+        'convert.subtitle':      'Convert local audio & video files — any format to any format, right on your computer',
         'convert.drop.title':    'Drop one or more media files, or click to browse',
-        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — multiple files queue up for batch conversion',
-        'convert.changeFile':    'Change file',
+        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — drop several at once to convert them all',
+        'convert.list.title':    'Files to convert',
+        'convert.addMore':       '+ Add',
         'convert.reset':         'Reset',
-        'convert.batch.title':   'Batch convert',
+        'convert.trim.toggle':   'Trim (optional)',
         'convert.trim.label':    'Trim',
         'convert.trim.optional': '(optional)',
         'convert.trim.clear':    'Clear',
         'convert.trim.now1':     '◀ Now',
         'convert.trim.now2':     'Now →',
         'convert.format.label':  'Output format',
-        'convert.og.videoFast':  'Video — fast, no quality loss',
-        'convert.og.audioOnly':  'Audio only',
-        'convert.og.videoRe':    'Video — re-encode (smaller file, slower)',
-        'convert.og.lossless':   'Audio lossless — only useful if source is uncompressed',
+        'convert.format.more':   'More formats',
+        'convert.format.choose': 'Choose a format…',
+        'convert.og.video':      'Video',
+        'convert.og.lossless':   'Lossless audio — only useful if source is uncompressed',
         'convert.og.rare':       'Rare formats',
         'convert.warn.lossy':    '⚠ FLAC/WAV only improves if source is lossless. On a compressed video, the file will be larger with no quality gain.',
         'convert.btn':           'Convert',
+        'convert.btn.n':         (n) => `Convert ${n} file${n !== 1 ? 's' : ''}`,
         'convert.cancel':        'Cancel',
+        'convert.status.queued':     'Queued',
+        'convert.status.converting': 'Converting…',
+        'convert.status.done':       '✓ Done',
+        'convert.status.error':      'Failed',
+        'convert.status.cancelled':  'Cancelled',
 
         // Settings view
         'settings.appearance':     'Appearance',
@@ -186,7 +195,7 @@ const TRANSLATIONS = {
 
         // Download view
         'dl.title':           'Télécharger',
-        'dl.subtitle':        'YouTube · Vimeo · Instagram · Twitter · 1000+ sites',
+        'dl.subtitle':        'Collez un lien de vidéo ou de playlist depuis YouTube, Vimeo, Instagram, Twitter/X et plus de 1000 autres sites pour le télécharger localement',
         'dl.mode.single':     'Vidéo unique',
         'dl.mode.batch':      'Lot d\'URLs',
         'dl.url.placeholder': 'Coller une URL vidéo ou playlist…',
@@ -233,6 +242,7 @@ const TRANSLATIONS = {
 
         // Queue view
         'queue.title':       'File d\'attente',
+        'queue.subtitle':    'Tout ce que vous avez ajouté à télécharger — démarrez, mettez en pause et suivez la progression ici',
         'queue.start':       'Démarrer la file',
         'queue.pause':       'Pause',
         'queue.openFolder':  'Ouvrir le dossier',
@@ -244,32 +254,40 @@ const TRANSLATIONS = {
 
         // History view
         'history.title':       'Historique',
+        'history.subtitle':    'Tout ce que vous avez récupéré auparavant — retrouvez-le ou téléchargez-le à nouveau',
         'history.clearAll':    'Tout effacer',
         'history.empty.title': 'Aucun historique',
         'history.empty.sub':   'Les vidéos récupérées apparaîtront ici',
 
         // Convert view
         'convert.title':         'Convertir',
-        'convert.subtitle':      'Couper et convertir des fichiers locaux',
+        'convert.subtitle':      'Convertir des fichiers audio & vidéo locaux — de n\'importe quel format à n\'importe quel format, sur votre ordinateur',
         'convert.drop.title':    'Déposer un ou plusieurs fichiers, ou cliquer pour parcourir',
-        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — plusieurs fichiers se mettent en file pour une conversion par lot',
-        'convert.changeFile':    'Changer de fichier',
+        'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — déposez-en plusieurs à la fois pour tous les convertir',
+        'convert.list.title':    'Fichiers à convertir',
+        'convert.addMore':       '+ Ajouter',
         'convert.reset':         'Réinitialiser',
-        'convert.batch.title':   'Conversion par lot',
+        'convert.trim.toggle':   'Couper (optionnel)',
         'convert.trim.label':    'Couper',
         'convert.trim.optional': '(optionnel)',
         'convert.trim.clear':    'Effacer',
         'convert.trim.now1':     '◀ Ici',
         'convert.trim.now2':     'Ici →',
         'convert.format.label':  'Format de sortie',
-        'convert.og.videoFast':  'Vidéo — rapide, sans perte de qualité',
-        'convert.og.audioOnly':  'Audio seulement',
-        'convert.og.videoRe':    'Vidéo — réencodage (plus petit, plus lent)',
+        'convert.format.more':   'Plus de formats',
+        'convert.format.choose': 'Choisir un format…',
+        'convert.og.video':      'Vidéo',
         'convert.og.lossless':   'Audio sans perte — utile seulement si la source est non compressée',
         'convert.og.rare':       'Formats rares',
         'convert.warn.lossy':    '⚠ FLAC/WAV ne s\'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.',
         'convert.btn':           'Convertir',
+        'convert.btn.n':         (n) => `Convertir ${n} fichier${n !== 1 ? 's' : ''}`,
         'convert.cancel':        'Annuler',
+        'convert.status.queued':     'En attente',
+        'convert.status.converting': 'Conversion…',
+        'convert.status.done':       '✓ Terminé',
+        'convert.status.error':      'Échec',
+        'convert.status.cancelled':  'Annulé',
 
         // Settings view
         'settings.appearance':     'Apparence',
@@ -376,13 +394,11 @@ function applyTranslations() {
     });
     // <optgroup label=""> — must update via JS property
     const ogMap = {
-        'convert.og.videoFast': 0,
-        'convert.og.audioOnly': 1,
-        'convert.og.videoRe':   2,
-        'convert.og.lossless':  3,
-        'convert.og.rare':      4,
+        'convert.og.video':    0,
+        'convert.og.lossless': 1,
+        'convert.og.rare':     2,
     };
-    const convertSelect = document.getElementById('convertFormat');
+    const convertSelect = document.getElementById('convertFormatAdvanced');
     if (convertSelect) {
         const groups = convertSelect.querySelectorAll('optgroup');
         Object.entries(ogMap).forEach(([key, idx]) => {
@@ -392,6 +408,13 @@ function applyTranslations() {
     // Warn text (has HTML entities — update innerHTML)
     const lossyWarn = document.getElementById('convertLossyWarn');
     if (lossyWarn) lossyWarn.textContent = t('convert.warn.lossy');
+
+    // The convert file list's per-item status text (Queued/Converting/Done…) is built from
+    // t() at render time, not a static data-i18n element — re-render it so it picks up the
+    // new language instead of staying stuck in whatever language it first rendered in.
+    if (typeof renderConvertList === 'function' && document.getElementById('convertList')) {
+        renderConvertList();
+    }
 }
 
 function initLang() {

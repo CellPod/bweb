@@ -2570,26 +2570,6 @@ html.platform-mac .update-banner {
 .convert-drop-title { font-weight: 600; color: var(--text); }
 .convert-drop-sub { font-size: 12px; color: var(--text-2); }
 
-.convert-file-info {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-}
-
-.convert-file-name {
-    font-weight: 500;
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.convert-file-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .convert-clear-btn { flex-shrink: 0; }
 
 .convert-batch-wrap {
@@ -2674,7 +2654,9 @@ html.platform-mac .update-banner {
 
 .convert-options { display: flex; flex-direction: column; gap: 12px; }
 
-.convert-option-group { display: flex; flex-direction: column; gap: 6px; }
+.convert-option-group { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+
+.convert-more-formats-wrap { width: 100%; }
 
 .convert-option-label {
     font-size: 12px;
@@ -2742,6 +2724,28 @@ html.platform-mac .update-banner {
 .convert-btn { margin-top: 4px; }
 
 /* ── Convert player + trim ──────────────────────────────────────── */
+
+.convert-trim-toggle-wrap { display: flex; }
+
+.convert-trim-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.convert-trim-toggle-btn:hover,
+.convert-trim-toggle-btn.open {
+    border-color: var(--accent);
+    color: var(--accent);
+}
 
 .convert-player-wrap {
     display: flex;

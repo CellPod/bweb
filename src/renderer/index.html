@@ -121,7 +121,7 @@
             <div id="tab-download" class="view active">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="dl.title">Download</h1>
-                    <p class="view-subtitle" data-i18n="dl.subtitle">YouTube · Vimeo · Instagram · Twitter · 1000+ sites</p>
+                    <p class="view-subtitle" data-i18n="dl.subtitle">Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally</p>
                 </div>
                 <div class="dl-mode-tabs">
                     <button class="dl-mode-tab active" data-mode="single" onclick="setDlMode('single')">
@@ -310,6 +310,7 @@
             <div id="tab-queue" class="view">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="queue.title">Queue</h1>
+                    <p class="view-subtitle" data-i18n="queue.subtitle">Everything you've added to download — start, pause, and track progress here</p>
                 </div>
                 <div id="queueToolbar" class="queue-toolbar" style="display: none">
                     <div class="queue-toolbar-info">
@@ -338,6 +339,7 @@
             <div id="tab-history" class="view">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="history.title">History</h1>
+                    <p class="view-subtitle" data-i18n="history.subtitle">Everything you've fetched before — find it again or download it once more</p>
                 </div>
                 <div id="historyToolbar" class="history-toolbar" style="display: none">
                     <span id="historyCountLabel" class="count"></span>
@@ -357,7 +359,7 @@
             <div id="tab-convert" class="view">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="convert.title">Convert</h1>
-                    <p class="view-subtitle" data-i18n="convert.subtitle">Trim and convert local media files</p>
+                    <p class="view-subtitle" data-i18n="convert.subtitle">Convert local audio &amp; video files — any format to any format, right on your computer</p>
                 </div>
                 <div class="convert-center-wrapper">
                 <div class="convert-container">
@@ -365,40 +367,87 @@
                         <div class="convert-drop-icon">
                             <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
                         </div>
-                        <div class="convert-drop-title" data-i18n="convert.drop.title">Drop a media file or click to browse</div>
+                        <div class="convert-drop-title" data-i18n="convert.drop.title">Drop one or more media files, or click to browse</div>
                         <div class="convert-drop-sub" data-i18n="convert.drop.sub">MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A…</div>
                     </div>
 
-                    <div id="convertFileInfo" class="convert-file-info" style="display:none">
-                        <div class="convert-file-name" id="convertFileName"></div>
-                        <div class="convert-file-actions">
-                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.changeFile" onclick="doConvertChooseFile()">Change file</button>
-                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doConvertClear()">Reset</button>
-                        </div>
-                    </div>
-
-                    <!-- Batch mode: 2+ files dropped/picked at once -->
-                    <div id="convertBatchWrap" class="convert-batch-wrap" style="display:none">
+                    <!-- Unified file list: works the same for 1 file or many -->
+                    <div id="convertListWrap" class="convert-batch-wrap" style="display:none">
                         <div class="convert-batch-header">
-                            <span class="convert-batch-title" data-i18n="convert.batch.title">Batch convert</span>
-                            <span id="convertBatchCount" class="convert-batch-count"></span>
+                            <span class="convert-batch-title" data-i18n="convert.list.title">Files to convert</span>
+                            <span id="convertListCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.addMore" onclick="doConvertChooseFile()">+ Add</button>
                             <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doConvertClear()">Reset</button>
                         </div>
-                        <div id="convertBatchList" class="convert-batch-list"></div>
+                        <div id="convertList" class="convert-batch-list"></div>
                     </div>
 
-                    <!-- Video player + Trim -->
+                    <!-- Output format: the decision that matters most, right after the file list.
+                         Just the 5 formats that cover almost everyone (MP4/MOV, MP3/WAV/M4A) as a
+                         plain select; anything rarer (other containers, re-encode variants, lossless
+                         FLAC, legacy formats) lives behind "More formats" in its own select, so the
+                         common case is one simple, familiar dropdown instead of a wall of options. -->
+                    <div class="convert-options">
+                        <div class="convert-option-group">
+                            <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
+                            <select id="convertFormat" class="convert-select" onchange="selectConvertFormat(this.value)">
+                                <option value="mp4" selected>MP4</option>
+                                <option value="mov">MOV</option>
+                                <option value="mp3">MP3</option>
+                                <option value="wav">WAV</option>
+                                <option value="m4a">M4A</option>
+                            </select>
+                            <button id="convertMoreFormatsBtn" class="convert-trim-toggle-btn" onclick="toggleMoreFormats()">
+                                <span data-i18n="convert.format.more">More formats</span>
+                            </button>
+                            <div id="convertMoreFormatsWrap" class="convert-more-formats-wrap" style="display:none">
+                                <select id="convertFormatAdvanced" class="convert-select" onchange="selectConvertFormat(this.value)">
+                                    <option value="" disabled selected data-i18n="convert.format.choose">Choose a format…</option>
+                                    <optgroup label="Video">
+                                        <option value="mkv">MKV</option>
+                                        <option value="webm">WebM</option>
+                                        <option value="mp4-h264">MP4 · H.264</option>
+                                        <option value="mp4-h265">MP4 · H.265</option>
+                                    </optgroup>
+                                    <optgroup label="Lossless audio — only useful if source is uncompressed">
+                                        <option value="flac">FLAC</option>
+                                    </optgroup>
+                                    <optgroup label="Rare formats">
+                                        <option value="opus">Opus</option>
+                                        <option value="avi">AVI</option>
+                                        <option value="ts">TS</option>
+                                        <option value="mts">MTS</option>
+                                        <option value="vob">VOB</option>
+                                        <option value="flv">FLV</option>
+                                        <option value="3gp">3GP</option>
+                                        <option value="dav">DAV</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="convertLossyWarn" class="convert-lossy-warn" style="display:none">
+                            ⚠ FLAC/WAV ne s'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.
+                        </div>
+                    </div>
+
+                    <!-- Trim: optional, collapsed by default, only makes sense for a single file -->
+                    <div id="convertTrimToggleWrap" class="convert-trim-toggle-wrap" style="display:none">
+                        <button id="convertTrimToggleBtn" class="convert-trim-toggle-btn" onclick="toggleConvertTrim()">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-scissors"/></svg>
+                            <span data-i18n="convert.trim.toggle">Trim (optional)</span>
+                        </button>
+                    </div>
                     <div id="convertPlayerWrap" class="convert-player-wrap" style="display:none">
                         <video id="convertVideo" class="convert-video" controls></video>
                         <div class="convert-trim">
                             <div class="convert-trim-header">
-                                <span class="convert-trim-label"><svg class="icon-svg" width="14" height="14" style="margin-right:4px"><use href="#ic-scissors"/></svg><span data-i18n="convert.trim.label">Trim</span> <span class="convert-trim-optional" data-i18n="convert.trim.optional">(optional)</span></span>
+                                <span class="convert-trim-label"><span data-i18n="convert.trim.label">Trim</span></span>
                                 <span id="convertTrimDuration" class="dl-trim-duration"></span>
                                 <button class="trim-clear-btn" data-i18n="convert.trim.clear" onclick="clearConvertTrim()">Clear</button>
                             </div>
                             <div class="dual-range-wrap">
-                                <input class="dual-range" id="convertRangeStart" type="range" min="0" max="100" value="0" step="0.1" oninput="onConvertRangeInput()" />
-                                <input class="dual-range" id="convertRangeEnd" type="range" min="0" max="100" value="100" step="0.1" oninput="onConvertRangeInput()" />
+                                <input class="dual-range" id="convertRangeStart" type="range" min="0" max="100" value="0" step="0.1" oninput="onConvertRangeStartInput()" />
+                                <input class="dual-range" id="convertRangeEnd" type="range" min="0" max="100" value="100" step="0.1" oninput="onConvertRangeEndInput()" />
                                 <div class="dual-range-track">
                                     <div class="dual-range-fill" id="convertRangeFill"></div>
                                 </div>
@@ -410,45 +459,6 @@
                                 <input id="convertTrimEnd" class="trim-time-input" type="text" placeholder="00:00:00" oninput="onConvertTimeInput()" />
                                 <button class="trim-set-btn" data-i18n="convert.trim.now2" onclick="setConvertTrimEnd()">Now →</button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="convert-options">
-                        <div class="convert-option-group">
-                            <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
-                            <select id="convertFormat" class="convert-select" onchange="onConvertFormatChange(this)">
-                                <optgroup label="Video — fast, no quality loss">
-                                    <option value="mp4" selected>MP4</option>
-                                    <option value="mkv">MKV</option>
-                                    <option value="mov">MOV</option>
-                                </optgroup>
-                                <optgroup label="Audio only">
-                                    <option value="mp3">MP3</option>
-                                    <option value="m4a">M4A</option>
-                                    <option value="opus">Opus</option>
-                                </optgroup>
-                                <optgroup label="Video — re-encode (smaller file, slower)">
-                                    <option value="mp4-h264">MP4 · H.264</option>
-                                    <option value="mp4-h265">MP4 · H.265</option>
-                                    <option value="webm">WebM</option>
-                                </optgroup>
-                                <optgroup label="Audio lossless — only useful if source is uncompressed">
-                                    <option value="flac">FLAC</option>
-                                    <option value="wav">WAV</option>
-                                </optgroup>
-                                <optgroup label="Rare formats">
-                                    <option value="avi">AVI</option>
-                                    <option value="ts">TS</option>
-                                    <option value="mts">MTS</option>
-                                    <option value="vob">VOB</option>
-                                    <option value="flv">FLV</option>
-                                    <option value="3gp">3GP</option>
-                                    <option value="dav">DAV</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div id="convertLossyWarn" class="convert-lossy-warn" style="display:none">
-                            ⚠ FLAC/WAV ne s'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.
                         </div>
                     </div>
 

@@ -1240,21 +1240,40 @@ function openSourceInBrowser() {
 
 // ── Converter trim ───────────────────────────────────────────────
 
-function onConvertRangeInput() {
+// Dragging either handle also seeks the preview so you can hear/see the trim point,
+// same as the Download tab's preview scrubbing.
+function onConvertRangeStartInput() {
     const video = document.getElementById('convertVideo');
     const rangeStart = document.getElementById('convertRangeStart');
     const rangeEnd = document.getElementById('convertRangeEnd');
     const start = document.getElementById('convertTrimStart');
-    const end = document.getElementById('convertTrimEnd');
     if (!video || !rangeStart || !rangeEnd || !video.duration) return;
 
     let s = parseFloat(rangeStart.value);
-    let e = parseFloat(rangeEnd.value);
+    const e = parseFloat(rangeEnd.value);
     if (s >= e) { rangeStart.value = e - 0.1; s = parseFloat(rangeStart.value); }
 
-    if (start) start.value = formatTime((s / 100) * video.duration);
-    if (end) end.value = formatTime((e / 100) * video.duration);
+    const seconds = (s / 100) * video.duration;
+    if (start) start.value = formatTime(seconds);
     updateConvertRangeFill();
+    video.currentTime = seconds;
+}
+
+function onConvertRangeEndInput() {
+    const video = document.getElementById('convertVideo');
+    const rangeStart = document.getElementById('convertRangeStart');
+    const rangeEnd = document.getElementById('convertRangeEnd');
+    const end = document.getElementById('convertTrimEnd');
+    if (!video || !rangeStart || !rangeEnd || !video.duration) return;
+
+    let e = parseFloat(rangeEnd.value);
+    const s = parseFloat(rangeStart.value);
+    if (e <= s) { rangeEnd.value = s + 0.1; e = parseFloat(rangeEnd.value); }
+
+    const seconds = (e / 100) * video.duration;
+    if (end) end.value = formatTime(seconds);
+    updateConvertRangeFill();
+    video.currentTime = seconds;
 }
 
 function onConvertTimeInput() {
@@ -2237,9 +2256,57 @@ async function init() {
     } catch {}
 }
 
-function onConvertFormatChange(select) {
+// Just the 5 formats that cover almost everyone (MP4/MOV, MP3/WAV/M4A) live in the
+// plain primary select; rarer ones (other containers, re-encode variants, lossless
+// FLAC, legacy formats) live behind "More formats" in their own select.
+const CONVERT_COMMON_FORMATS = new Set(['mp4', 'mov', 'mp3', 'wav', 'm4a']);
+
+const CONVERT_ADVANCED_FORMAT_LABELS = {
+    mkv: 'MKV',
+    webm: 'WebM',
+    'mp4-h264': 'MP4 · H.264',
+    'mp4-h265': 'MP4 · H.265',
+    flac: 'FLAC',
+    opus: 'Opus',
+    avi: 'AVI',
+    ts: 'TS',
+    mts: 'MTS',
+    vob: 'VOB',
+    flv: 'FLV',
+    '3gp': '3GP',
+    dav: 'DAV',
+};
+
+let convertFormat = 'mp4';
+
+function selectConvertFormat(value) {
+    if (!value) return;
+    convertFormat = value;
+
+    const primarySelect = document.getElementById('convertFormat');
+    const advancedSelect = document.getElementById('convertFormatAdvanced');
+    const moreBtn = document.getElementById('convertMoreFormatsBtn');
+
+    if (CONVERT_COMMON_FORMATS.has(value)) {
+        if (primarySelect) primarySelect.value = value;
+        if (advancedSelect) advancedSelect.value = '';
+        if (moreBtn) moreBtn.querySelector('span').textContent = t('convert.format.more');
+    } else {
+        if (advancedSelect) advancedSelect.value = value;
+        const label = CONVERT_ADVANCED_FORMAT_LABELS[value] || value.toUpperCase();
+        if (moreBtn) moreBtn.querySelector('span').textContent = `${t('convert.format.more')}: ${label}`;
+    }
+
     const lossyWarn = document.getElementById('convertLossyWarn');
-    if (lossyWarn) lossyWarn.style.display = ['flac', 'wav'].includes(select.value) ? 'block' : 'none';
+    if (lossyWarn) lossyWarn.style.display = ['flac', 'wav'].includes(value) ? 'block' : 'none';
+}
+
+function toggleMoreFormats() {
+    const wrap = document.getElementById('convertMoreFormatsWrap');
+    const btn = document.getElementById('convertMoreFormatsBtn');
+    const opening = wrap.style.display === 'none';
+    wrap.style.display = opening ? 'block' : 'none';
+    if (btn) btn.classList.toggle('open', opening);
 }
 
 // ── Batch ─────────────────────────────────────────────────────────────────────
@@ -2410,9 +2477,18 @@ async function doBatchAdd() {
 }
 
 // ── Convert Tab ──────────────────────────────────────────────────────────────
+// One unified file list for 1 file or many (mirrors how the Download queue works —
+// dropping N files just queues N items, no separate "batch mode" UI). Trim only
+// applies when there's exactly one file, since a shared trim range across a batch
+// of unrelated files wouldn't make sense.
 
-let convertFilePath = null;
-let convertInProgress = false;
+const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.opus', '.flac', '.wav', '.ogg', '.wma']);
+
+let convertItems = []; // [{ id, path, name, state: 'pending'|'converting'|'done'|'error'|'cancelled', percent }]
+let convertItemIdCounter = 0;
+let convertRunning = false;
+let convertStopRequested = false;
+let convertTrimOpen = false;
 
 function initConvertTab() {
     const dropZone = document.getElementById('convertDropZone');
@@ -2428,14 +2504,13 @@ function initConvertTab() {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
         const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
-        handleConvertFilesPicked(paths);
+        addFilesToConvertList(paths);
     });
 
     window.api.onConvertProgress((p) => {
-        if (isConvertBatchMode()) {
-            updateConvertBatchProgress(p);
-            return;
-        }
+        const current = convertItems.find((i) => i.state === 'converting');
+        if (current) current.percent = p.percent;
+        renderConvertList();
         const bar = document.getElementById('convertProgressBar');
         const label = document.getElementById('convertProgressLabel');
         if (bar) bar.style.width = p.percent;
@@ -2443,58 +2518,145 @@ function initConvertTab() {
     });
 }
 
-// Single file (no batch already running) -> the existing trim/preview flow.
-// Multiple files, or dropped while a batch is already going -> queue them.
-function handleConvertFilesPicked(paths) {
-    if (paths.length === 0) return;
-    if (paths.length === 1 && !isConvertBatchMode()) {
-        setConvertFile(paths[0]);
-    } else {
-        addFilesToConvertBatch(paths);
-    }
+async function doConvertChooseFile() {
+    const filePaths = await window.api.convertChooseFile();
+    addFilesToConvertList(filePaths);
 }
 
-const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.opus', '.flac', '.wav', '.ogg', '.wma']);
+function addFilesToConvertList(paths) {
+    if (!paths || paths.length === 0) return;
+    for (const p of paths) {
+        convertItems.push({ id: ++convertItemIdCounter, path: p, name: p.split('/').pop(), state: 'pending', percent: null });
+    }
 
-function setConvertFile(filePath) {
-    convertFilePath = filePath;
-    const name = filePath.split('/').pop();
-    const ext = '.' + name.split('.').pop().toLowerCase();
-    const info = document.getElementById('convertFileInfo');
-    const nameEl = document.getElementById('convertFileName');
-    const dropZone = document.getElementById('convertDropZone');
-    const btn = document.getElementById('convertBtn');
-    const playerWrap = document.getElementById('convertPlayerWrap');
-    const video = document.getElementById('convertVideo');
-
-    if (nameEl) nameEl.textContent = name;
-    if (info) info.style.display = 'flex';
-    if (dropZone) dropZone.style.display = 'none';
-    if (btn) btn.disabled = false;
+    document.getElementById('convertDropZone').style.display = 'none';
+    document.getElementById('convertListWrap').style.display = 'flex';
+    document.getElementById('convertBtn').disabled = false;
     document.querySelector('.convert-center-wrapper')?.classList.add('has-content');
 
-    // Load file into player (works for both video and audio-only).
+    if (convertItems.length === 1) {
+        loadConvertPreview(convertItems[0].path);
+    } else {
+        // Trim doesn't apply to a batch of unrelated files — collapse it if it was open.
+        closeConvertTrim();
+    }
+    renderConvertList();
+}
+
+function removeConvertItem(id) {
+    const item = convertItems.find((i) => i.id === id);
+    if (!item || item.state === 'converting') return;
+    convertItems = convertItems.filter((i) => i.id !== id);
+
+    if (convertItems.length === 0) {
+        doConvertClear();
+        return;
+    }
+    if (convertItems.length === 1) {
+        loadConvertPreview(convertItems[0].path);
+    }
+    renderConvertList();
+}
+
+function doConvertClear() {
+    if (convertRunning) {
+        convertStopRequested = true;
+        window.api.convertCancel();
+    }
+    convertItems = [];
+    convertRunning = false;
+
+    const dropZone = document.getElementById('convertDropZone');
+    const listWrap = document.getElementById('convertListWrap');
+    const progressWrap = document.getElementById('convertProgressWrap');
+    const btn = document.getElementById('convertBtn');
+    const video = document.getElementById('convertVideo');
+    if (dropZone) dropZone.style.display = 'flex';
+    if (listWrap) listWrap.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; }
+    if (video) { video.pause(); video.src = ''; }
+
+    closeConvertTrim();
+    clearConvertTrim();
+    document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
+}
+
+function renderConvertList() {
+    const list = document.getElementById('convertList');
+    const count = document.getElementById('convertListCount');
+    const btn = document.getElementById('convertBtn');
+    const trimToggleWrap = document.getElementById('convertTrimToggleWrap');
+    if (!list) return;
+
+    const done = convertItems.filter((i) => i.state === 'done').length;
+    const pending = convertItems.filter((i) => i.state === 'pending').length;
+    if (count) count.textContent = convertItems.length > 1 ? `${done}/${convertItems.length}` : '';
+
+    if (btn) {
+        btn.disabled = pending === 0 && !convertRunning;
+        if (convertRunning) btn.textContent = t('convert.status.converting');
+        else if (convertItems.length > 1 && pending > 0) btn.textContent = t('convert.btn.n')(pending);
+        else btn.textContent = t('convert.btn');
+    }
+
+    const cancelBtn = document.getElementById('convertCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = convertRunning ? 'inline' : 'none';
+
+    if (trimToggleWrap) trimToggleWrap.style.display = convertItems.length === 1 ? 'flex' : 'none';
+
+    list.innerHTML = convertItems.map((item) => {
+        const removable = item.state === 'pending' || item.state === 'error' || item.state === 'cancelled';
+        const statusText = {
+            pending: t('convert.status.queued'),
+            converting: item.percent ? `${item.percent}%` : t('convert.status.converting'),
+            done: t('convert.status.done'),
+            error: t('convert.status.error'),
+            cancelled: t('convert.status.cancelled'),
+        }[item.state];
+        return `<div class="convert-batch-item convert-batch-item-${item.state}">` +
+            `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
+            `<span class="convert-batch-item-status">${escapeHtml(statusText)}</span>` +
+            (removable ? `<button class="convert-batch-item-remove" onclick="removeConvertItem(${item.id})">×</button>` : `<span class="convert-batch-item-remove-spacer"></span>`) +
+            `</div>`;
+    }).join('');
+}
+
+function loadConvertPreview(filePath) {
+    const name = filePath.split('/').pop();
+    const ext = '.' + name.split('.').pop().toLowerCase();
+    const video = document.getElementById('convertVideo');
+    if (!video) return;
+
     // Plain file:// is blocked by Electron's URL safety check now that the renderer
     // loads over http:// (see localServer.js) — bweb-file:// proxies to a real file
     // read from the main process instead (see main.js's protocol.handle).
-    if (playerWrap && video) {
-        video.src = `bweb-file://${encodeURIComponent(filePath)}`;
-        playerWrap.style.display = 'flex';
-        if (AUDIO_EXTS.has(ext)) {
-            video.style.maxHeight = '40px';
-        } else {
-            video.style.maxHeight = '240px';
-        }
-        // Update duration label + reset sliders once metadata loads
-        video.onloadedmetadata = () => {
-            const durEl = document.getElementById('convertTrimDuration');
-            if (durEl) durEl.textContent = `Duration: ${formatTime(video.duration)}`;
-            const re = document.getElementById('convertRangeEnd');
-            if (re) re.value = 100;
-            updateConvertRangeFill();
-        };
-    }
+    video.src = `bweb-file://${encodeURIComponent(filePath)}`;
+    video.style.maxHeight = AUDIO_EXTS.has(ext) ? '40px' : '240px';
+    video.onloadedmetadata = () => {
+        const durEl = document.getElementById('convertTrimDuration');
+        if (durEl) durEl.textContent = `Duration: ${formatTime(video.duration)}`;
+        const re = document.getElementById('convertRangeEnd');
+        if (re) re.value = 100;
+        updateConvertRangeFill();
+    };
     clearConvertTrim();
+}
+
+function toggleConvertTrim() {
+    convertTrimOpen = !convertTrimOpen;
+    const wrap = document.getElementById('convertPlayerWrap');
+    const btn = document.getElementById('convertTrimToggleBtn');
+    if (wrap) wrap.style.display = convertTrimOpen ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('open', convertTrimOpen);
+}
+
+function closeConvertTrim() {
+    convertTrimOpen = false;
+    const wrap = document.getElementById('convertPlayerWrap');
+    const btn = document.getElementById('convertTrimToggleBtn');
+    if (wrap) wrap.style.display = 'none';
+    if (btn) btn.classList.remove('open');
 }
 
 function formatTime(secs) {
@@ -2533,220 +2695,68 @@ function clearConvertTrim() {
     updateConvertRangeFill();
 }
 
-async function doConvertChooseFile() {
-    const filePaths = await window.api.convertChooseFile();
-    handleConvertFilesPicked(filePaths);
-}
+async function runConvertQueue() {
+    convertRunning = true;
+    convertStopRequested = false;
 
-function doConvertClear() {
-    convertFilePath = null;
-    const info = document.getElementById('convertFileInfo');
-    const dropZone = document.getElementById('convertDropZone');
-    const btn = document.getElementById('convertBtn');
+    const format = convertFormat;
+    // Trim only applies when there's exactly one file and the trim panel was opened.
+    const singleFile = convertItems.length === 1;
+    const startTime = (singleFile && convertTrimOpen) ? (document.getElementById('convertTrimStart')?.value.trim() || null) : null;
+    const endTime = (singleFile && convertTrimOpen) ? (document.getElementById('convertTrimEnd')?.value.trim() || null) : null;
+
     const progressWrap = document.getElementById('convertProgressWrap');
-    const playerWrap = document.getElementById('convertPlayerWrap');
-    const video = document.getElementById('convertVideo');
-    if (info) info.style.display = 'none';
-    if (dropZone) dropZone.style.display = 'flex';
-    if (btn) btn.disabled = true;
-    if (progressWrap) progressWrap.style.display = 'none';
-    if (playerWrap) playerWrap.style.display = 'none';
-    if (video) { video.pause(); video.src = ''; }
-    clearConvertTrim();
-    clearConvertBatch();
-    document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
-}
+    const bar = document.getElementById('convertProgressBar');
+    const label = document.getElementById('convertProgressLabel');
+    if (progressWrap) progressWrap.style.display = 'flex';
+    if (bar) bar.style.width = '0%';
+    if (label) label.textContent = '0%';
+    renderConvertList();
 
-// ── Convert batch (2+ files dropped/picked at once) ─────────────────────────
-
-let convertBatch = []; // [{ id, path, name, state: 'pending'|'converting'|'done'|'error'|'cancelled', percent }]
-let convertBatchRunning = false;
-let convertBatchIdCounter = 0;
-
-function isConvertBatchMode() {
-    return convertBatch.length > 0;
-}
-
-function addFilesToConvertBatch(paths) {
-    for (const p of paths) {
-        convertBatch.push({ id: ++convertBatchIdCounter, path: p, name: p.split('/').pop(), state: 'pending', percent: null });
-    }
-
-    // Coming from the single-file flow — fold that file into the batch too instead of losing it.
-    if (convertFilePath) {
-        convertBatch.unshift({ id: ++convertBatchIdCounter, path: convertFilePath, name: convertFilePath.split('/').pop(), state: 'pending', percent: null });
-        convertFilePath = null;
-        const info = document.getElementById('convertFileInfo');
-        const playerWrap = document.getElementById('convertPlayerWrap');
-        if (info) info.style.display = 'none';
-        if (playerWrap) playerWrap.style.display = 'none';
-    }
-
-    document.getElementById('convertBatchWrap').style.display = 'flex';
-    document.getElementById('convertProgressWrap').style.display = 'none';
-    document.querySelector('.convert-center-wrapper')?.classList.add('has-content');
-    // Deliberately does NOT auto-start: dropping files shouldn't commit you to whatever
-    // format happened to be selected already. Pick a format, then hit Convert.
-    renderConvertBatch();
-}
-
-function removeConvertBatchItem(id) {
-    const item = convertBatch.find((i) => i.id === id);
-    if (!item || item.state === 'converting') return; // cancel it first
-    convertBatch = convertBatch.filter((i) => i.id !== id);
-    renderConvertBatch();
-}
-
-function clearConvertBatch() {
-    if (convertBatchRunning) {
-        convertBatchStopRequested = true;
-        window.api.convertCancel();
-    }
-    convertBatch = [];
-    convertBatchRunning = false;
-    const wrap = document.getElementById('convertBatchWrap');
-    const btn = document.getElementById('convertBtn');
-    if (wrap) wrap.style.display = 'none';
-    if (btn) { btn.style.display = ''; btn.textContent = 'Convert'; btn.disabled = true; }
-}
-
-function renderConvertBatch() {
-    const list = document.getElementById('convertBatchList');
-    const count = document.getElementById('convertBatchCount');
-    const btn = document.getElementById('convertBtn');
-    if (!list) return;
-
-    const done = convertBatch.filter((i) => i.state === 'done').length;
-    const pending = convertBatch.filter((i) => i.state === 'pending').length;
-    if (count) count.textContent = `${done}/${convertBatch.length}`;
-
-    if (btn) {
-        btn.disabled = pending === 0 && !convertBatchRunning;
-        if (convertBatchRunning) {
-            btn.textContent = 'Converting…';
-        } else if (pending > 0) {
-            btn.textContent = `Convert ${pending} file${pending !== 1 ? 's' : ''}`;
-        } else {
-            btn.textContent = 'Convert';
-        }
-    }
-    const cancelBtn = document.getElementById('convertCancelBtn');
-    if (cancelBtn) cancelBtn.style.display = convertBatchRunning ? 'inline' : 'none';
-
-    list.innerHTML = convertBatch.map((item) => {
-        const removable = item.state === 'pending' || item.state === 'error' || item.state === 'cancelled';
-        const statusText = {
-            pending: 'Waiting…',
-            converting: item.percent ? `${item.percent}%` : 'Converting…',
-            done: '✓ Done',
-            error: 'Failed',
-            cancelled: 'Cancelled',
-        }[item.state];
-        return `<div class="convert-batch-item convert-batch-item-${item.state}">` +
-            `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
-            `<span class="convert-batch-item-status">${escapeHtml(statusText)}</span>` +
-            (removable ? `<button class="convert-batch-item-remove" onclick="removeConvertBatchItem(${item.id})">×</button>` : `<span class="convert-batch-item-remove-spacer"></span>`) +
-            `</div>`;
-    }).join('');
-}
-
-function updateConvertBatchProgress(p) {
-    const current = convertBatch.find((i) => i.state === 'converting');
-    if (!current) return;
-    current.percent = p.percent;
-    renderConvertBatch();
-}
-
-let convertBatchStopRequested = false;
-
-async function runConvertBatch() {
-    convertBatchRunning = true;
-    convertBatchStopRequested = false;
-    const format = document.getElementById('convertFormat').value;
-    renderConvertBatch();
-
-    while (!convertBatchStopRequested) {
-        const item = convertBatch.find((i) => i.state === 'pending');
+    while (!convertStopRequested) {
+        const item = convertItems.find((i) => i.state === 'pending');
         if (!item) break;
 
         item.state = 'converting';
-        renderConvertBatch();
+        item.percent = null;
+        renderConvertList();
         addLog(`Converting: ${item.name} → ${format.toUpperCase()}`, 'highlight');
 
         try {
-            const result = await window.api.convertFile(item.path, format, null, null);
+            const result = await window.api.convertFile(item.path, format, startTime, endTime);
             item.state = 'done';
             addLog(`Saved: ${result.outputPath}`, 'success');
         } catch (err) {
             item.state = err.message === 'Cancelled' ? 'cancelled' : 'error';
             addLog(`Conversion failed for ${item.name}: ${err.message}`, 'error');
         }
-        renderConvertBatch();
+        renderConvertList();
     }
 
-    convertBatchRunning = false;
-    // A "Cancel" click during a batch stops the whole thing, not just the current file —
-    // anything still waiting shouldn't look stuck on "Waiting…" forever.
-    if (convertBatchStopRequested) {
-        convertBatch.filter((i) => i.state === 'pending').forEach((i) => { i.state = 'cancelled'; });
+    convertRunning = false;
+    // A "Cancel" click stops the whole run, not just the current file — anything still
+    // waiting shouldn't look stuck on "Waiting…" forever.
+    if (convertStopRequested) {
+        convertItems.filter((i) => i.state === 'pending').forEach((i) => { i.state = 'cancelled'; });
     }
-    renderConvertBatch();
+    if (progressWrap) progressWrap.style.display = 'none';
+    renderConvertList();
 
-    if (convertBatch.length > 0 && convertBatch.every((i) => i.state !== 'pending' && i.state !== 'converting')) {
-        showToast(convertBatchStopRequested ? 'Batch conversion cancelled' : 'Batch conversion finished', convertBatchStopRequested ? 'info' : 'success');
+    if (convertItems.length > 0 && convertItems.every((i) => i.state !== 'pending' && i.state !== 'converting')) {
+        const kind = convertItems.length > 1 ? 'Batch conversion' : 'Conversion';
+        const failed = convertItems.some((i) => i.state === 'error');
+        if (convertStopRequested) showToast(`${kind} cancelled`, 'info');
+        else showToast(`${kind} ${failed ? 'finished with errors' : 'complete ✓'}`, failed ? 'error' : 'success');
     }
 }
 
 async function doConvert() {
-    if (isConvertBatchMode()) {
-        if (!convertBatchRunning) runConvertBatch();
-        return;
-    }
-    if (!convertFilePath || convertInProgress) return;
-    const format = document.getElementById('convertFormat').value;
-    const btn = document.getElementById('convertBtn');
-    const progressWrap = document.getElementById('convertProgressWrap');
-    const bar = document.getElementById('convertProgressBar');
-    const label = document.getElementById('convertProgressLabel');
-
-    convertInProgress = true;
-    btn.disabled = true;
-    btn.textContent = 'Converting…';
-    if (progressWrap) progressWrap.style.display = 'block';
-    if (bar) bar.style.width = '0%';
-    if (label) label.textContent = '0%';
-    const cancelBtn = document.getElementById('convertCancelBtn');
-    if (cancelBtn) cancelBtn.style.display = 'inline';
-
-    addLog(`Converting: ${convertFilePath.split('/').pop()} → ${format.toUpperCase()}`, 'highlight');
-
-    const startTime = document.getElementById('convertTrimStart')?.value.trim() || null;
-    const endTime = document.getElementById('convertTrimEnd')?.value.trim() || null;
-
-    try {
-        const result = await window.api.convertFile(convertFilePath, format, startTime, endTime);
-        showToast('Conversion complete ✓', 'success');
-        addLog(`Saved: ${result.outputPath}`, 'success');
-        if (bar) bar.style.width = '100%';
-        if (label) label.textContent = '100% ✓';
-    } catch (err) {
-        if (err.message === 'Cancelled') {
-            showToast('Conversion cancelled', 'info');
-            addLog('Conversion cancelled', 'highlight');
-        } else {
-            showToast('Conversion failed', 'error');
-            addLog(`Conversion error: ${err.message}`, 'error');
-        }
-    } finally {
-        convertInProgress = false;
-        btn.disabled = false;
-        btn.textContent = 'Convert';
-        if (cancelBtn) cancelBtn.style.display = 'none';
-    }
+    if (convertRunning) return;
+    runConvertQueue();
 }
 
 async function doCancelConvert() {
-    if (isConvertBatchMode()) convertBatchStopRequested = true;
+    convertStopRequested = true;
     await window.api.convertCancel();
 }
 
