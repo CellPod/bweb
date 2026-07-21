@@ -11,7 +11,7 @@ const { queue } = require('./queue');
 const updater = require('./updater');
 const { autoUpdater } = require('electron-updater');
 const scraper = require('./scraper');
-const { DEV_MODE, log, logError } = require('./utils');
+const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
 const fs = require('fs');
 const { Readable } = require('stream');
 const { startLocalServer } = require('./localServer');
@@ -52,6 +52,15 @@ const SILENT_AUTOUPDATE = !DEV_MODE;
 if (SILENT_AUTOUPDATE) {
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+    // electron-updater's own internal logging (signature checks, download/install steps)
+    // is otherwise silent — this is the only way to see WHY quitAndInstall did nothing,
+    // which console.log alone never surfaces in a packaged app.
+    autoUpdater.logger = {
+        info: (...a) => log('[updater]', ...a),
+        warn: (...a) => log('[updater:warn]', ...a),
+        error: (...a) => logError('[updater]', ...a),
+        debug: (...a) => log('[updater:debug]', ...a),
+    };
 
     autoUpdater.on('update-available', (info) => {
         log('Auto-updater: update available', info.version);
@@ -374,6 +383,11 @@ ipcMain.handle('settings:openFolder', () => {
     shell.openPath(store.get('downloadPath'));
 });
 
+ipcMain.handle('settings:openLogs', () => {
+    const file = getLogFilePath();
+    if (file) shell.showItemInFolder(file);
+});
+
 ipcMain.handle('settings:openExternal', (_e, url) => {
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
         shell.openExternal(url);
@@ -402,8 +416,13 @@ ipcMain.handle('app:checkForUpdates', async () => {
 });
 
 ipcMain.handle('update:install', () => {
+    log('update:install requested, SILENT_AUTOUPDATE:', SILENT_AUTOUPDATE);
     if (SILENT_AUTOUPDATE) {
-        autoUpdater.quitAndInstall();
+        try {
+            autoUpdater.quitAndInstall();
+        } catch (err) {
+            logError('quitAndInstall threw:', err.message);
+        }
     }
 });
 

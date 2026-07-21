@@ -1826,6 +1826,10 @@ async function doOpenFolder() {
     window.api.openFolder();
 }
 
+async function doOpenLogs() {
+    window.api.openLogs();
+}
+
 async function doChooseFolder() {
     try {
         const newPath = await window.api.chooseDownloadPath();
