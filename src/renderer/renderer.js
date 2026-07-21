@@ -147,9 +147,6 @@ let wasQueueActive = false;
 let isSignedIn = false;
 let isInstaSignedIn = false;
 let updateInfo = null;
-let updateReady = null;
-let updateConsent = null;
-let autoUpdateEnabled = false; // kept in sync with the Settings toggle
 
 const $ = (id) => document.getElementById(id);
 
@@ -322,19 +319,6 @@ window.api.onScraperItem(({ item, count }) => {
 window.api.onUpdateAvailable((data) => {
     updateInfo = data;
     addLog(`Update available: v${data.latest}`, 'highlight');
-    showUpdateBanner();
-});
-
-window.api.onUpdateReadyToInstall?.((data) => {
-    updateReady = data;
-    addLog(`Update v${data.version} downloaded — restart to install`, 'highlight');
-    showUpdateBanner();
-});
-
-window.api.onUpdateConsentNeeded?.((data) => {
-    updateConsent = data;
-    updateInfo = data;
-    addLog(`Update available: v${data.latest} — asking about automatic updates`, 'highlight');
     showUpdateBanner();
 });
 
@@ -2045,20 +2029,6 @@ async function loadSettings() {
         isInstaSignedIn = await window.api.checkInstaAuth();
         updateInstaAuthUI();
     } catch {}
-
-    try {
-        const enabled = await window.api.getAutoUpdateEnabled();
-        autoUpdateEnabled = enabled;
-        const toggle = $('autoUpdateToggle');
-        if (toggle) toggle.checked = enabled;
-    } catch {}
-}
-
-async function doToggleAutoUpdate(enabled) {
-    try {
-        await window.api.setAutoUpdateEnabled(enabled);
-        autoUpdateEnabled = enabled;
-    } catch {}
 }
 
 async function doResetApp() {
@@ -2085,28 +2055,12 @@ async function loadAbout() {
     renderAboutUpdate();
 }
 
+// Updates are check-and-redirect only — no silent in-place install. A background
+// auto-installer was tried and failed unrecoverably on an ad-hoc-signed mac build;
+// pointing people at the GitHub release page for a manual download always works.
 function showUpdateBanner() {
     const banner = $('updateBanner');
     if (!banner) return;
-
-    if (updateConsent) {
-        banner.innerHTML =
-            `<span>${escapeHtml(t('update.consentPrompt')(updateConsent.latest))}</span>` +
-            `<button class="btn-sm" onclick="doEnableAutoUpdate()">${escapeHtml(t('update.enableAutoUpdate'))}</button>` +
-            `<button class="btn-sm" onclick="doDeclineAutoUpdate()">${escapeHtml(t('update.notNow'))}</button>`;
-        banner.classList.add('visible');
-        return;
-    }
-
-    if (updateReady) {
-        banner.innerHTML =
-            `<span>${escapeHtml(t('update.downloaded')(updateReady.version))}</span>` +
-            `<button class="btn-sm" onclick="doInstallUpdate()">${escapeHtml(t('update.restart'))}</button>` +
-            `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismissNextQuit'))}">×</button>`;
-        banner.classList.add('visible');
-        return;
-    }
-
     if (!updateInfo || !updateInfo.hasUpdate) return;
 
     banner.innerHTML =
@@ -2114,30 +2068,6 @@ function showUpdateBanner() {
         `<button class="btn-sm" onclick="openExternal('${escapeHtml(updateInfo.url)}')">${escapeHtml(t('update.download'))}</button>` +
         `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}">×</button>`;
     banner.classList.add('visible');
-}
-
-function doInstallUpdate() {
-    window.api.installUpdate();
-}
-
-async function doEnableAutoUpdate() {
-    await window.api.setAutoUpdateEnabled(true);
-    autoUpdateEnabled = true;
-    const toggle = $('autoUpdateToggle');
-    if (toggle) toggle.checked = true;
-    updateConsent = null;
-    addLog('Automatic updates enabled', 'highlight');
-    dismissUpdateBanner();
-}
-
-async function doDeclineAutoUpdate() {
-    await window.api.setAutoUpdateEnabled(false);
-    autoUpdateEnabled = false;
-    const toggle = $('autoUpdateToggle');
-    if (toggle) toggle.checked = false;
-    updateConsent = null;
-    // Still let them know a new version exists — just via the plain manual-download banner.
-    showUpdateBanner();
 }
 
 function dismissUpdateBanner() {
@@ -2149,21 +2079,7 @@ function renderAboutUpdate() {
     const el = $('aboutUpdateStatus');
     if (!el) return;
 
-    if (updateReady) {
-        el.innerHTML =
-            `<div class="about-update-available">` +
-            `<span>${escapeHtml(t('update.downloadedAbout')(updateReady.version))}</span>` +
-            `<a href="#" onclick="doInstallUpdate(); return false;">${escapeHtml(t('update.restartInstall'))}</a>` +
-            `</div>`;
-    } else if (updateInfo && updateInfo.hasUpdate && autoUpdateEnabled) {
-        // Already opted in — it's downloading in the background, nothing to click yet.
-        const notes = (updateInfo.body || '').trim();
-        el.innerHTML =
-            `<div class="about-update-available">` +
-            `<span>${escapeHtml(t('update.availableAbout')(updateInfo.latest))} — downloading…</span>` +
-            `</div>` +
-            (notes ? `<div class="about-release-notes">${escapeHtml(notes)}</div>` : '');
-    } else if (updateInfo && updateInfo.hasUpdate) {
+    if (updateInfo && updateInfo.hasUpdate) {
         const notes = (updateInfo.body || '').trim();
         el.innerHTML =
             `<div class="about-update-available">` +
@@ -2191,14 +2107,8 @@ async function doCheckForUpdates() {
         renderAboutUpdate();
 
         if (result.hasUpdate) {
-            if (autoUpdateEnabled) {
-                // Already opted in — the main process just kicked off the real
-                // download; its own progress/ready events drive the banner from here.
-                addLog(`Update available: v${result.latest} — downloading automatically…`, 'highlight');
-            } else {
-                addLog(`Update available: v${result.latest}`, 'highlight');
-                showUpdateBanner();
-            }
+            addLog(`Update available: v${result.latest}`, 'highlight');
+            showUpdateBanner();
         } else if (result.error) {
             addLog('Update check failed: ' + result.error, 'error');
         } else {

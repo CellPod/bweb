@@ -9,7 +9,6 @@ const ytdlp = require('./ytdlp');
 const cookies = require('./cookies');
 const { queue } = require('./queue');
 const updater = require('./updater');
-const { autoUpdater } = require('electron-updater');
 const scraper = require('./scraper');
 const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
 const fs = require('fs');
@@ -42,45 +41,12 @@ protocol.registerSchemesAsPrivileged([
     { scheme: 'bweb-file', privileges: { stream: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
 
-// Silent background auto-update runs on all platforms. macOS builds are ad-hoc signed
-// (see scripts/adhoc-sign-mac.js) — free, no Apple Developer account — which is enough
-// for Squirrel.Mac (electron-updater's mac mechanism) to accept and install updates.
-// It doesn't remove Gatekeeper's "unidentified developer" warning on first launch though;
-// only a paid Developer ID cert + notarization would avoid that one-time prompt.
-const SILENT_AUTOUPDATE = !DEV_MODE;
-
-if (SILENT_AUTOUPDATE) {
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
-    // electron-updater's own internal logging (signature checks, download/install steps)
-    // is otherwise silent — this is the only way to see WHY quitAndInstall did nothing,
-    // which console.log alone never surfaces in a packaged app.
-    autoUpdater.logger = {
-        info: (...a) => log('[updater]', ...a),
-        warn: (...a) => log('[updater:warn]', ...a),
-        error: (...a) => logError('[updater]', ...a),
-        debug: (...a) => log('[updater:debug]', ...a),
-    };
-
-    autoUpdater.on('update-available', (info) => {
-        log('Auto-updater: update available', info.version);
-        autoUpdater.downloadUpdate();
-    });
-
-    autoUpdater.on('download-progress', (progress) => {
-        send('update-download-progress', { percent: progress.percent });
-    });
-
-    autoUpdater.on('update-downloaded', (info) => {
-        log('Auto-updater: update downloaded', info.version);
-        send('update-ready-to-install', { version: info.version });
-    });
-
-    autoUpdater.on('error', (err) => {
-        logError('Auto-updater error:', err.message);
-    });
-}
-
+// Updates are check-and-redirect only: we point people at the GitHub release page
+// instead of silently downloading + installing in place. electron-updater's silent
+// install (Squirrel.Mac / NSIS) was tried and turned out unreliable on an ad-hoc-signed
+// (unpaid) mac build — quitAndInstall() failed with no visible error and no trace
+// anywhere, leaving a user stuck on an old version with no way to tell what went wrong.
+// A manual download+reinstall always works, so that's the only path now.
 let mainWindow = null;
 
 process.on('uncaughtException', (err) => {
@@ -137,29 +103,10 @@ async function createWindow() {
                 const result = await updater.checkForUpdates(app.getVersion());
                 if (result.hasUpdate) {
                     log('Update available:', result.latest);
-
-                    if (store.get('autoUpdateEnabled') === true) {
-                        // Already opted in — the silent flow below will download and
-                        // notify once it's ready, no need for the plain banner too.
-                    } else if (SILENT_AUTOUPDATE && store.get('autoUpdateConsentAskedForVersion') !== result.latest) {
-                        // Never force this on someone: ask once per new version instead of
-                        // silently enabling it, and don't nag again if they already answered.
-                        store.set('autoUpdateConsentAskedForVersion', result.latest);
-                        send('update-consent-needed', result);
-                    } else {
-                        send('update-available', result);
-                    }
+                    send('update-available', result);
                 }
             } catch (err) {
                 logError('Startup update check failed:', err.message);
-            }
-
-            if (SILENT_AUTOUPDATE && store.get('autoUpdateEnabled') === true) {
-                try {
-                    await autoUpdater.checkForUpdates();
-                } catch (err) {
-                    logError('Silent update check failed:', err.message);
-                }
             }
         }, 3000);
     });
@@ -223,10 +170,6 @@ app.whenReady().then(() => {
         defaults: {
             downloadPath: path.join(app.getPath('downloads'), APP_NAME),
             history: [],
-            // Undecided until the user explicitly answers the consent prompt (or flips the
-            // Settings toggle) — never silently opt them into automatic downloads.
-            autoUpdateEnabled: false,
-            autoUpdateConsentAskedForVersion: null,
         },
     });
 
@@ -403,38 +346,8 @@ ipcMain.handle('app:info', () => ({
 
 ipcMain.handle('app:checkForUpdates', async () => {
     const result = await updater.checkForUpdates(app.getVersion());
-    if (result.hasUpdate) {
-        if (SILENT_AUTOUPDATE && store.get('autoUpdateEnabled') === true) {
-            // Already opted in — kick off the real in-app download instead of pointing
-            // at GitHub. autoUpdater's own events drive the "ready to install" banner.
-            autoUpdater.checkForUpdates().catch((err) => logError('Manual update check (autoUpdater) failed:', err.message));
-        } else {
-            send('update-available', result);
-        }
-    }
+    if (result.hasUpdate) send('update-available', result);
     return result;
-});
-
-ipcMain.handle('update:install', () => {
-    log('update:install requested, SILENT_AUTOUPDATE:', SILENT_AUTOUPDATE);
-    if (SILENT_AUTOUPDATE) {
-        try {
-            autoUpdater.quitAndInstall();
-        } catch (err) {
-            logError('quitAndInstall threw:', err.message);
-        }
-    }
-});
-
-ipcMain.handle('settings:getAutoUpdateEnabled', () => store.get('autoUpdateEnabled') === true);
-
-ipcMain.handle('settings:setAutoUpdateEnabled', (_e, enabled) => {
-    store.set('autoUpdateEnabled', !!enabled);
-    log('Auto-update enabled set to:', !!enabled);
-    if (enabled && SILENT_AUTOUPDATE) {
-        autoUpdater.checkForUpdates().catch((err) => logError('Update check after opt-in failed:', err.message));
-    }
-    return !!enabled;
 });
 
 // Auth
