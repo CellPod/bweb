@@ -17,6 +17,12 @@ async function appendCookieArgs(args, url) {
                 args.push('--cookies', cookieFile);
                 log('Using Instagram cookie file:', cookieFile);
             }
+        } else if (url && url.includes('vimeo.com')) {
+            const cookieFile = await cookies.getVimeoCookieFile();
+            if (cookieFile) {
+                args.push('--cookies', cookieFile);
+                log('Using Vimeo cookie file:', cookieFile);
+            }
         } else {
             const cookieFile = await cookies.getCookieFile();
             if (cookieFile) {
@@ -481,7 +487,7 @@ function buildPresets(formats, durationSeconds) {
     return presets;
 }
 
-async function download({ url, formatId, outputDir, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart }, callbacks) {
+async function download({ url, formatId, outputDir, extractAudio, audioFormat, videoCodec, noReencode, trimSegments, liveFromStart }, callbacks) {
     const { onProgress, onLog } = callbacks;
 
     const ytdlp = getYtdlpPath();
@@ -516,13 +522,19 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
             args.push('--embed-thumbnail');
         }
     } else if (formatId) {
-        args.push('-f', formatId, '--merge-output-format', 'mp4');
-        // Re-encode audio to AAC for universal playback.
-        // YouTube serves Opus audio which Windows Media Player can't decode in MP4.
-        // AAC is fast to encode and works on every player on every OS.
-        const ALLOWED_CODECS = new Set(['copy', 'libx264', 'libx265', 'libvpx-vp9', 'libav1']);
-        const vcodec = ALLOWED_CODECS.has(videoCodec) ? videoCodec : 'copy';
-        args.push('--postprocessor-args', `ffmpeg:-c:v ${vcodec} -c:a aac`);
+        if (noReencode) {
+            // Lossless preset: mkv natively holds whatever video/audio codec the source
+            // serves, so ffmpeg can merge with a straight stream copy — no re-encode.
+            args.push('-f', formatId, '--merge-output-format', 'mkv');
+        } else {
+            args.push('-f', formatId, '--merge-output-format', 'mp4');
+            // Re-encode audio to AAC for universal playback.
+            // YouTube serves Opus audio which Windows Media Player can't decode in MP4.
+            // AAC is fast to encode and works on every player on every OS.
+            const ALLOWED_CODECS = new Set(['copy', 'libx264', 'libx265', 'libvpx-vp9', 'libav1']);
+            const vcodec = ALLOWED_CODECS.has(videoCodec) ? videoCodec : 'copy';
+            args.push('--postprocessor-args', `ffmpeg:-c:v ${vcodec} -c:a aac`);
+        }
     }
 
     if (trimSegments && trimSegments.length > 0) {
@@ -792,6 +804,8 @@ function looksLikePlaylist(url) {
     if (u.includes('/album/') || u.includes('/albums/')) return true;
     // Instagram saved collections
     if (u.includes('instagram.com') && u.includes('/saved/')) return true;
+    // Vimeo showcases
+    if (u.includes('vimeo.com') && u.includes('/showcase/')) return true;
     return false;
 }
 

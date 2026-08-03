@@ -10,6 +10,7 @@ const cookies = require('./cookies');
 const { queue } = require('./queue');
 const updater = require('./updater');
 const scraper = require('./scraper');
+const vimeoApi = require('./vimeoApi');
 const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
 const fs = require('fs');
 const { Readable } = require('stream');
@@ -170,6 +171,7 @@ app.whenReady().then(() => {
         defaults: {
             downloadPath: path.join(app.getPath('downloads'), APP_NAME),
             history: [],
+            vimeoApiToken: '',
         },
     });
 
@@ -400,6 +402,93 @@ ipcMain.handle('insta:logout', async () => {
     return true;
 });
 
+// Vimeo Auth
+
+ipcMain.handle('vimeo:check', () => cookies.hasVimeoCookies());
+
+ipcMain.handle('vimeo:login', async () => {
+    log('Opening Vimeo login window');
+    send('log', 'Opening Vimeo sign-in...');
+    const success = await cookies.openVimeoLoginWindow(mainWindow);
+    if (success) {
+        send('log', 'Signed in to Vimeo ✓');
+        log('Vimeo login successful');
+    } else {
+        send('log', 'Vimeo sign-in cancelled');
+        log('Vimeo login cancelled');
+    }
+    return success;
+});
+
+ipcMain.handle('vimeo:logout', async () => {
+    await cookies.clearVimeoCookies();
+    send('log', 'Signed out of Vimeo');
+    log('Vimeo logout');
+    return true;
+});
+
+// Vimeo API (Personal Access Token) — lists the account's library (personal + team)
+// via the official REST API. Used instead of scraping vimeo.com/library, which is
+// blocked by Vimeo's bot protection and doesn't expose description/real content date anyway.
+
+ipcMain.handle('vimeo:getToken', () => store.get('vimeoApiToken') || '');
+
+ipcMain.handle('vimeo:saveToken', (_e, token) => {
+    store.set('vimeoApiToken', token || '');
+    return true;
+});
+
+ipcMain.handle('vimeo:fetchLibrary', async () => {
+    const token = store.get('vimeoApiToken');
+    log('Vimeo library fetch requested');
+    send('log', 'Fetching Vimeo library...');
+
+    try {
+        const { items, total } = await vimeoApi.fetchLibrary(token, {
+            onLog: (msg) => send('log', msg),
+        });
+
+        const downloadPath = store.get('downloadPath');
+        const manifestPath = writeVimeoManifest(items, downloadPath);
+
+        send('log', `Vimeo library: ${items.length}/${total} videos found`);
+        log('Vimeo library fetched:', items.length, 'items, manifest:', manifestPath);
+        return { items, total, manifestPath };
+    } catch (err) {
+        send('log', `Vimeo library error: ${err.message}`);
+        throw err;
+    }
+});
+
+ipcMain.handle('vimeo:getVideoFile', async (_e, videoId) => {
+    const token = store.get('vimeoApiToken');
+    try {
+        return await vimeoApi.getVideoFile(token, videoId);
+    } catch (err) {
+        log('Vimeo getVideoFile error:', err.message);
+        throw err;
+    }
+});
+
+function writeVimeoManifest(items, downloadPath) {
+    try {
+        fs.mkdirSync(downloadPath, { recursive: true });
+    } catch {
+        //
+    }
+
+    const jsonPath = path.join(downloadPath, 'vimeo-library.json');
+    fs.writeFileSync(jsonPath, JSON.stringify(items, null, 2), 'utf8');
+
+    const csvEscape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['id', 'name', 'description', 'link', 'duration', 'createdTime', 'detectedYear', 'displayTitle'];
+    const rows = items.map((it) => header.map((k) => csvEscape(it[k])).join(','));
+    const csvPath = path.join(downloadPath, 'vimeo-library.csv');
+    fs.writeFileSync(csvPath, [header.join(','), ...rows].join('\n'), 'utf8');
+
+    return jsonPath;
+}
+
 // Instagram Collection Scraper
 
 ipcMain.handle('scraper:collection', async (_e, url) => {
@@ -450,7 +539,7 @@ ipcMain.handle('playlist:detect', (_e, url) => {
 });
 
 ipcMain.handle('video:batchMeta', async (_e, urls) => {
-    const capped = (Array.isArray(urls) ? urls : []).slice(0, 50);
+    const capped = (Array.isArray(urls) ? urls : []).slice(0, 500);
     const results = await Promise.allSettled(capped.map((url) => ytdlp.fetchMeta(url)));
     return results.map((r, i) => ({
         url: capped[i],

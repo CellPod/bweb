@@ -36,6 +36,17 @@ contextBridge.exposeInMainWorld('api', {
     instaLogin: () => ipcRenderer.invoke('insta:login'),
     instaLogout: () => ipcRenderer.invoke('insta:logout'),
 
+    // Vimeo Auth
+    checkVimeoAuth: () => ipcRenderer.invoke('vimeo:check'),
+    vimeoLogin: () => ipcRenderer.invoke('vimeo:login'),
+    vimeoLogout: () => ipcRenderer.invoke('vimeo:logout'),
+
+    // Vimeo API (library import)
+    getVimeoToken: () => ipcRenderer.invoke('vimeo:getToken'),
+    saveVimeoToken: (token) => ipcRenderer.invoke('vimeo:saveToken', token),
+    fetchVimeoLibrary: () => ipcRenderer.invoke('vimeo:fetchLibrary'),
+    getVimeoVideoFile: (videoId) => ipcRenderer.invoke('vimeo:getVideoFile', videoId),
+
     // Instagram Collection Scraper
     scrapeCollection: (url) => ipcRenderer.invoke('scraper:collection', url),
 

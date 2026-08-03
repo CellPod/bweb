@@ -1239,6 +1239,80 @@ html.platform-mac .update-banner {
     margin-top: -2px;
 }
 
+.settings-text-input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.settings-text-input:focus {
+    border-color: var(--accent);
+}
+
+.settings-collapsible {
+    margin: 4px 16px 0;
+}
+
+.settings-collapsible > summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 8px 0;
+    list-style: none;
+    user-select: none;
+}
+
+.settings-collapsible > summary::-webkit-details-marker {
+    display: none;
+}
+
+.settings-collapsible > summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.15s;
+}
+
+.settings-collapsible[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.settings-collapsible > summary:hover {
+    color: var(--accent);
+}
+
+.settings-collapsible-intro {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+    margin: 0 0 8px;
+}
+
+.settings-collapsible-steps {
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.5;
+    margin: 0 0 12px;
+}
+
+.settings-collapsible .settings-row {
+    margin-left: -16px;
+    margin-right: -16px;
+}
+
+.settings-collapsible .settings-hint {
+    padding: 0;
+    margin-bottom: 8px;
+}
+
 .auth-signed-in {
     color: var(--success);
 }

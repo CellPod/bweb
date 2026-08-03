@@ -146,6 +146,7 @@ let wasQueueActive = false;
 
 let isSignedIn = false;
 let isInstaSignedIn = false;
+let isVimeoSignedIn = false;
 let updateInfo = null;
 
 const $ = (id) => document.getElementById(id);
@@ -1744,14 +1745,17 @@ async function doLogout() {
 function updateAuthUI() {
     const el = $('authStatus');
     if (!el) return;
+    const btn = $('authActionBtn');
     if (isSignedIn) {
-        el.innerHTML = '<span class="auth-signed-in">Signed in to YouTube</span>';
-        $('authActionBtn').textContent = 'Sign out';
-        $('authActionBtn').onclick = doLogout;
+        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.yt.signedIn'))}</span>`;
+        btn.textContent = t('settings.signOut');
+        btn.dataset.i18n = 'settings.signOut';
+        btn.onclick = doLogout;
     } else {
-        el.innerHTML = '<span class="auth-signed-out">Not signed in</span>';
-        $('authActionBtn').textContent = 'Sign in';
-        $('authActionBtn').onclick = doLogin;
+        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
+        btn.textContent = t('settings.signIn');
+        btn.dataset.i18n = 'settings.signIn';
+        btn.onclick = doLogin;
     }
 }
 
@@ -1795,15 +1799,171 @@ async function doInstaLogout() {
 function updateInstaAuthUI() {
     const el = $('instaAuthStatus');
     if (!el) return;
+    const btn = $('instaAuthActionBtn');
     if (isInstaSignedIn) {
-        el.innerHTML = '<span class="auth-signed-in">Signed in to Instagram</span>';
-        $('instaAuthActionBtn').textContent = 'Sign out';
-        $('instaAuthActionBtn').onclick = doInstaLogout;
+        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.insta.signedIn'))}</span>`;
+        btn.textContent = t('settings.signOut');
+        btn.dataset.i18n = 'settings.signOut';
+        btn.onclick = doInstaLogout;
     } else {
-        el.innerHTML = '<span class="auth-signed-out">Not signed in</span>';
-        $('instaAuthActionBtn').textContent = 'Sign in';
-        $('instaAuthActionBtn').onclick = doInstaLogin;
+        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
+        btn.textContent = t('settings.signIn');
+        btn.dataset.i18n = 'settings.signIn';
+        btn.onclick = doInstaLogin;
     }
+}
+
+// Vimeo auth
+
+async function doVimeoLogin() {
+    hideError();
+    addLog('Opening Vimeo sign-in...', 'highlight');
+    try {
+        const success = await window.api.vimeoLogin();
+        isVimeoSignedIn = success;
+        updateVimeoAuthUI();
+        if (success) {
+            addLog('Signed in to Vimeo ✓', 'success');
+        }
+    } catch (e) {
+        addLog('Vimeo sign-in failed: ' + e.message, 'error');
+    }
+}
+
+async function doVimeoLogout() {
+    try {
+        await window.api.vimeoLogout();
+        isVimeoSignedIn = false;
+        updateVimeoAuthUI();
+        addLog('Signed out of Vimeo');
+    } catch (e) {
+        addLog('Vimeo sign-out failed: ' + e.message, 'error');
+    }
+}
+
+function updateVimeoAuthUI() {
+    const el = $('vimeoAuthStatus');
+    if (!el) return;
+    const btn = $('vimeoAuthActionBtn');
+    if (isVimeoSignedIn) {
+        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.vimeo.signedIn'))}</span>`;
+        btn.textContent = t('settings.signOut');
+        btn.dataset.i18n = 'settings.signOut';
+        btn.onclick = doVimeoLogout;
+    } else {
+        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
+        btn.textContent = t('settings.signIn');
+        btn.dataset.i18n = 'settings.signIn';
+        btn.onclick = doVimeoLogin;
+    }
+}
+
+// Vimeo library import (via API, not scraping — see vimeoApi.js)
+
+let vimeoLibraryItems = [];
+let vimeoImportOffset = 0;
+
+async function doSaveVimeoToken() {
+    const token = ($('vimeoApiToken')?.value || '').trim();
+    try {
+        await window.api.saveVimeoToken(token);
+        addLog(token ? 'Vimeo API token saved' : 'Vimeo API token cleared');
+    } catch (e) {
+        addLog('Failed to save Vimeo API token: ' + e.message, 'error');
+    }
+}
+
+async function doFetchVimeoLibrary() {
+    const btn = $('vimeoFetchLibraryBtn');
+    const statusEl = $('vimeoLibraryStatus');
+    btn.disabled = true;
+    btn.textContent = t('settings.vimeo.fetching');
+
+    try {
+        const { items, total, manifestPath } = await window.api.fetchVimeoLibrary();
+        vimeoLibraryItems = items;
+        vimeoImportOffset = 0;
+
+        statusEl.textContent = t('settings.vimeo.libraryFound')(total, manifestPath);
+        addLog(`Vimeo library: ${total} videos found, manifest exported`, 'success');
+
+        $('vimeoLibraryBatchRow').style.display = total > 0 ? 'flex' : 'none';
+        $('vimeoLibraryBatchHint').style.display = total > 0 ? 'block' : 'none';
+        updateVimeoImportBtn();
+        showToast(`${total} video${total !== 1 ? 's' : ''} found`);
+    } catch (e) {
+        statusEl.textContent = '';
+        addLog('Vimeo library fetch failed: ' + e.message, 'error');
+        showToast(t('settings.vimeo.fetchFailed'), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('settings.vimeo.fetch');
+        btn.dataset.i18n = 'settings.vimeo.fetch';
+    }
+}
+
+function updateVimeoImportBtn() {
+    const importBtn = $('vimeoImportBatchBtn');
+    if (!importBtn) return;
+    const remaining = vimeoLibraryItems.length - vimeoImportOffset;
+    if (remaining <= 0) {
+        importBtn.textContent = t('settings.vimeo.allImported');
+        importBtn.disabled = true;
+    } else {
+        const size = Math.max(1, parseInt($('vimeoBatchSize')?.value, 10) || 20);
+        importBtn.textContent = t('settings.vimeo.importNext')(Math.min(size, remaining), remaining);
+        importBtn.disabled = false;
+    }
+}
+
+async function doImportVimeoBatch() {
+    const size = Math.max(1, parseInt($('vimeoBatchSize')?.value, 10) || 20);
+    const chunk = vimeoLibraryItems.slice(vimeoImportOffset, vimeoImportOffset + size);
+    if (!chunk.length) return;
+
+    const importBtn = $('vimeoImportBatchBtn');
+    importBtn.disabled = true;
+
+    // Resolve a direct downloadable file link per video via the Vimeo API — yt-dlp's
+    // Vimeo extractor is currently blocked by Vimeo's bot detection, so downloads for
+    // library imports bypass it entirely (see directDownload.js).
+    const items = [];
+    let failed = 0;
+    for (let i = 0; i < chunk.length; i++) {
+        const v = chunk[i];
+        importBtn.textContent = t('settings.vimeo.resolving')(i + 1, chunk.length);
+        try {
+            const file = await window.api.getVimeoVideoFile(v.id);
+            if (!file) {
+                failed++;
+                addLog(`No downloadable file for "${v.name}" (${v.id})`, 'error');
+                continue;
+            }
+            items.push({
+                url: v.link,
+                title: v.displayTitle || v.name,
+                thumbnail: null,
+                directUrl: file.url,
+            });
+        } catch (e) {
+            failed++;
+            addLog(`Failed to resolve "${v.name}": ${e.message}`, 'error');
+        }
+    }
+
+    vimeoImportOffset += chunk.length;
+
+    if (items.length) {
+        await window.api.queueAdd(items);
+        addLog(`Added ${items.length} Vimeo video${items.length !== 1 ? 's' : ''} to queue`, 'highlight');
+        showToast(`${items.length} added to queue`);
+        switchTab('queue');
+    }
+    if (failed) {
+        addLog(`${failed} video${failed !== 1 ? 's' : ''} could not be resolved`, 'error');
+    }
+
+    updateVimeoImportBtn();
 }
 
 async function doOpenFolder() {
@@ -2029,6 +2189,16 @@ async function loadSettings() {
         isInstaSignedIn = await window.api.checkInstaAuth();
         updateInstaAuthUI();
     } catch {}
+
+    try {
+        isVimeoSignedIn = await window.api.checkVimeoAuth();
+        updateVimeoAuthUI();
+    } catch {}
+
+    try {
+        const token = await window.api.getVimeoToken();
+        if (token) $('vimeoApiToken').value = token;
+    } catch {}
 }
 
 async function doResetApp() {
@@ -2167,6 +2337,12 @@ async function init() {
         isInstaSignedIn = await window.api.checkInstaAuth();
         if (isInstaSignedIn) addLog('Instagram: signed in ✓', 'success');
         updateInstaAuthUI();
+    } catch {}
+
+    try {
+        isVimeoSignedIn = await window.api.checkVimeoAuth();
+        if (isVimeoSignedIn) addLog('Vimeo: signed in ✓', 'success');
+        updateVimeoAuthUI();
     } catch {}
 }
 
@@ -2319,12 +2495,15 @@ function initSidebarResize() {
 
 const BATCH_PRESETS = {
     // No codec restriction — YouTube only offers 4K/2K in AV1/VP9, H.264 maxes at 1080p
-    best:    { formatId: 'bestvideo+bestaudio/best', extractAudio: false, audioFormat: null },
-    '4k':    { formatId: 'bestvideo[height<=2160]+bestaudio/best[height<=2160]', extractAudio: false, audioFormat: null },
-    '2k':    { formatId: 'bestvideo[height<=1440]+bestaudio/best[height<=1440]', extractAudio: false, audioFormat: null },
-    '1080p': { formatId: 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', extractAudio: false, audioFormat: null },
-    mp3:     { formatId: 'bestaudio/best', extractAudio: true,  audioFormat: 'mp3' },
-    wav:     { formatId: 'bestaudio/best', extractAudio: true,  audioFormat: 'wav' },
+    best:      { formatId: 'bestvideo+bestaudio/best', extractAudio: false, audioFormat: null },
+    '4k':      { formatId: 'bestvideo[height<=2160]+bestaudio/best[height<=2160]', extractAudio: false, audioFormat: null },
+    '2k':      { formatId: 'bestvideo[height<=1440]+bestaudio/best[height<=1440]', extractAudio: false, audioFormat: null },
+    '1080p':   { formatId: 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', extractAudio: false, audioFormat: null },
+    // No re-encode: mkv container, straight stream copy of whatever the source served.
+    // Not literal uncompressed lossless — just no extra quality loss on our side.
+    lossless:  { formatId: 'bestvideo+bestaudio/best', extractAudio: false, audioFormat: null, noReencode: true },
+    mp3:       { formatId: 'bestaudio/best', extractAudio: true,  audioFormat: 'mp3' },
+    wav:       { formatId: 'bestaudio/best', extractAudio: true,  audioFormat: 'wav' },
 };
 
 let batchSelectedPreset = '1080p';
@@ -2350,12 +2529,32 @@ function selectBatchPreset(preset) {
 }
 
 async function doBatchAdd() {
-    const urls = parseBatchUrls();
+    let urls = parseBatchUrls();
     if (!urls.length) return;
 
     const btn = document.getElementById('batchAddBtn');
     const origText = btn.textContent;
     btn.disabled = true;
+
+    // A single pasted URL that's actually a playlist/showcase page (e.g. a Vimeo
+    // showcase) gets expanded into its full list of video URLs before queuing,
+    // so the user can paste one link instead of collecting every video URL by hand.
+    if (urls.length === 1) {
+        try {
+            const isPlaylist = await window.api.detectPlaylist(urls[0]);
+            if (isPlaylist) {
+                btn.textContent = 'Expanding playlist…';
+                const { items } = await window.api.fetchPlaylist(urls[0]);
+                if (items && items.length) {
+                    urls = items.map(i => i.webpage_url || i.url).filter(Boolean);
+                    addLog(`Expanded playlist into ${urls.length} URL${urls.length !== 1 ? 's' : ''}`, 'highlight');
+                }
+            }
+        } catch (e) {
+            addLog('Playlist expansion failed: ' + e.message, 'error');
+        }
+    }
+
     btn.textContent = `Fetching metadata… (0/${urls.length})`;
 
     let metas;
@@ -2377,6 +2576,7 @@ async function doBatchAdd() {
         formatId: preset.formatId,
         extractAudio: preset.extractAudio,
         audioFormat: preset.audioFormat || 'mp3',
+        noReencode: preset.noReencode || false,
     }));
 
     await window.api.queueAdd(items);

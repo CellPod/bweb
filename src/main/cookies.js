@@ -237,6 +237,117 @@ async function writeInstaCookieFile() {
     log('Wrote', relevant.length, 'Instagram cookies to', filePath);
 }
 
+// Vimeo
+
+const VIMEO_PARTITION = 'persist:vimeo-login';
+const VIMEO_LOGIN_URL = 'https://vimeo.com/log_in';
+
+let vimeoCookiePath = null;
+
+function getVimeoCookiePath() {
+    if (!vimeoCookiePath) {
+        vimeoCookiePath = path.join(app.getPath('userData'), 'arcdlp-vimeo-cookies.txt');
+    }
+    return vimeoCookiePath;
+}
+
+async function hasVimeoCookies() {
+    const ses = session.fromPartition(VIMEO_PARTITION);
+    const cookies = await ses.cookies.get({ domain: '.vimeo.com' });
+    // Need the vimeo session cookie to be authenticated
+    return cookies.some((c) => c.name === 'vimeo');
+}
+
+async function getVimeoCookieFile() {
+    const has = await hasVimeoCookies();
+    if (!has) return null;
+
+    await writeVimeoCookieFile();
+    const p = getVimeoCookiePath();
+    return fs.existsSync(p) ? p : null;
+}
+
+function openVimeoLoginWindow(parentWindow) {
+    return new Promise((resolve) => {
+        const win = new BrowserWindow({
+            width: 500,
+            height: 700,
+            parent: parentWindow || undefined,
+            title: 'Sign in to Vimeo',
+            webPreferences: {
+                partition: VIMEO_PARTITION,
+                nodeIntegration: false,
+                contextIsolation: true,
+            },
+            autoHideMenuBar: true,
+        });
+
+        let resolved = false;
+
+        function done(result) {
+            if (resolved) return;
+            resolved = true;
+            if (!win.isDestroyed()) win.close();
+            resolve(result);
+        }
+
+        win.webContents.on('did-navigate', (_e, url) => {
+            log('Vimeo login nav:', url);
+            if (isVimeoHome(url)) {
+                log('Vimeo login detected');
+                setTimeout(() => done(true), 1500);
+            }
+        });
+
+        win.webContents.on('did-navigate-in-page', (_e, url) => {
+            if (isVimeoHome(url)) {
+                setTimeout(() => done(true), 1500);
+            }
+        });
+
+        win.on('closed', () => done(false));
+
+        win.loadURL(VIMEO_LOGIN_URL);
+    });
+}
+
+async function clearVimeoCookies() {
+    const ses = session.fromPartition(VIMEO_PARTITION);
+    await ses.clearStorageData();
+    const p = getVimeoCookiePath();
+    try {
+        fs.unlinkSync(p);
+    } catch {
+        //
+    }
+    log('Vimeo cookies cleared');
+}
+
+function isVimeoHome(url) {
+    try {
+        const u = new URL(url);
+        return u.hostname === 'vimeo.com' && (u.pathname === '/' || u.pathname.startsWith('/home'));
+    } catch {
+        return false;
+    }
+}
+
+async function writeVimeoCookieFile() {
+    const ses = session.fromPartition(VIMEO_PARTITION);
+    const cookies = await ses.cookies.get({});
+
+    const relevant = cookies.filter((c) => (c.domain || '').includes('vimeo.com'));
+
+    if (relevant.length === 0) {
+        log('No Vimeo cookies found');
+        return;
+    }
+
+    const filePath = getVimeoCookiePath();
+    writeCookieLines(relevant, filePath);
+    log('Wrote', relevant.length, 'Vimeo cookies to', filePath);
+}
+
 // Shared
 
 function writeCookieLines(cookies, filePath) {
@@ -266,4 +377,10 @@ module.exports = {
     getInstaCookieFile,
     openInstaLoginWindow,
     clearInstaCookies,
+
+    // Vimeo
+    hasVimeoCookies,
+    getVimeoCookieFile,
+    openVimeoLoginWindow,
+    clearVimeoCookies,
 };

@@ -4,6 +4,12 @@
 
 const { log, logError } = require('./utils');
 
+function sanitizeFilename(name) {
+    return String(name || 'video')
+        .replace(/[/\\?%*:|"<>]/g, '-')
+        .trim();
+}
+
 // Item states
 const STATE = {
     PENDING: 'pending',
@@ -65,6 +71,8 @@ class DownloadQueue {
                 extractAudio: item.extractAudio || false,
                 audioFormat: item.audioFormat || 'mp3',
                 videoCodec: item.videoCodec || null,
+                noReencode: item.noReencode || false,
+                directUrl: item.directUrl || null,
                 trimSegments: item.trimSegments || null,
                 liveFromStart: item.liveFromStart || false,
                 state: STATE.PENDING,
@@ -333,19 +341,27 @@ class DownloadQueue {
             },
         };
 
-        const downloadPromise = ytdlp.download(
-            {
-                url: item.url,
-                formatId: item.formatId,
-                outputDir: downloadPath,
-                extractAudio: item.extractAudio,
-                audioFormat: item.audioFormat,
-                videoCodec: item.videoCodec,
-                trimSegments: item.trimSegments,
-                liveFromStart: item.liveFromStart,
-            },
-            callbacks,
-        );
+        let downloadPromise;
+        if (item.directUrl) {
+            const directDownload = require('./directDownload');
+            const outputPath = path.join(downloadPath, `${sanitizeFilename(item.title)}.mp4`);
+            downloadPromise = directDownload.downloadDirect({ url: item.directUrl, outputPath }, callbacks);
+        } else {
+            downloadPromise = ytdlp.download(
+                {
+                    url: item.url,
+                    formatId: item.formatId,
+                    outputDir: downloadPath,
+                    extractAudio: item.extractAudio,
+                    audioFormat: item.audioFormat,
+                    videoCodec: item.videoCodec,
+                    noReencode: item.noReencode,
+                    trimSegments: item.trimSegments,
+                    liveFromStart: item.liveFromStart,
+                },
+                callbacks,
+            );
+        }
 
         this._currentProc = callbacks._proc;
 
@@ -399,8 +415,8 @@ class DownloadQueue {
         // would otherwise vanish from the queue instead of resuming as pending next launch.
         const pending = this._items
             .filter((i) => i.state === STATE.PENDING || i.state === STATE.DOWNLOADING)
-            .map(({ url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart }) => ({
-                url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, trimSegments, liveFromStart,
+            .map(({ url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, noReencode, directUrl, trimSegments, liveFromStart }) => ({
+                url, title, thumbnail, formatId, extractAudio, audioFormat, videoCodec, noReencode, directUrl, trimSegments, liveFromStart,
             }));
         this._store.set('queue.pending', pending);
     }

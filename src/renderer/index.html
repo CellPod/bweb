@@ -298,6 +298,7 @@
                             <button class="batch-q-btn" data-preset="4k" data-i18n="dl.batch.4k" onclick="selectBatchPreset('4k')">Up to 4K</button>
                             <button class="batch-q-btn" data-preset="2k" data-i18n="dl.batch.2k" onclick="selectBatchPreset('2k')">Up to 2K</button>
                             <button class="batch-q-btn active" data-preset="1080p" data-i18n="dl.batch.1080p" onclick="selectBatchPreset('1080p')">Up to 1080p</button>
+                            <button class="batch-q-btn" data-preset="lossless" data-i18n="dl.batch.lossless" onclick="selectBatchPreset('lossless')">Lossless</button>
                             <button class="batch-q-btn" data-preset="mp3" onclick="selectBatchPreset('mp3')">MP3</button>
                             <button class="batch-q-btn" data-preset="wav" onclick="selectBatchPreset('wav')">WAV</button>
                         </div>
@@ -591,6 +592,64 @@
                     <div class="settings-hint" data-i18n="settings.insta.hint">
                         Sign in to download from your saved collections. Your credentials go directly to Instagram — this app never sees your password.
                     </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title" data-i18n="settings.vimeo.title">Vimeo Account</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label" data-i18n="settings.vimeo.signin">Vimeo sign-in</div>
+                            <div id="vimeoAuthStatus" class="settings-row-value">
+                                <span class="auth-signed-out" data-i18n="settings.notSignedIn">Not signed in</span>
+                            </div>
+                        </div>
+                        <div class="settings-row-action">
+                            <button id="vimeoAuthActionBtn" class="btn-sm" data-i18n="settings.signIn" onclick="doVimeoLogin()">Sign in</button>
+                        </div>
+                    </div>
+                    <div class="settings-hint" data-i18n="settings.vimeo.hint">
+                        Sign in to download Vimeo Pro/private videos and showcases at their full quality. Your credentials go directly to Vimeo — this app never sees your password.
+                    </div>
+                    <details class="settings-collapsible">
+                        <summary data-i18n="settings.vimeo.importSection">Import your Vimeo library</summary>
+                        <p class="settings-collapsible-intro" data-i18n="settings.vimeo.importIntro">
+                            Pulls in every video you own — including a team library — with its title, description, and real upload date, then downloads each one at the best quality available.
+                        </p>
+                        <p class="settings-collapsible-steps" data-i18n="settings.vimeo.importSteps">
+                            1. Generate a free token at developer.vimeo.com/apps (check Public + Private). 2. Paste it below. 3. Fetch your library, then import it in batches.
+                        </p>
+                        <div class="settings-row">
+                            <div class="settings-row-info" style="width:100%">
+                                <div class="settings-row-label" data-i18n="settings.vimeo.tokenLabel">Vimeo API access token</div>
+                                <input id="vimeoApiToken" class="settings-text-input" type="password"
+                                    placeholder="Personal Access Token (developer.vimeo.com/apps)" onchange="doSaveVimeoToken()">
+                            </div>
+                        </div>
+                        <div class="settings-hint" data-i18n="settings.vimeo.tokenHint">
+                            Stored only on this computer — never sent anywhere but Vimeo's API.
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-info">
+                                <div class="settings-row-label" data-i18n="settings.vimeo.importLabel">Fetch your videos</div>
+                                <div id="vimeoLibraryStatus" class="settings-row-value"></div>
+                            </div>
+                            <div class="settings-row-action">
+                                <button id="vimeoFetchLibraryBtn" class="btn-sm" data-i18n="settings.vimeo.fetch" onclick="doFetchVimeoLibrary()">Fetch library</button>
+                            </div>
+                        </div>
+                        <div id="vimeoLibraryBatchRow" class="settings-row" style="display:none">
+                            <div class="settings-row-info">
+                                <div class="settings-row-label" data-i18n="settings.vimeo.batchSizeLabel">Import in batches</div>
+                                <input id="vimeoBatchSize" class="settings-text-input" type="number" min="1" value="20" style="width:70px;margin-top:6px" oninput="updateVimeoImportBtn()">
+                            </div>
+                            <div class="settings-row-action">
+                                <button id="vimeoImportBatchBtn" class="btn-sm" onclick="doImportVimeoBatch()"></button>
+                            </div>
+                        </div>
+                        <div id="vimeoLibraryBatchHint" class="settings-hint" data-i18n="settings.vimeo.batchSizeHint" style="display:none">
+                            Adds videos in small groups instead of all at once, so you can move finished downloads elsewhere before your disk fills up. Import the next batch whenever you're ready.
+                        </div>
+                    </details>
                 </div>
 
                 <div class="settings-section">
