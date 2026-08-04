@@ -73,8 +73,8 @@ async function createWindow() {
     const isMac = process.platform === 'darwin';
 
     mainWindow = new BrowserWindow({
-        width: 900,
-        height: 640,
+        width: 1180,
+        height: 820,
         minWidth: 700,
         minHeight: 500,
         backgroundColor: isMac ? '#00000000' : '#f5f5f7',

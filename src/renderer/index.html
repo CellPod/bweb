@@ -134,6 +134,13 @@
                     </button>
                 </div>
 
+                <div class="dl-destination">
+                    <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                    <span data-i18n="dl.dest.label">Saving to:</span>
+                    <span id="dlDestPath" class="dl-destination-path">—</span>
+                    <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseFolderInline()">Change</button>
+                </div>
+
                 <div id="dlModeSingle">
                 <div class="url-bar">
                     <input id="urlInput" class="url-input" type="url" placeholder="Paste a video or playlist URL…"
@@ -276,6 +283,11 @@
                                 <span data-i18n="dl.empty.sub1">Press <kbd>Ctrl</kbd> + <kbd>V</kbd> or <kbd>⌘</kbd> + <kbd>V</kbd></span>
                             </div>
                             <div class="sub" data-i18n="dl.empty.sub2">YouTube, Vimeo, Twitter, Instagram collections, and thousands more</div>
+                        </div>
+
+                        <div id="emptyStateFetching" class="empty-state" style="display:none">
+                            <div class="icon"><span class="spinner-lg"></span></div>
+                            <div class="title" data-i18n="dl.empty.fetching">Fetching video info…</div>
                         </div>
                     </div>
 
@@ -771,7 +783,6 @@
             <div class="log-header-title">Log</div>
             <div class="log-header-actions">
                 <button onclick="event.stopPropagation(); clearLog()">Clear</button>
-                <button onclick="event.stopPropagation(); doOpenFolder()">Open folder</button>
             </div>
         </div>
         <div id="logBody" class="log-body"></div>

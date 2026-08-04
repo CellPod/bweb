@@ -62,6 +62,13 @@ class DownloadQueue {
     add(items) {
         const added = [];
         for (const item of items) {
+            const isDuplicate = this._items.some(
+                (i) => i.url === item.url && (i.state === STATE.PENDING || i.state === STATE.DOWNLOADING)
+            );
+            if (isDuplicate) {
+                log('Queue: skipped duplicate URL already queued ->', item.url);
+                continue;
+            }
             const qItem = {
                 id: ++this._idCounter,
                 url: item.url,
@@ -280,11 +287,17 @@ class DownloadQueue {
 
         try {
             this._cancelled = false;
-            await this._downloadOne(nextItem);
+            const result = await this._downloadOne(nextItem);
             nextItem.state = STATE.COMPLETED;
             nextItem.progress = { percent: '100%', speed: '', eta: '' };
-            this._emit('log', `Completed: ${nextItem.title} ✓`);
-            log('Queue: completed', nextItem.title);
+            if (result && result.alreadyDownloaded) {
+                nextItem.alreadyDownloaded = true;
+                this._emit('log', `Already downloaded, skipped: ${nextItem.title}`);
+                log('Queue: skipped (already downloaded)', nextItem.title);
+            } else {
+                this._emit('log', `Completed: ${nextItem.title} ✓`);
+                log('Queue: completed', nextItem.title);
+            }
             this._emitItemComplete(nextItem);
         } catch (err) {
             if (this._cancelled && this._pauseCancelled) {

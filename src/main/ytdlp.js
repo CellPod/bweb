@@ -505,7 +505,12 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
         '--progress-template',
         'download:DLPROG %(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s',
         '-o',
-        path.join(outputDir, '%(title)s [%(id)s].%(ext)s'),
+        // Multiple --download-sections resolve to the same filename otherwise (they share
+        // title/id), so the second segment silently overwrites the first — include the
+        // section range in the name whenever there's more than one segment to disambiguate them.
+        trimSegments && trimSegments.length > 1
+            ? path.join(outputDir, '%(title)s [%(id)s] (%(section_start)s-%(section_end)s).%(ext)s')
+            : path.join(outputDir, '%(title)s [%(id)s].%(ext)s'),
     ];
 
     const ffmpeg = getFfmpegPath();
@@ -573,6 +578,10 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
             }
         }, 30000);
 
+        // Set when yt-dlp skips a section because its output file already exists — without this,
+        // the queue item gets marked COMPLETED even though nothing new was written to disk.
+        let alreadyDownloaded = false;
+
         // Parse progress from both stdout and stderr
         function parseOutput(data) {
             lastActivity = Date.now();
@@ -591,6 +600,9 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
 
                 const trimmed = line.trim();
                 if (trimmed && !trimmed.startsWith('WARNING')) {
+                    if (trimmed.includes('has already been downloaded')) {
+                        alreadyDownloaded = true;
+                    }
                     if (
                         trimmed.startsWith('[download]') ||
                         trimmed.startsWith('[Merger]') ||
@@ -627,9 +639,14 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
                 onLog('Download failed.');
                 return reject(new Error(msg));
             }
-            log('Download completed');
-            onLog('Download complete ✓');
-            resolve({ ok: true });
+            if (alreadyDownloaded) {
+                log('Download skipped — file already exists');
+                onLog('Already downloaded — file already exists, skipped.');
+            } else {
+                log('Download completed');
+                onLog('Download complete ✓');
+            }
+            resolve({ ok: true, alreadyDownloaded });
         });
 
         proc.on('error', (err) => {

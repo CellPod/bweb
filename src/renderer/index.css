@@ -58,6 +58,26 @@
     --font:      system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Menlo', 'Consolas', monospace;
 
+    /* Type scale — every heading/label/body size in the app should trace back to one
+       of these instead of a one-off px value. */
+    --fs-2xs: 10px; /* smallest badges (e.g. duration overlay) */
+    --fs-xs:  11px; /* meta text, timestamps, status labels */
+    --fs-sm:  12px; /* secondary labels, uppercase section headers */
+    --fs-base: 13px; /* default body text */
+    --fs-md:  14px; /* emphasized body, empty-state titles */
+    --fs-lg:  16px; /* card-level titles (video title, etc.) */
+    --fs-xl:  18px; /* dialog/prominent inline titles */
+    --fs-2xl: 20px; /* page title (.view-title) */
+
+    /* Spacing scale — 4px base unit */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
     /* Grain */
     --grain-opacity: 0.038;
 
@@ -189,6 +209,7 @@ body::before {
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 240px; /* keeps download controls usable even when the log panel is resized tall */
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────────── */
@@ -337,7 +358,11 @@ html.platform-mac .update-banner {
 
 .content-area {
     flex: 1;
-    overflow: hidden;
+    /* Scrolling lives here, not on .view: .view is width-capped and centered (see below),
+       so a scrollbar on .view itself would sit mid-window on wide screens instead of flush
+       against the true edge of the app. */
+    overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     container-type: inline-size;
@@ -346,7 +371,6 @@ html.platform-mac .update-banner {
 .view {
     display: none;
     flex: 1;
-    overflow-y: auto;
     padding: 20px 28px 28px;
     /* center content on wide windows */
     max-width: 860px;
@@ -365,18 +389,18 @@ html.platform-mac .update-banner {
     to   { opacity: 1; }
 }
 
-.view::-webkit-scrollbar {
+.content-area::-webkit-scrollbar {
     width: 6px;
 }
 
-.view::-webkit-scrollbar-thumb {
+.content-area::-webkit-scrollbar-thumb {
     background: var(--text-3);
     border-radius: 3px;
 }
 
 /* View header — page title area */
 .view-header {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-5);
     -webkit-app-region: drag;
     user-select: none;
 }
@@ -388,7 +412,7 @@ html.platform-mac .update-banner {
 }
 
 .view-title {
-    font-size: 22px;
+    font-size: var(--fs-2xl);
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--text);
@@ -543,6 +567,16 @@ html.platform-mac .update-banner {
     to {
         transform: rotate(360deg);
     }
+}
+
+.spinner-lg {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
 }
 
 /* URL Bar */
@@ -845,24 +879,27 @@ html.platform-mac .update-banner {
 }
 
 .empty-state .icon {
-    font-size: 44px;
-    margin-bottom: 14px;
+    font-size: 36px;
+    margin-bottom: var(--space-2);
     opacity: 0.22;
     display: flex;
     justify-content: center;
     color: var(--text-3);
 }
 
+/* Same title/sub treatment as .queue-empty / .history-empty — these three placeholders
+   are the same UI role (nothing here yet) and should read as one consistent pattern,
+   not three independently-tuned sizes. */
 .empty-state .title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: var(--fs-md);
+    font-weight: 600;
     color: var(--text-2);
-    letter-spacing: -0.01em;
+    margin-bottom: var(--space-1);
 }
 
 .empty-state .sub {
-    font-size: 13px;
-    margin-top: 6px;
+    font-size: var(--fs-sm);
+    margin-top: var(--space-2);
     color: var(--text-3);
 }
 
@@ -1075,7 +1112,7 @@ html.platform-mac .update-banner {
 
 .history-empty .icon {
     font-size: 36px;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-2);
     opacity: 0.22;
     display: flex;
     justify-content: center;
@@ -1083,14 +1120,14 @@ html.platform-mac .update-banner {
 }
 
 .history-empty .title {
-    font-size: 14px;
+    font-size: var(--fs-md);
     font-weight: 600;
     color: var(--text-2);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
 }
 
 .history-empty .sub {
-    font-size: 12px;
+    font-size: var(--fs-sm);
 }
 
 /* Settings Tab */
@@ -1461,6 +1498,16 @@ html.platform-mac .update-banner {
     line-height: 1.6;
 }
 
+/* .log-panel's own overflow:hidden doesn't reliably clip this flex child while collapsed
+   (a line freshly scrolled into view can still paint a sliver past the 34px bar) — force
+   it closed explicitly instead of relying on the ancestor's clipping. */
+.log-panel:not(.open) .log-body {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
 .log-body::-webkit-scrollbar {
     width: 4px;
     height: 4px;
@@ -1473,7 +1520,8 @@ html.platform-mac .update-banner {
 
 .log-line {
     color: var(--log-text);
-    white-space: nowrap;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .log-line .log-time {
@@ -1779,7 +1827,7 @@ html.platform-mac .update-banner {
 
 .queue-empty .icon {
     font-size: 36px;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-2);
     opacity: 0.22;
     display: flex;
     justify-content: center;
@@ -1787,14 +1835,14 @@ html.platform-mac .update-banner {
 }
 
 .queue-empty .title {
-    font-size: 14px;
+    font-size: var(--fs-md);
     font-weight: 600;
     color: var(--text-2);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
 }
 
 .queue-empty .sub {
-    font-size: 12px;
+    font-size: var(--fs-sm);
 }
 
 .q-item {
@@ -2088,16 +2136,22 @@ html.platform-mac .update-banner {
     min-width: 0;
 }
 
+/* Always reserve this column's width (even with an empty queue) so .dl-main's available
+   width — and the centered empty-state inside it — never jumps horizontally when the
+   queue gains or loses its first/last item. Only fades in/out, doesn't reflow. */
 .fetch-panel {
-    display: none;
     width: 230px;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
 }
 
 .fetch-panel.visible {
-    display: flex;
-    flex-direction: column;
-    animation: fadeIn 0.15s ease;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .fetch-panel-header {
@@ -2143,8 +2197,19 @@ html.platform-mac .update-banner {
         flex-direction: column;
     }
 
+    /* Stacked below .dl-main here, not side-by-side — reserving its height when empty
+       would waste vertical space rather than prevent a jump, so go back to a plain
+       show/hide instead of the always-reserved gutter used at wider container widths. */
     .fetch-panel {
         width: 100%;
+        display: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .fetch-panel.visible {
+        display: flex;
+        animation: fadeIn 0.15s ease;
     }
 
     .fetch-panel-items {
@@ -2449,6 +2514,45 @@ html.platform-mac .update-banner {
     color: var(--accent);
     font-weight: 600;
     box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+}
+
+/* Persistent destination indicator — lets a "project" session change where downloads
+   land without going through Settings, while a one-off download just keeps the default. */
+.dl-destination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    margin-bottom: var(--space-4);
+    -webkit-app-region: no-drag;
+}
+
+.dl-destination-path {
+    color: var(--text-2);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 360px;
+}
+
+.dl-destination-change {
+    margin-left: var(--space-1);
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: var(--fs-xs);
+    font-family: var(--font);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.12s;
+}
+
+.dl-destination-change:hover {
+    background: var(--accent-soft);
 }
 
 /* Batch body (in batch mode panel) */

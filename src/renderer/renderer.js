@@ -157,6 +157,7 @@ const $clearBtn = $('clearBtn');
 const $error = $('errorMsg');
 const $card = $('videoCard');
 const $empty = $('emptyState');
+const $emptyFetching = $('emptyStateFetching');
 const $thumbWrap = $('thumbWrap');
 const $vThumb = $('vThumb');
 const $vDuration = $('vDuration');
@@ -345,8 +346,13 @@ function extractYouTubeId(url) {
 }
 
 let _lastClipUrl = null;
+let _clipPreviewToken = 0;
 
 async function showClipPreview(url) {
+    // Freshness token: if a newer call starts before this one's oEmbed fetch resolves,
+    // its result must not overwrite the newer call's title (both target the same DOM nodes).
+    const token = ++_clipPreviewToken;
+
     const ytId = extractYouTubeId(url);
     const domain = (() => { try { return new URL(url).hostname.replace('www.', ''); } catch { return url; } })();
 
@@ -360,20 +366,24 @@ async function showClipPreview(url) {
         // Fetch title via oEmbed (no API key required)
         try {
             const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+            if (token !== _clipPreviewToken) return; // a newer preview call has since started
             if (res.ok) {
                 const data = await res.json();
+                if (token !== _clipPreviewToken) return;
                 $clipTitle.textContent = data.title || domain;
             } else {
                 $clipTitle.textContent = domain;
             }
-        } catch { $clipTitle.textContent = domain; }
+        } catch {
+            if (token === _clipPreviewToken) $clipTitle.textContent = domain;
+        }
     } else {
         $clipThumb.style.display = 'none';
         $clipTitle.textContent = domain;
         $clipPreview.style.display = 'flex';
     }
 
-    $clipPreview.dataset.url = url;
+    if (token === _clipPreviewToken) $clipPreview.dataset.url = url;
 }
 
 function hideClipPreview() {
@@ -465,6 +475,10 @@ async function doFetch() {
     hideError();
     hideClipPreview();
 
+    // Disabled to prevent a double-submit while the request is in flight — the loading
+    // signal itself lives in the central empty-state animation, not on this button.
+    $fetchBtn.disabled = true;
+
     // Instagram collections and playlists use the original blocking flow because they have streaming UI that needs the main panel
     const isInstaCollection = isInstagramCollection(url);
     if (isInstaCollection) {
@@ -473,7 +487,6 @@ async function doFetch() {
         hidePlaylist();
         isFetching = true;
         $fetchBtn.disabled = true;
-        $fetchBtn.innerHTML = '<span class="spinner"></span> Fetching';
         activeFetchId = null;
 
         try {
@@ -516,7 +529,6 @@ async function doFetch() {
         hidePlaylist();
         isFetching = true;
         $fetchBtn.disabled = true;
-        $fetchBtn.innerHTML = '<span class="spinner"></span> Fetching';
         activeFetchId = null;
 
         try {
@@ -533,14 +545,27 @@ async function doFetch() {
     }
 
     // Single video add to fetch queue
-    // Prevent duplicate URLs already in the queue and still fetching
-    const alreadyQueued = fetchQueue.find((item) => item.url === url && item.status === 'fetching');
+    // Prevent duplicate URLs already in the queue, regardless of their state
+    const alreadyQueued = fetchQueue.find((item) => item.url === url);
     if (alreadyQueued) {
-        showToast('Already fetching this URL');
+        $fetchBtn.disabled = false;
+        $fetchBtn.textContent = 'Fetch';
+        showToast('This URL is already in the queue');
         return;
     }
 
-    addToFetchQueue(url);
+    // Keep the button's spinner up until this specific item actually finishes fetching
+    // (resolveFetchBtnWatch, called from processFetchQueue) — the item's own network
+    // fetch is what takes real time, not the synchronous addToFetchQueue() call below.
+    const item = addToFetchQueue(url);
+    _fetchBtnWatchId = item.id;
+
+    // Only swap in the big loading state if the empty state is what's currently showing —
+    // don't yank away an already-visible video card just to show a central spinner.
+    if ($empty.style.display !== 'none') {
+        $empty.style.display = 'none';
+        $emptyFetching.style.display = 'flex';
+    }
     $url.value = '';
     $url.focus();
 }
@@ -551,7 +576,7 @@ function handleFetchError(err) {
 
     hideCard();
     hidePlaylist();
-    $empty.style.display = 'block';
+    $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
 
     if (isAuthError(msg)) {
         showAuthError();
@@ -588,6 +613,27 @@ function addToFetchQueue(url) {
     if (!isFetchProcessing) {
         processFetchQueue();
     }
+
+    return item;
+}
+
+// Set by doFetch() to the id of the item it just queued, so the Fetch button's own
+// spinner tracks that specific item's real completion (its actual network fetch, handled
+// asynchronously below) instead of resetting the instant it's added to the queue.
+let _fetchBtnWatchId = null;
+
+function resolveFetchBtnWatch(id) {
+    if (id !== _fetchBtnWatchId) return;
+    _fetchBtnWatchId = null;
+    $fetchBtn.disabled = false;
+    $fetchBtn.textContent = 'Fetch';
+
+    $emptyFetching.style.display = 'none';
+    // If nothing else has taken over the main panel (e.g. no card got shown for this
+    // fetch), fall back to the normal empty state instead of leaving a blank panel.
+    if (!$card.classList.contains('visible') && !isPlaylistMode) {
+        $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
+    }
 }
 
 async function processFetchQueue() {
@@ -606,6 +652,7 @@ async function processFetchQueue() {
         // Item may have been removed while we were fetching
         if (!fetchQueue.find((item) => item.id === next.id)) {
             isFetchProcessing = false;
+            resolveFetchBtnWatch(next.id);
             processFetchQueue();
             return;
         }
@@ -613,6 +660,7 @@ async function processFetchQueue() {
         next.status = 'ready';
         next.info = result.info;
         next.presets = result.presets;
+        resolveFetchBtnWatch(next.id);
 
         addLog(`Fetched: ${next.info.title}`, 'success');
 
@@ -631,12 +679,14 @@ async function processFetchQueue() {
         // item may have been removed
         if (!fetchQueue.find((item) => item.id === next.id)) {
             isFetchProcessing = false;
+            resolveFetchBtnWatch(next.id);
             processFetchQueue();
             return;
         }
 
         next.status = 'error';
         next.error = err.message || 'Failed to fetch';
+        resolveFetchBtnWatch(next.id);
         addLog('Fetch failed: ' + next.error, 'error');
         renderFetchPanel();
     }
@@ -678,7 +728,7 @@ function removeFetchItem(id) {
         } else {
             hideCard();
             hidePlaylist();
-            $empty.style.display = 'block';
+            $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
             videoInfo = null;
             presets = [];
             selectedPreset = null;
@@ -717,6 +767,8 @@ function renderFetchPanel() {
     $fetchPanel.classList.add('visible');
 
     $fetchPanelItems.innerHTML = fetchQueue
+        .slice()
+        .reverse() // most recently added shown first; processing order stays FIFO
         .map((item) => {
             const isActive = item.id === activeFetchId;
             const stateClass = item.status === 'error' ? 'error' : item.status === 'fetching' ? 'fetching' : '';
@@ -804,7 +856,7 @@ function doClear() {
     hideError();
     hideCard();
     hidePlaylist();
-    $empty.style.display = 'block';
+    $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
     videoInfo = null;
     presets = [];
     selectedPreset = null;
@@ -1007,7 +1059,7 @@ function selectFormat(id) {
 
 function hideCard() {
     $card.classList.remove('visible');
-    if (!isPlaylistMode) $empty.style.display = 'block';
+    if (!isPlaylistMode) $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
 }
 
 // ── Download trim ────────────────────────────────────────────────
@@ -1341,7 +1393,7 @@ async function doDownload() {
                 hideCard();
                 $clearBtn.style.display = 'none';
                 if (fetchQueue.length === 0) {
-                    $empty.style.display = 'block';
+                    $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
                 }
             }
             renderFetchPanel();
@@ -1528,8 +1580,12 @@ function renderQueue() {
     $qRetryFailedBtn.style.display = counts.failed > 0 ? 'inline-block' : 'none';
     $qClearDoneBtn.style.display = counts.completed > 0 || (counts.failed > 0 && !isActive) ? 'inline-block' : 'none';
 
-    // Render items
-    $queueItems.innerHTML = items.map((item) => queueItemHTML(item)).join('');
+    // Render items — most recently added first; processing order stays FIFO
+    $queueItems.innerHTML = items
+        .slice()
+        .reverse()
+        .map((item) => queueItemHTML(item))
+        .join('');
     attachQueueListeners();
 }
 
@@ -1978,6 +2034,21 @@ async function doChooseFolder() {
     try {
         const newPath = await window.api.chooseDownloadPath();
         $('settingsPath').textContent = newPath;
+        $('dlDestPath').textContent = newPath;
+        addLog('Download folder changed: ' + newPath, 'success');
+    } catch (e) {
+        addLog('Failed to change folder: ' + e.message, 'error');
+    }
+}
+
+// Same action as doChooseFolder(), triggered from the Download tab's persistent
+// destination indicator instead of Settings — lets a "project" session switch where
+// downloads land without leaving the main flow.
+async function doChooseFolderInline() {
+    try {
+        const newPath = await window.api.chooseDownloadPath();
+        $('dlDestPath').textContent = newPath;
+        $('settingsPath').textContent = newPath;
         addLog('Download folder changed: ' + newPath, 'success');
     } catch (e) {
         addLog('Failed to change folder: ' + e.message, 'error');
@@ -2079,7 +2150,7 @@ function loadFromHistory(idx) {
         hideError();
         hidePlaylist();
         hideCard();
-        $empty.style.display = 'block';
+        $empty.style.display = ''; // clear the inline override so the CSS class's `display:flex` (needed for centering) applies
         switchTab('download');
         setDlMode('single');
         addLog('URL loaded from history - click Fetch to get video info', 'highlight');
@@ -2152,6 +2223,7 @@ async function loadSettings() {
     try {
         const dlPath = await window.api.getDownloadPath();
         $('settingsPath').textContent = dlPath || '-';
+        $('dlDestPath').textContent = dlPath || '-';
     } catch {}
 
     try {
@@ -2296,6 +2368,11 @@ async function doCheckForUpdates() {
 
 async function init() {
     addLog('App starting...');
+
+    try {
+        const dlPath = await window.api.getDownloadPath();
+        $('dlDestPath').textContent = dlPath || '-';
+    } catch {}
 
     try {
         const info = await window.api.getAppInfo();
@@ -2443,7 +2520,9 @@ function initLogResize() {
     document.addEventListener('mousemove', (e) => {
         if (!active) return;
         const delta = startY - e.clientY;
-        const newH = Math.max(34, Math.min(window.innerHeight * 0.6, startH + delta));
+        // Capped at 40% (was 60%) — at 60% the panel could squeeze the download
+        // buttons out of view on smaller windows.
+        const newH = Math.max(34, Math.min(window.innerHeight * 0.4, startH + delta));
         panel.style.height = newH + 'px';
         if (newH > 34) panel.classList.add('open');
         else panel.classList.remove('open');
