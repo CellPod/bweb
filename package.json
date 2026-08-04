@@ -64,6 +64,14 @@
                     "filter": [
                         "ffmpeg"
                     ]
+                },
+                {
+                    "from": "resources/models/",
+                    "to": "models/"
+                },
+                {
+                    "from": "licenses/",
+                    "to": "licenses/"
                 }
             ]
         },
@@ -92,6 +100,14 @@
                     "filter": [
                         "ffmpeg.exe"
                     ]
+                },
+                {
+                    "from": "resources/models/",
+                    "to": "models/"
+                },
+                {
+                    "from": "licenses/",
+                    "to": "licenses/"
                 }
             ]
         },
@@ -114,6 +130,14 @@
                     "filter": [
                         "ffmpeg"
                     ]
+                },
+                {
+                    "from": "resources/models/",
+                    "to": "models/"
+                },
+                {
+                    "from": "licenses/",
+                    "to": "licenses/"
                 }
             ]
         },
@@ -125,12 +149,21 @@
         },
         "asar": true,
         "asarUnpack": [
-            "node_modules/ffmpeg-static/**"
+            "node_modules/ffmpeg-static/**",
+            "node_modules/@jspawn/ghostscript-wasm/**",
+            "node_modules/onnxruntime-node/**",
+            "src/main/ghostscriptWorker.js"
         ]
     },
     "dependencies": {
+        "@fontsource/inter": "^5.3.0",
+        "@jspawn/ghostscript-wasm": "^0.0.2",
         "electron-store": "^6.0.1",
-        "ffmpeg-static": "^5.2.0"
+        "ffmpeg-static": "^5.2.0",
+        "onnxruntime-node": "^1.27.0",
+        "pdf-lib": "^1.17.1",
+        "qr-code-styling": "^1.9.2",
+        "sharp": "^0.35.3"
     },
     "devDependencies": {
         "electron": "^33.0.0",

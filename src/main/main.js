@@ -3,6 +3,11 @@
 
 const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, protocol } = require('electron');
 const converter = require('./converter');
+const compressor = require('./compressor');
+const watermark = require('./watermark');
+const redact = require('./redact');
+const qrGenerator = require('./qrGenerator');
+const bgRemover = require('./bgRemover');
 const path = require('path');
 const Store = require('electron-store');
 const ytdlp = require('./ytdlp');
@@ -170,6 +175,12 @@ app.whenReady().then(() => {
         name: 'app-config',
         defaults: {
             downloadPath: path.join(app.getPath('downloads'), APP_NAME),
+            compressDestPath: path.join(app.getPath('downloads'), APP_NAME),
+            compressAutoOpen: false,
+            watermarkDestPath: path.join(app.getPath('downloads'), APP_NAME),
+            redactDestPath: path.join(app.getPath('downloads'), APP_NAME),
+            qrDestPath: path.join(app.getPath('downloads'), APP_NAME),
+            bgRemoveDestPath: path.join(app.getPath('downloads'), APP_NAME),
             history: [],
             vimeoApiToken: '',
         },
@@ -666,6 +677,261 @@ ipcMain.handle('convert:cancel', () => {
         return true;
     }
     return false;
+});
+
+// Compress
+
+ipcMain.handle('compress:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select file(s) to compress',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            // macOS/Windows dialogs restrict selection to whichever filter is active, and default
+            // to the first one — with Images/PDF as separate groups, PDFs looked disabled/unselectable
+            // until the user manually switched the filter dropdown. One combined group first fixes that.
+            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
+            { name: 'PDF', extensions: ['pdf'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
+});
+
+ipcMain.handle('compress:detectType', (_e, filePath) => {
+    return compressor.detectFileType(filePath);
+});
+
+ipcMain.handle('compress:estimate', async (_e, filePath) => {
+    const type = compressor.detectFileType(filePath);
+    if (type === 'image') return compressor.estimateImageCompression(filePath);
+    if (type === 'pdf') return compressor.estimatePdfCompression(filePath);
+    throw new Error(`Estimation not supported for type: ${type}`);
+});
+
+ipcMain.handle('compress:run', async (_e, { filePath, preset }) => {
+    const type = compressor.detectFileType(filePath);
+    const destDir = store.get('compressDestPath');
+    let result;
+    if (type === 'image') result = await compressor.compressImage(filePath, preset, destDir);
+    else if (type === 'pdf') result = await compressor.compressPdf(filePath, preset, destDir);
+    else throw new Error(`Compression not supported for type: ${type}`);
+    send('log', `Compression complete ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('compress:runTarget', async (_e, { filePath, targetBytes }) => {
+    const type = compressor.detectFileType(filePath);
+    if (type !== 'image') throw new Error(`Compression not yet supported for type: ${type}`);
+    const destDir = store.get('compressDestPath');
+    const result = await compressor.compressImageToTarget(filePath, targetBytes, destDir);
+    send('log', `Compression complete ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('compress:getDestPath', () => store.get('compressDestPath'));
+
+ipcMain.handle('compress:chooseDestPath', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return store.get('compressDestPath');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Choose destination folder for compressed files',
+    });
+    if (!result.canceled && result.filePaths[0]) {
+        store.set('compressDestPath', result.filePaths[0]);
+        log('Compress destination path changed:', result.filePaths[0]);
+        return result.filePaths[0];
+    }
+    return store.get('compressDestPath');
+});
+
+ipcMain.handle('compress:openDestFolder', () => {
+    // shell.openPath asks the OS to reveal the folder — on macOS/Windows this focuses an
+    // already-open Finder/Explorer window for that same path instead of opening a new one,
+    // so no extra window-dedup logic is needed on our end.
+    shell.openPath(store.get('compressDestPath'));
+});
+
+ipcMain.handle('compress:getAutoOpen', () => store.get('compressAutoOpen'));
+
+ipcMain.handle('compress:setAutoOpen', (_e, value) => {
+    store.set('compressAutoOpen', !!value);
+    return store.get('compressAutoOpen');
+});
+
+// Watermark
+
+ipcMain.handle('watermark:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select file(s) to watermark',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
+            { name: 'PDF', extensions: ['pdf'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
+});
+
+ipcMain.handle('watermark:chooseLogo', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select a logo image',
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
+});
+
+ipcMain.handle('watermark:detectType', (_e, filePath) => compressor.detectFileType(filePath));
+
+ipcMain.handle('watermark:run', async (_e, { filePath, options }) => {
+    const type = compressor.detectFileType(filePath);
+    const destDir = store.get('watermarkDestPath');
+    let result;
+    if (type === 'image') result = await watermark.watermarkImage(filePath, options, destDir);
+    else if (type === 'pdf') result = await watermark.watermarkPdf(filePath, options, destDir);
+    else throw new Error(`Watermark not supported for type: ${type}`);
+    send('log', `Watermark complete ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('watermark:getDestPath', () => store.get('watermarkDestPath'));
+
+ipcMain.handle('watermark:chooseDestPath', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return store.get('watermarkDestPath');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Choose destination folder for watermarked files',
+    });
+    if (!result.canceled && result.filePaths[0]) {
+        store.set('watermarkDestPath', result.filePaths[0]);
+        log('Watermark destination path changed:', result.filePaths[0]);
+        return result.filePaths[0];
+    }
+    return store.get('watermarkDestPath');
+});
+
+// Redact
+
+ipcMain.handle('redact:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select a file to redact',
+        properties: ['openFile'],
+        filters: [
+            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
+            { name: 'PDF', extensions: ['pdf'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
+});
+
+ipcMain.handle('redact:detectType', (_e, filePath) => compressor.detectFileType(filePath));
+
+ipcMain.handle('redact:pdfPreview', async (_e, filePath) => redact.getPdfPreviewPages(filePath));
+
+ipcMain.handle('redact:run', async (_e, { filePath, zones }) => {
+    const type = compressor.detectFileType(filePath);
+    const destDir = store.get('redactDestPath');
+    let result;
+    if (type === 'image') result = await redact.redactImage(filePath, zones, destDir);
+    else if (type === 'pdf') result = await redact.redactPdf(filePath, zones, destDir);
+    else throw new Error(`Redact not supported for type: ${type}`);
+    send('log', `Redaction complete ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('redact:getDestPath', () => store.get('redactDestPath'));
+
+ipcMain.handle('redact:chooseDestPath', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return store.get('redactDestPath');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Choose destination folder for redacted files',
+    });
+    if (!result.canceled && result.filePaths[0]) {
+        store.set('redactDestPath', result.filePaths[0]);
+        log('Redact destination path changed:', result.filePaths[0]);
+        return result.filePaths[0];
+    }
+    return store.get('redactDestPath');
+});
+
+// QR Generator
+
+ipcMain.handle('qr:export', async (_e, { bytes, format }) => {
+    const destDir = store.get('qrDestPath');
+    const result = qrGenerator.saveQrFile(bytes, destDir, format);
+    send('log', `QR code exported ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('qr:getDestPath', () => store.get('qrDestPath'));
+
+ipcMain.handle('qr:chooseDestPath', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return store.get('qrDestPath');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Choose destination folder for QR codes',
+    });
+    if (!result.canceled && result.filePaths[0]) {
+        store.set('qrDestPath', result.filePaths[0]);
+        log('QR destination path changed:', result.filePaths[0]);
+        return result.filePaths[0];
+    }
+    return store.get('qrDestPath');
+});
+
+// Background Remover
+
+ipcMain.handle('bgremove:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select an image',
+        properties: ['openFile'],
+        filters: [
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
+});
+
+ipcMain.handle('bgremove:preview', async (_e, filePath) => bgRemover.previewBackground(filePath));
+
+ipcMain.handle('bgremove:run', async (_e, filePath) => {
+    const destDir = store.get('bgRemoveDestPath');
+    const result = await bgRemover.removeBackground(filePath, destDir);
+    send('log', `Background removed ✓ → ${result.outputPath}`);
+    return result;
+});
+
+ipcMain.handle('bgremove:getDestPath', () => store.get('bgRemoveDestPath'));
+
+ipcMain.handle('bgremove:chooseDestPath', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return store.get('bgRemoveDestPath');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Choose destination folder for background-removed images',
+    });
+    if (!result.canceled && result.filePaths[0]) {
+        store.set('bgRemoveDestPath', result.filePaths[0]);
+        log('Background Remover destination path changed:', result.filePaths[0]);
+        return result.filePaths[0];
+    }
+    return store.get('bgRemoveDestPath');
 });
 
 ipcMain.handle('app:reset', async () => {

@@ -109,4 +109,44 @@ contextBridge.exposeInMainWorld('api', {
     },
 
     resetApp: () => ipcRenderer.invoke('app:reset'),
+
+    // Compress
+    compressChooseFile: () => ipcRenderer.invoke('compress:chooseFile'),
+    compressDetectType: (filePath) => ipcRenderer.invoke('compress:detectType', filePath),
+    compressEstimate: (filePath) => ipcRenderer.invoke('compress:estimate', filePath),
+    compressRun: (filePath, preset) => ipcRenderer.invoke('compress:run', { filePath, preset }),
+    compressRunTarget: (filePath, targetBytes) => ipcRenderer.invoke('compress:runTarget', { filePath, targetBytes }),
+    compressGetDestPath: () => ipcRenderer.invoke('compress:getDestPath'),
+    compressChooseDestPath: () => ipcRenderer.invoke('compress:chooseDestPath'),
+    compressOpenDestFolder: () => ipcRenderer.invoke('compress:openDestFolder'),
+    compressGetAutoOpen: () => ipcRenderer.invoke('compress:getAutoOpen'),
+    compressSetAutoOpen: (value) => ipcRenderer.invoke('compress:setAutoOpen', value),
+
+    // Watermark
+    watermarkChooseFile: () => ipcRenderer.invoke('watermark:chooseFile'),
+    watermarkChooseLogo: () => ipcRenderer.invoke('watermark:chooseLogo'),
+    watermarkDetectType: (filePath) => ipcRenderer.invoke('watermark:detectType', filePath),
+    watermarkRun: (filePath, options) => ipcRenderer.invoke('watermark:run', { filePath, options }),
+    watermarkGetDestPath: () => ipcRenderer.invoke('watermark:getDestPath'),
+    watermarkChooseDestPath: () => ipcRenderer.invoke('watermark:chooseDestPath'),
+
+    // Redact
+    redactChooseFile: () => ipcRenderer.invoke('redact:chooseFile'),
+    redactDetectType: (filePath) => ipcRenderer.invoke('redact:detectType', filePath),
+    redactPdfPreview: (filePath) => ipcRenderer.invoke('redact:pdfPreview', filePath),
+    redactRun: (filePath, zones) => ipcRenderer.invoke('redact:run', { filePath, zones }),
+    redactGetDestPath: () => ipcRenderer.invoke('redact:getDestPath'),
+    redactChooseDestPath: () => ipcRenderer.invoke('redact:chooseDestPath'),
+
+    // QR Generator
+    qrExport: (bytes, format) => ipcRenderer.invoke('qr:export', { bytes, format }),
+    qrGetDestPath: () => ipcRenderer.invoke('qr:getDestPath'),
+    qrChooseDestPath: () => ipcRenderer.invoke('qr:chooseDestPath'),
+
+    // Background Remover
+    bgRemoveChooseFile: () => ipcRenderer.invoke('bgremove:chooseFile'),
+    bgRemovePreview: (filePath) => ipcRenderer.invoke('bgremove:preview', filePath),
+    bgRemoveRun: (filePath) => ipcRenderer.invoke('bgremove:run', filePath),
+    bgRemoveGetDestPath: () => ipcRenderer.invoke('bgremove:getDestPath'),
+    bgRemoveChooseDestPath: () => ipcRenderer.invoke('bgremove:chooseDestPath'),
 });

@@ -38,3 +38,12 @@ next-env.d.ts
 .npm
 TODO.md
 graphify-out/
+
+# playwright-cli session artifacts (snapshots/screenshots from manual testing)
+/.playwright-cli
+/.tmp
+
+# ONNX model weights — too large for a normal git push (GitHub hard-blocks files over
+# 100MB); withoutbg-open-weights.onnx alone is ~433MB. Fetch/place manually before
+# packaging a release build — see src/main/bgRemover.js for the expected path.
+/resources/models/*.onnx

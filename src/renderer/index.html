@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none'; media-src https: bweb-file:; frame-src https://www.youtube.com;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob: bweb-file:; connect-src 'self' data: blob:; media-src https: bweb-file:; frame-src https://www.youtube.com;" />
     <title>bWeb</title>
     <link rel="stylesheet" href="./index.css" />
     <script src="./i18n.js"></script>
@@ -26,6 +26,17 @@
   </symbol>
   <symbol id="ic-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>
+  </symbol>
+  <symbol id="ic-compress" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 3v4a2 2 0 0 1-2 2H3"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/><path d="M9 21v-4a2 2 0 0 0-2-2H3"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/>
+  </symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3 4.5 6v6c0 4.5 3 7.5 7.5 9 4.5-1.5 7.5-4.5 7.5-9V6z"/>
+  </symbol>
+  <symbol id="ic-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 3l18 18"/>
+    <path d="M10.6 5.2A10.6 10.6 0 0 1 12 5c5 0 9 4 10.5 7-.6 1.2-1.5 2.5-2.7 3.7M6.2 6.2C4 7.6 2.4 9.7 1.5 12c1.5 3 5.5 7 10.5 7 1.6 0 3.1-.4 4.4-1.1"/>
+    <path d="M9.9 10.1a3 3 0 0 0 4.2 4.2"/>
   </symbol>
   <symbol id="ic-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
@@ -63,6 +74,12 @@
   <symbol id="ic-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>
   </symbol>
+  <symbol id="ic-qrcode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/>
+  </symbol>
+  <symbol id="ic-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>
+  </symbol>
 </svg>
 
 <div class="app-shell">
@@ -99,6 +116,22 @@
                 <button class="nav-item" data-tab="convert" onclick="switchTab('convert')">
                     <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-scissors"/></svg>
                     <span class="nav-label" data-i18n="nav.convert">Convert</span>
+                </button>
+                <button class="nav-item" data-tab="compress" onclick="switchTab('compress')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-compress"/></svg>
+                    <span class="nav-label" data-i18n="nav.compress">Compress</span>
+                </button>
+                <button class="nav-item" data-tab="privacy" onclick="switchTab('privacy')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-shield"/></svg>
+                    <span class="nav-label" data-i18n="nav.privacy">Privacy</span>
+                </button>
+                <button class="nav-item" data-tab="qrcode" onclick="switchTab('qrcode')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-qrcode"/></svg>
+                    <span class="nav-label" data-i18n="nav.qrcode">QR Code</span>
+                </button>
+                <button class="nav-item" data-tab="bgremove" onclick="switchTab('bgremove')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-wand"/></svg>
+                    <span class="nav-label" data-i18n="nav.bgremove">Background Remover</span>
                 </button>
             </div>
 
@@ -490,6 +523,423 @@
                 </div><!-- /convert-center-wrapper -->
             </div>
 
+            <!-- Compress view -->
+            <div id="tab-compress" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="compress.title">Compress</h1>
+                    <p class="view-subtitle" data-i18n="compress.subtitle">Reduce the file size of an image or PDF, right on your computer</p>
+                </div>
+
+                <div class="compress-dest-block">
+                    <div class="dl-destination">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                        <span data-i18n="compress.dest.label">Saving to:</span>
+                        <span id="compressDestPath" class="dl-destination-path">—</span>
+                        <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseCompressDestPath()">Change</button>
+                    </div>
+                    <label class="compress-autoopen-label">
+                        <input type="checkbox" id="compressAutoOpenCheck" onchange="onCompressAutoOpenChange(this.checked)" />
+                        <span data-i18n="compress.dest.autoopen">Open folder after compressing</span>
+                    </label>
+                </div>
+
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="compressDropZone" onclick="doCompressChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="compress.drop.title">Drop one or more images or PDFs, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="compress.drop.sub">JPG, PNG, WebP, AVIF, TIFF, PDF…</div>
+                    </div>
+
+                    <div id="compressListWrap" class="convert-batch-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" data-i18n="compress.list.title">Files to compress</span>
+                            <span id="compressListCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.addMore" onclick="doCompressChooseFile()">+ Add</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doCompressClear()">Reset</button>
+                        </div>
+                        <div id="compressList" class="convert-batch-list"></div>
+                    </div>
+
+                    <div id="compressModeTabs" class="dl-mode-tabs" style="display:none">
+                        <button class="dl-mode-tab active" data-mode="presets" onclick="setCompressMode('presets')">
+                            <span data-i18n="compress.mode.presets">Presets</span>
+                        </button>
+                        <button class="dl-mode-tab" data-mode="target" onclick="setCompressMode('target')">
+                            <span data-i18n="compress.mode.target">Target size</span>
+                        </button>
+                    </div>
+
+                    <div id="compressPresets" class="compress-presets" style="display:none">
+                        <button class="compress-preset-card" data-preset="max" onclick="selectCompressPreset('max')">
+                            <div class="compress-preset-title" data-i18n="compress.preset.max">Maximum quality</div>
+                            <div class="compress-preset-sub" data-i18n="compress.preset.max.sub">Barely noticeable loss, modest size gain</div>
+                            <div class="compress-preset-size" id="compressSizeMax">—</div>
+                        </button>
+                        <button class="compress-preset-card selected" data-preset="balanced" onclick="selectCompressPreset('balanced')">
+                            <div class="compress-preset-title" data-i18n="compress.preset.balanced">Balanced</div>
+                            <div class="compress-preset-sub" data-i18n="compress.preset.balanced.sub">Good quality/size trade-off</div>
+                            <div class="compress-preset-size" id="compressSizeBalanced">—</div>
+                        </button>
+                        <button class="compress-preset-card" data-preset="small" onclick="selectCompressPreset('small')">
+                            <div class="compress-preset-title" data-i18n="compress.preset.small">Smallest file</div>
+                            <div class="compress-preset-sub" data-i18n="compress.preset.small.sub">Very light, visible loss possible</div>
+                            <div class="compress-preset-size" id="compressSizeSmall">—</div>
+                        </button>
+                        <div id="compressPresetTotalLabel" class="compress-preset-size-label" style="display:none;grid-column:1/-1"></div>
+                    </div>
+
+                    <div id="compressTargetWrap" class="compress-target-wrap" style="display:none">
+                        <input id="compressTargetMb" class="compress-target-input" type="number" min="0.05" step="0.1" placeholder="5" oninput="onCompressTargetInput()" />
+                        <span data-i18n="compress.target.unit">MB per file</span>
+                    </div>
+
+                    <div id="compressEstimating" class="compress-estimating" style="display:none">
+                        <span class="spinner-sm"></span>
+                        <span data-i18n="compress.estimating">Calculating estimated sizes…</span>
+                    </div>
+
+                    <button id="compressBtn" class="btn-download convert-btn" data-i18n="compress.btn" onclick="doCompress()" disabled>Compress</button>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+            </div>
+
+            <!-- Privacy view -->
+            <div id="tab-privacy" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="privacy.title">Privacy</h1>
+                    <p class="view-subtitle" data-i18n="privacy.subtitle">Watermark or redact a file, right on your computer</p>
+                </div>
+
+                <div class="dl-mode-tabs">
+                    <button class="dl-mode-tab active" data-mode="watermark" onclick="setPrivacyMode('watermark')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-shield"/></svg>
+                        <span data-i18n="privacy.mode.watermark">Watermark</span>
+                    </button>
+                    <button class="dl-mode-tab" data-mode="redact" onclick="setPrivacyMode('redact')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-eye-off"/></svg>
+                        <span data-i18n="privacy.mode.redact">Redact</span>
+                    </button>
+                </div>
+
+                <!-- Watermark sub-view -->
+                <div id="privacyWatermarkView">
+                <div class="dl-destination">
+                    <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                    <span data-i18n="privacy.dest.label">Saving to:</span>
+                    <span id="watermarkDestPath" class="dl-destination-path">—</span>
+                    <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseWatermarkDestPath()">Change</button>
+                </div>
+
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="watermarkDropZone" onclick="doWatermarkChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="watermark.drop.title">Drop one or more images or PDFs, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="watermark.drop.sub">JPG, PNG, WebP, AVIF, TIFF, PDF…</div>
+                    </div>
+
+                    <div id="watermarkListWrap" class="convert-batch-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" data-i18n="watermark.list.title">Files to watermark</span>
+                            <span id="watermarkListCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.addMore" onclick="doWatermarkChooseFile()">+ Add</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doWatermarkClear()">Reset</button>
+                        </div>
+                        <div id="watermarkList" class="convert-batch-list"></div>
+                    </div>
+
+                    <div id="watermarkOptions" class="watermark-options" style="display:none">
+                        <div class="dl-mode-tabs">
+                            <button class="dl-mode-tab active" data-wmtype="text" onclick="setWatermarkType('text')">
+                                <span data-i18n="watermark.type.text">Text</span>
+                            </button>
+                            <button class="dl-mode-tab" data-wmtype="logo" onclick="setWatermarkType('logo')">
+                                <span data-i18n="watermark.type.logo">Logo</span>
+                            </button>
+                        </div>
+
+                        <div id="watermarkTextWrap" class="watermark-input-row">
+                            <input id="watermarkText" class="compress-target-input watermark-text-input" type="text"
+                                placeholder="CONFIDENTIEL" oninput="onWatermarkOptionsChange()" />
+                        </div>
+
+                        <div id="watermarkLogoWrap" class="watermark-input-row" style="display:none">
+                            <button class="btn-ghost convert-clear-btn" onclick="doWatermarkChooseLogo()" data-i18n="watermark.logo.choose">Choose logo…</button>
+                            <span id="watermarkLogoName" class="dl-destination-path"></span>
+                        </div>
+
+                        <div class="watermark-size-row">
+                            <span class="watermark-size-label" data-i18n="watermark.size.label">Size</span>
+                            <div class="dl-mode-tabs">
+                                <button class="dl-mode-tab" data-wmsize="small" onclick="setWatermarkSize('small')">
+                                    <span data-i18n="watermark.size.small">Small</span>
+                                </button>
+                                <button class="dl-mode-tab active" data-wmsize="medium" onclick="setWatermarkSize('medium')">
+                                    <span data-i18n="watermark.size.medium">Medium</span>
+                                </button>
+                                <button class="dl-mode-tab" data-wmsize="large" onclick="setWatermarkSize('large')">
+                                    <span data-i18n="watermark.size.large">Large</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="watermark-preview">
+                            <span class="watermark-preview-label" data-i18n="watermark.preview.label">Live preview — this is the actual tiling pattern</span>
+                            <canvas id="watermarkPreviewCanvas" class="watermark-preview-canvas" width="560" height="150"></canvas>
+                        </div>
+
+                        <p class="watermark-hint" data-i18n="watermark.hint">Tiled diagonally across the whole file — survives cropping, and for PDF the file is rasterized so the watermark can't just be deleted with an editor.</p>
+                    </div>
+
+                    <button id="watermarkBtn" class="btn-download convert-btn" data-i18n="watermark.btn" onclick="doWatermark()" disabled>Watermark</button>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+                </div><!-- /privacyWatermarkView -->
+
+                <!-- Redact sub-view -->
+                <div id="privacyRedactView" style="display:none">
+                <div class="dl-destination">
+                    <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                    <span data-i18n="privacy.dest.label">Saving to:</span>
+                    <span id="redactDestPath" class="dl-destination-path">—</span>
+                    <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseRedactDestPath()">Change</button>
+                </div>
+
+                <div class="convert-center-wrapper">
+                <div class="convert-container redact-container">
+                    <div class="convert-drop-zone" id="redactDropZone" onclick="doRedactChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="redact.drop.title">Drop a single image or PDF, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="redact.drop.sub">JPG, PNG, WebP, AVIF, TIFF, PDF — one file at a time</div>
+                    </div>
+
+                    <div id="redactEditorWrap" class="redact-editor-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" id="redactFileName"></span>
+                            <span id="redactZoneCount" class="convert-batch-count"></span>
+                            <div id="redactPageNav" class="redact-page-nav" style="display:none">
+                                <button class="btn-ghost redact-page-btn" onclick="redactPrevPage()">‹</button>
+                                <span id="redactPageLabel" class="redact-page-label"></span>
+                                <button class="btn-ghost redact-page-btn" onclick="redactNextPage()">›</button>
+                            </div>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="redact.addMore" onclick="doRedactChooseFile()">Choose another file</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="redact.reset" onclick="doRedactClear()">Reset</button>
+                        </div>
+
+                        <div class="redact-body">
+                            <div class="redact-main">
+                                <p class="redact-instructions" data-i18n="redact.instructions">Draw a rectangle over each area to destroy.</p>
+
+                                <div id="redactStage" class="redact-stage">
+                                    <img id="redactStageImg" class="redact-stage-img" draggable="false" />
+                                    <div id="redactZonesLayer" class="redact-zones-layer"></div>
+                                </div>
+                            </div>
+
+                            <div class="redact-sidebar">
+                                <div id="redactZoneEditingBanner" class="redact-editing-banner" style="display:none">
+                                    <span id="redactZoneEditingLabel" data-i18n="redact.editing.zone">Editing selected zone</span>
+                                    <button class="redact-editing-delete" onclick="deleteSelectedRedactZone()" data-i18n="redact.editing.delete">Delete</button>
+                                    <button class="redact-editing-done" onclick="deselectRedactZone()" data-i18n="redact.editing.done">Done</button>
+                                </div>
+
+                                <div class="redact-sidebar-group">
+                                    <span class="redact-sidebar-label" data-i18n="redact.method.label">Method</span>
+                                    <div class="redact-method-list">
+                                        <button class="redact-method-btn active" data-rmethod="blackout" onclick="setRedactMethod('blackout')">
+                                            <span class="redact-method-swatch redact-method-swatch-blackout"></span>
+                                            <span data-i18n="redact.method.blackout">Black out</span>
+                                        </button>
+                                        <button class="redact-method-btn" data-rmethod="blur" onclick="setRedactMethod('blur')">
+                                            <span class="redact-method-swatch redact-method-swatch-blur"></span>
+                                            <span data-i18n="redact.method.blur">Blur</span>
+                                        </button>
+                                        <button class="redact-method-btn" data-rmethod="pixelate" onclick="setRedactMethod('pixelate')">
+                                            <span class="redact-method-swatch redact-method-swatch-pixelate"></span>
+                                            <span data-i18n="redact.method.pixelate">Pixelate</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="redactColorRow" class="redact-sidebar-group redact-inline-row">
+                                    <label for="redactColorInput" class="redact-sidebar-label" data-i18n="redact.color.label">Color</label>
+                                    <input type="color" id="redactColorInput" class="redact-color-input" value="#000000" oninput="setRedactColor(this.value)" />
+                                </div>
+
+                                <div id="redactIntensityRow" class="redact-sidebar-group redact-inline-row" style="display:none">
+                                    <label for="redactIntensityInput" class="redact-sidebar-label" data-i18n="redact.intensity.label">Intensity</label>
+                                    <input type="range" id="redactIntensityInput" class="redact-intensity-input" min="0" max="100" value="50" oninput="setRedactIntensity(this.value)" />
+                                </div>
+
+                                <div class="redact-sidebar-group">
+                                    <span id="redactPenPreviewLabel" class="redact-sidebar-label" data-i18n="redact.preview.label">New zone preview</span>
+                                    <div id="redactPenPreview" class="redact-pen-preview"></div>
+                                </div>
+
+                                <p class="redact-hint" data-i18n="redact.hint">Destructive — nothing recoverable is left underneath.</p>
+
+                                <button id="redactBtn" class="btn-download convert-btn" data-i18n="redact.btn" onclick="doRedact()" disabled style="display:none">Apply redaction</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+                </div><!-- /privacyRedactView -->
+
+            </div>
+
+            <!-- QR Code view -->
+            <div id="tab-qrcode" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="qrcode.title">QR Code</h1>
+                    <p class="view-subtitle" data-i18n="qrcode.subtitle">Generate a customizable QR code from a link or text</p>
+                </div>
+
+                <div class="dl-destination">
+                    <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                    <span data-i18n="privacy.dest.label">Saving to:</span>
+                    <span id="qrDestPath" class="dl-destination-path">—</span>
+                    <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseQrDestPath()">Change</button>
+                </div>
+
+                <div class="convert-center-wrapper has-content">
+                <div class="convert-container">
+                    <div class="qr-body">
+                        <div class="qr-main">
+                            <input id="qrText" class="compress-target-input qr-text-input" type="text"
+                                placeholder="https://example.com" oninput="onQrInputChange()" />
+                            <div class="qr-preview-wrap">
+                                <div id="qrPreviewContainer" class="qr-preview-container"></div>
+                                <span id="qrPreviewEmpty" class="qr-preview-empty" data-i18n="qrcode.preview.empty">Type a link to preview</span>
+                            </div>
+                        </div>
+
+                        <div class="qr-sidebar">
+                            <button class="qr-logo-picker" id="qrLogoPicker" onclick="document.getElementById('qrLogoInput').click()">
+                                <input type="file" id="qrLogoInput" accept="image/*" style="display:none" onchange="onQrLogoChosen(event)" />
+                                <span id="qrLogoPreview" class="qr-logo-picker-preview" style="display:none"></span>
+                                <span id="qrLogoPickerIcon" class="qr-logo-picker-icon">
+                                    <svg class="icon-svg" width="20" height="20"><use href="#ic-upload"/></svg>
+                                </span>
+                                <span class="qr-logo-picker-text">
+                                    <span class="qr-logo-picker-title" data-i18n="qrcode.logo">Add a logo</span>
+                                    <span class="qr-logo-picker-sub" data-i18n="qrcode.logo.sub">Shown in the middle of the code</span>
+                                </span>
+                                <span class="qr-logo-picker-clear" id="qrLogoClearBtn" onclick="event.stopPropagation(); clearQrLogo()" style="display:none" data-i18n="qrcode.logo.clear" title="Remove logo">×</span>
+                            </button>
+
+                            <div class="redact-sidebar-group">
+                                <span class="redact-sidebar-label" data-i18n="qrcode.frame">Shape</span>
+                                <div class="qr-frame-options">
+                                    <button class="qr-frame-btn active" data-qrframe="square" onclick="setQrFrame('square')" title="Square" data-i18n-title="qrcode.frame.square"><span class="qr-frame-swatch qr-frame-swatch-square"></span></button>
+                                    <button class="qr-frame-btn" data-qrframe="rounded" onclick="setQrFrame('rounded')" title="Rounded" data-i18n-title="qrcode.frame.rounded"><span class="qr-frame-swatch qr-frame-swatch-rounded"></span></button>
+                                    <button class="qr-frame-btn" data-qrframe="circle" onclick="setQrFrame('circle')" title="Circle" data-i18n-title="qrcode.frame.circle"><span class="qr-frame-swatch qr-frame-swatch-circle"></span></button>
+                                </div>
+                            </div>
+
+                            <div class="redact-sidebar-group redact-inline-row">
+                                <label for="qrDarkColor" class="redact-sidebar-label" data-i18n="qrcode.darkColor">Foreground</label>
+                                <input type="color" id="qrDarkColor" class="redact-color-input" value="#000000" oninput="onQrInputChange()" />
+                            </div>
+                            <div class="redact-sidebar-group redact-inline-row">
+                                <label for="qrLightColor" class="redact-sidebar-label" data-i18n="qrcode.lightColor">Background</label>
+                                <input type="color" id="qrLightColor" class="redact-color-input" value="#ffffff" oninput="onQrInputChange()" />
+                            </div>
+
+                            <div class="redact-sidebar-group">
+                                <div class="qr-size-row">
+                                    <span class="redact-sidebar-label" data-i18n="qrcode.size">Size</span>
+                                    <span class="qr-size-value" id="qrSizeValue">1024 × 1024</span>
+                                </div>
+                                <input type="range" id="qrSizeSlider" class="qr-size-slider" min="0" max="2" step="1" value="1" oninput="onQrSizeSliderInput(this.value)" />
+                                <div class="qr-size-ticks"><span>512</span><span>1024</span><span>2048</span></div>
+                            </div>
+
+                            <details class="qr-advanced">
+                                <summary data-i18n="qrcode.advanced">Dot style</summary>
+                                <select id="qrShape" class="qr-select" onchange="onQrInputChange()">
+                                    <option value="square" selected>Square</option>
+                                    <option value="rounded">Rounded</option>
+                                    <option value="dots">Dots</option>
+                                </select>
+                            </details>
+
+                            <div class="redact-sidebar-group">
+                                <span class="redact-sidebar-label" data-i18n="qrcode.format">Export as</span>
+                                <div class="dl-mode-tabs">
+                                    <button class="dl-mode-tab active" data-qrformat="png" onclick="setQrFormat('png')">PNG</button>
+                                    <button class="dl-mode-tab" data-qrformat="svg" onclick="setQrFormat('svg')">SVG</button>
+                                </div>
+                            </div>
+                            <button id="qrExportBtn" class="btn-download convert-btn" data-i18n="qrcode.export" onclick="doQrExport()" disabled>Export QR code</button>
+                        </div>
+                    </div>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+            </div>
+
+            <!-- Background Remover view -->
+            <div id="tab-bgremove" class="view">
+                <div class="view-header">
+                    <h1 class="view-title" data-i18n="bgremove.title">Background Remover</h1>
+                    <p class="view-subtitle" data-i18n="bgremove.subtitle">Cut a subject out of an image, right on your computer</p>
+                </div>
+
+                <div class="dl-destination">
+                    <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                    <span data-i18n="privacy.dest.label">Saving to:</span>
+                    <span id="bgRemoveDestPath" class="dl-destination-path">—</span>
+                    <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseBgRemoveDestPath()">Change</button>
+                </div>
+
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="bgRemoveDropZone" onclick="doBgRemoveChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="bgremove.drop.title">Drop an image, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="bgremove.drop.sub">JPG, PNG, WebP, AVIF, TIFF</div>
+                    </div>
+
+                    <div id="bgRemoveLoading" class="bgremove-loading" style="display:none">
+                        <div class="bgremove-spinner"></div>
+                        <span data-i18n="bgremove.processing">Removing background…</span>
+                    </div>
+
+                    <div id="bgRemoveResultWrap" class="bgremove-result-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" id="bgRemoveFileName"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="redact.addMore" onclick="doBgRemoveChooseFile()">Choose another file</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="redact.reset" onclick="doBgRemoveClear()">Reset</button>
+                        </div>
+                        <div class="bgremove-columns">
+                            <div class="bgremove-col">
+                                <span class="bgremove-col-label" data-i18n="bgremove.before">Before</span>
+                                <div class="bgremove-preview-wrap">
+                                    <img id="bgRemoveBeforeImg" class="bgremove-preview-img" alt="" />
+                                </div>
+                            </div>
+                            <div class="bgremove-col">
+                                <span class="bgremove-col-label" data-i18n="bgremove.after">After</span>
+                                <div class="bgremove-preview-wrap bgremove-checkerboard">
+                                    <img id="bgRemoveAfterImg" class="bgremove-preview-img" alt="" />
+                                </div>
+                            </div>
+                        </div>
+                        <button id="bgRemoveExportBtn" class="btn-download convert-btn" data-i18n="bgremove.export" onclick="doBgRemoveExport()">Export PNG</button>
+                    </div>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+            </div>
+
             <!-- Settings view -->
             <div id="tab-settings" class="view">
                 <div class="settings-section">
@@ -760,6 +1210,8 @@
                     <br />
                     <span data-i18n="about.poweredBy">Powered by</span> <a href="#" onclick="openExternal('https://github.com/yt-dlp/yt-dlp'); return false;">yt-dlp</a>
                     · <span data-i18n="about.basedOn">Based on</span> <a href="#" onclick="openExternal('https://github.com/archisvaze/arcdlp'); return false;">ArcDLP</a> <span data-i18n="about.by">by Archis</span>
+                    <br />
+                    <span data-i18n="about.bgRemove">Background removal by</span> <a href="#" onclick="openExternal('https://github.com/withoutbg/withoutbg-python'); return false;">withoutBG</a> — <span data-i18n="about.dinov3">Built with DINOv3</span>
                 </div>
             </div>
 
@@ -802,6 +1254,7 @@
     </div>
 </div>
 
+<script src="./vendor/qr-code-styling.js"></script>
 <script src="./renderer.js"></script>
 </body>
 

@@ -210,6 +210,10 @@ function switchTab(tabId) {
     if (tabId === 'settings') loadSettings();
     if (tabId === 'about') loadAbout();
     if (tabId === 'convert') initConvertTab();
+    if (tabId === 'compress') initCompressTab();
+    if (tabId === 'privacy') initPrivacyTab();
+    if (tabId === 'qrcode') initQrTab();
+    if (tabId === 'bgremove') initBgRemoveTab();
 }
 
 function addLog(msg, type = '') {
@@ -2683,6 +2687,1118 @@ let convertRunning = false;
 let convertStopRequested = false;
 let convertTrimOpen = false;
 
+// Compress tab — batch image compression via sharp (PDF/video to follow)
+let compressItems = []; // { id, path, name, type, size, estimates: {max,balanced,small}|null, state, compressedSize }
+let compressItemIdCounter = 0;
+let compressPreset = 'balanced';
+let compressMode = 'presets'; // 'presets' | 'target'
+let compressRunning = false;
+
+// No margin: the estimate re-encodes with the exact same function/params the real compression
+// uses, so it's deterministic and already exactly matches the final result — a margin here
+// only made the number less accurate (confirmed: it made a PDF preset that didn't actually
+// grow the file look like it did).
+function formatBytes(bytes) {
+    // Decimal (1000-based), matching how macOS Finder / Windows Explorer report file sizes —
+    // a 1024-based calculation labeled "MB" reads as "wrong" next to what Finder shows.
+    if (bytes < 1000) return bytes + ' B';
+    const units = ['KB', 'MB', 'GB'];
+    let val = bytes / 1000;
+    let i = 0;
+    while (val >= 1000 && i < units.length - 1) {
+        val /= 1000;
+        i++;
+    }
+    return val.toFixed(val < 10 ? 2 : 1) + ' ' + units[i];
+}
+
+function initCompressTab() {
+    const dropZone = document.getElementById('compressDropZone');
+    loadCompressDestPath();
+    loadCompressAutoOpen();
+    if (!dropZone || dropZone._initialized) return;
+    dropZone._initialized = true;
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
+        addFilesToCompressList(paths);
+    });
+}
+
+async function loadCompressDestPath() {
+    const p = await window.api.compressGetDestPath();
+    document.getElementById('compressDestPath').textContent = p || '-';
+}
+
+async function doChooseCompressDestPath() {
+    const p = await window.api.compressChooseDestPath();
+    document.getElementById('compressDestPath').textContent = p || '-';
+}
+
+async function loadCompressAutoOpen() {
+    const enabled = await window.api.compressGetAutoOpen();
+    document.getElementById('compressAutoOpenCheck').checked = !!enabled;
+}
+
+function onCompressAutoOpenChange(checked) {
+    window.api.compressSetAutoOpen(checked);
+}
+
+async function doCompressChooseFile() {
+    const filePaths = await window.api.compressChooseFile();
+    addFilesToCompressList(filePaths);
+}
+
+async function addFilesToCompressList(paths) {
+    if (!paths || paths.length === 0) return;
+
+    document.getElementById('compressDropZone').style.display = 'none';
+    document.getElementById('compressListWrap').style.display = 'flex';
+    document.querySelector('.convert-center-wrapper')?.classList.add('has-content');
+
+    for (const p of paths) {
+        const item = {
+            id: ++compressItemIdCounter,
+            path: p,
+            name: p.split('/').pop(),
+            type: null,
+            size: 0,
+            estimates: null,
+            state: 'detecting',
+        };
+        compressItems.push(item);
+        renderCompressList();
+
+        const type = await window.api.compressDetectType(p);
+        item.type = type;
+
+        if (type !== 'image' && type !== 'pdf') {
+            item.state = 'unsupported';
+            renderCompressList();
+            continue;
+        }
+
+        item.state = 'estimating';
+        renderCompressList();
+        updateCompressPresetsVisibility();
+
+        try {
+            const { originalSize, estimates } = await window.api.compressEstimate(p);
+            item.size = originalSize;
+            item.estimates = estimates;
+            item.state = 'ready';
+        } catch (err) {
+            item.state = 'error';
+            addLog(`Compress estimate failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderCompressList();
+        updateCompressPresetsVisibility();
+    }
+}
+
+function updateCompressPresetsVisibility() {
+    const modeTabsEl = document.getElementById('compressModeTabs');
+    const presetsEl = document.getElementById('compressPresets');
+    const targetEl = document.getElementById('compressTargetWrap');
+    const estimatingEl = document.getElementById('compressEstimating');
+    const btn = document.getElementById('compressBtn');
+
+    const readyItems = compressItems.filter((i) => i.state === 'ready' || i.state === 'done');
+    const stillWorking = compressItems.some((i) => i.state === 'detecting' || i.state === 'estimating');
+    const n = compressItems.filter((i) => i.state === 'ready').length;
+
+    if (readyItems.length === 0) {
+        modeTabsEl.style.display = 'none';
+        presetsEl.style.display = 'none';
+        targetEl.style.display = 'none';
+        estimatingEl.style.display = stillWorking ? 'flex' : 'none';
+        btn.disabled = true;
+        return;
+    }
+
+    modeTabsEl.style.display = 'flex';
+    estimatingEl.style.display = stillWorking ? 'flex' : 'none';
+
+    if (compressMode === 'presets') {
+        presetsEl.style.display = 'grid';
+        targetEl.style.display = 'none';
+        document.querySelectorAll('.compress-preset-card').forEach((c) => c.classList.toggle('disabled', stillWorking));
+        renderCompressPresetTotals();
+        btn.disabled = n === 0 || compressRunning;
+    } else {
+        presetsEl.style.display = 'none';
+        targetEl.style.display = 'flex';
+        const mb = parseFloat(document.getElementById('compressTargetMb').value);
+        btn.disabled = n === 0 || compressRunning || !(mb > 0);
+    }
+
+    btn.textContent = t('compress.btn.n') ? t('compress.btn.n')(n) : `Compress ${n}`;
+}
+
+// Card positions ('max'/'balanced'/'small') represent a SIZE RANK, not a fixed underlying
+// sharp/Ghostscript setting — verified directly that neither is guaranteed monotonic (PNG
+// palette quantization AND Ghostscript's PDFSETTINGS presets can both produce a "higher
+// quality" output that's smaller than a "lower quality" one, depending on file content). Ranking
+// each file's own 3 estimates by actual size guarantees "Maximum quality" position always shows
+// the biggest number and "Smallest file" position always shows the smallest, per file.
+const COMPRESS_RANK_INDEX = { max: 0, balanced: 1, small: 2 };
+
+function rankedPresetForItem(item, rankIndex) {
+    if (!item.estimates) return null;
+    const sorted = Object.entries(item.estimates).sort((a, b) => b[1] - a[1]);
+    return sorted[rankIndex]; // [presetKey, size]
+}
+
+function renderCompressPresetTotals() {
+    const readyItems = compressItems.filter((i) => i.estimates);
+    for (const preset of ['max', 'balanced', 'small']) {
+        const el = document.getElementById('compressSize' + preset.charAt(0).toUpperCase() + preset.slice(1));
+        if (!el) continue;
+        if (readyItems.length === 0) {
+            el.textContent = '—';
+            continue;
+        }
+        const idx = COMPRESS_RANK_INDEX[preset];
+        const total = readyItems.reduce((sum, i) => sum + rankedPresetForItem(i, idx)[1], 0);
+        el.textContent = formatBytes(total);
+    }
+
+    const totalLabel = document.getElementById('compressPresetTotalLabel');
+    if (readyItems.length > 1) {
+        totalLabel.textContent = t('compress.total.label') ? t('compress.total.label')(readyItems.length) : `Total for ${readyItems.length} files`;
+        totalLabel.style.display = 'block';
+    } else {
+        totalLabel.style.display = 'none';
+    }
+}
+
+function selectCompressPreset(preset) {
+    compressPreset = preset;
+    document.querySelectorAll('.compress-preset-card').forEach((c) => c.classList.toggle('selected', c.dataset.preset === preset));
+    renderCompressList();
+}
+
+function setCompressMode(mode) {
+    compressMode = mode;
+    document.querySelectorAll('#compressModeTabs .dl-mode-tab').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    updateCompressPresetsVisibility();
+    renderCompressList();
+}
+
+function onCompressTargetInput() {
+    updateCompressPresetsVisibility();
+}
+
+function compressStatusLabel(item) {
+    switch (item.state) {
+        case 'detecting':
+        case 'estimating': return t('compress.estimating') || 'Calculating…';
+        case 'unsupported': return t('compress.unsupported') || 'Unsupported';
+        case 'pending': return t('compress.status.pending') || 'Pending';
+        case 'compressing': return t('compress.status.compressing') || 'Compressing…';
+        case 'done': return `${formatBytes(item.size)} → ${formatBytes(item.compressedSize)}`;
+        case 'error': return t('compress.status.error') || 'Failed';
+        case 'ready':
+            // Presets mode: show what this specific file would become at the selected preset —
+            // that's the number people actually want per-file, the total row above is just a bonus.
+            if (compressMode === 'presets' && item.estimates) {
+                const [, size] = rankedPresetForItem(item, COMPRESS_RANK_INDEX[compressPreset]);
+                return `${formatBytes(item.size)} → ${formatBytes(size)}`;
+            }
+            return formatBytes(item.size);
+        default: return '';
+    }
+}
+
+function renderCompressList() {
+    const list = document.getElementById('compressList');
+    const count = document.getElementById('compressListCount');
+    if (!list) return;
+
+    count.textContent = compressItems.length ? `${compressItems.length}` : '';
+    list.innerHTML = compressItems.map((item) => `
+        <div class="convert-batch-item convert-batch-item-${item.state}">
+            <span class="convert-batch-item-name">${escapeHtml(item.name)}</span>
+            <span class="convert-batch-item-status">${escapeHtml(compressStatusLabel(item))}</span>
+        </div>
+    `).join('');
+}
+
+function doCompressClear() {
+    if (compressRunning) return;
+    compressItems = [];
+    compressPreset = 'balanced';
+    compressMode = 'presets';
+
+    document.getElementById('compressDropZone').style.display = 'flex';
+    document.getElementById('compressListWrap').style.display = 'none';
+    document.getElementById('compressModeTabs').style.display = 'none';
+    document.getElementById('compressPresets').style.display = 'none';
+    document.getElementById('compressTargetWrap').style.display = 'none';
+    document.getElementById('compressEstimating').style.display = 'none';
+    document.getElementById('compressTargetMb').value = '';
+    document.getElementById('compressBtn').disabled = true;
+    document.getElementById('compressBtn').textContent = t('compress.btn');
+    document.querySelectorAll('.compress-preset-card').forEach((c) => c.classList.toggle('selected', c.dataset.preset === 'balanced'));
+    document.querySelectorAll('#compressModeTabs .dl-mode-tab').forEach((b) => b.classList.toggle('active', b.dataset.mode === 'presets'));
+    document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
+}
+
+async function doCompress() {
+    let readyItems = compressItems.filter((i) => i.state === 'ready');
+    if (readyItems.length === 0 || compressRunning) return;
+
+    let targetBytes = null;
+    if (compressMode === 'target') {
+        const mb = parseFloat(document.getElementById('compressTargetMb').value);
+        if (!(mb > 0)) return;
+        targetBytes = mb * 1000 * 1000; // decimal MB, matching formatBytes/Finder convention
+
+        // Target size is a continuous quality dial — only images support it. PDF only has
+        // Ghostscript's 4 discrete presets, so it stays on the Presets tab.
+        const skipped = readyItems.filter((i) => i.type !== 'image');
+        skipped.forEach((i) => addLog(`Skipped ${i.name}: target size only supports images, not PDF`, 'error'));
+        readyItems = readyItems.filter((i) => i.type === 'image');
+        if (readyItems.length === 0) return;
+    }
+
+    compressRunning = true;
+    const btn = document.getElementById('compressBtn');
+    btn.disabled = true;
+
+    for (const item of readyItems) {
+        item.state = 'compressing';
+        renderCompressList();
+        try {
+            const rawPreset = targetBytes ? null : rankedPresetForItem(item, COMPRESS_RANK_INDEX[compressPreset])[0];
+            const result = targetBytes
+                ? await window.api.compressRunTarget(item.path, targetBytes)
+                : await window.api.compressRun(item.path, rawPreset);
+            item.compressedSize = result.compressedSize;
+            item.state = 'done';
+            if (result.targetMissed) {
+                addLog(`${item.name}: couldn't reach the target size — smallest possible is ${formatBytes(result.compressedSize)} (target was ${formatBytes(targetBytes)})`, 'error');
+            } else {
+                addLog(`Compressed: ${result.outputPath} (${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)})`);
+            }
+        } catch (err) {
+            item.state = 'error';
+            addLog(`Compress failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderCompressList();
+    }
+
+    compressRunning = false;
+    btn.disabled = false;
+    btn.textContent = t('compress.done') || 'Done ✓';
+
+    if (readyItems.some((i) => i.state === 'done') && document.getElementById('compressAutoOpenCheck').checked) {
+        window.api.compressOpenDestFolder();
+    }
+
+    setTimeout(() => { if (!compressRunning) doCompressClear(); }, 1800);
+}
+
+// Privacy / Watermark tab — batch, images + PDF (PDF rasterized, see watermark.js)
+let watermarkItems = [];
+let watermarkItemIdCounter = 0;
+let watermarkType = 'text';
+let watermarkSize = 'medium';
+let watermarkLogoPath = null;
+let watermarkRunning = false;
+
+function initPrivacyTab() {
+    const dropZone = document.getElementById('watermarkDropZone');
+    loadWatermarkDestPath();
+    if (dropZone && !dropZone._initialized) {
+        dropZone._initialized = true;
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
+            addFilesToWatermarkList(paths);
+        });
+    }
+
+    const redactDropZone = document.getElementById('redactDropZone');
+    if (redactDropZone && !redactDropZone._initialized) {
+        redactDropZone._initialized = true;
+        redactDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            redactDropZone.classList.add('drag-over');
+        });
+        redactDropZone.addEventListener('dragleave', () => redactDropZone.classList.remove('drag-over'));
+        redactDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            redactDropZone.classList.remove('drag-over');
+            const first = e.dataTransfer.files[0];
+            if (first) loadRedactFile(window.api.getPathForFile(first));
+        });
+    }
+}
+
+async function loadWatermarkDestPath() {
+    const p = await window.api.watermarkGetDestPath();
+    document.getElementById('watermarkDestPath').textContent = p || '-';
+}
+
+async function doChooseWatermarkDestPath() {
+    const p = await window.api.watermarkChooseDestPath();
+    document.getElementById('watermarkDestPath').textContent = p || '-';
+}
+
+async function doWatermarkChooseFile() {
+    const filePaths = await window.api.watermarkChooseFile();
+    addFilesToWatermarkList(filePaths);
+}
+
+async function addFilesToWatermarkList(paths) {
+    if (!paths || paths.length === 0) return;
+
+    document.getElementById('watermarkDropZone').style.display = 'none';
+    document.getElementById('watermarkListWrap').style.display = 'flex';
+    document.getElementById('watermarkOptions').style.display = 'flex';
+    document.querySelector('#tab-privacy .convert-center-wrapper')?.classList.add('has-content');
+
+    for (const p of paths) {
+        const type = await window.api.watermarkDetectType(p);
+        watermarkItems.push({
+            id: ++watermarkItemIdCounter,
+            path: p,
+            name: p.split('/').pop(),
+            type,
+            state: (type === 'image' || type === 'pdf') ? 'ready' : 'unsupported',
+        });
+    }
+    renderWatermarkList();
+    onWatermarkOptionsChange();
+}
+
+function setWatermarkType(type) {
+    watermarkType = type;
+    document.querySelectorAll('#watermarkOptions [data-wmtype]').forEach((b) => b.classList.toggle('active', b.dataset.wmtype === type));
+    document.getElementById('watermarkTextWrap').style.display = type === 'text' ? 'flex' : 'none';
+    document.getElementById('watermarkLogoWrap').style.display = type === 'logo' ? 'flex' : 'none';
+    onWatermarkOptionsChange();
+    renderWatermarkPreview();
+}
+
+function setWatermarkSize(size) {
+    watermarkSize = size;
+    document.querySelectorAll('#watermarkOptions [data-wmsize]').forEach((b) => b.classList.toggle('active', b.dataset.wmsize === size));
+    renderWatermarkPreview();
+}
+
+// Live preview of the actual tiling pattern (angle, spacing, size) that will be burned into the
+// file — mirrors watermark.js's buildTile()/applyWatermarkToBuffer() closely enough to be a
+// faithful sample, not just a decorative sketch. Pure canvas, no IPC round-trip needed.
+const WM_PREVIEW_ANGLE = -30;
+const WM_PREVIEW_SIZE_PRESETS = {
+    small:  { width: 180, height: 100, fontSize: 15 },
+    medium: { width: 280, height: 160, fontSize: 22 },
+    large:  { width: 440, height: 250, fontSize: 34 },
+};
+let wmPreviewLogoImg = null;
+let wmPreviewLogoPathLoaded = null;
+
+function renderWatermarkPreview() {
+    const canvas = document.getElementById('watermarkPreviewCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const preset = WM_PREVIEW_SIZE_PRESETS[watermarkSize] || WM_PREVIEW_SIZE_PRESETS.medium;
+    // Scale is computed once from the LARGEST preset, not from whichever preset is currently
+    // selected — computing it per-preset (against the same canvas-width target) made medium and
+    // large both get clamped down to the exact same on-screen tile size, since both exceed the
+    // cap. Sharing one scale factor preserves the real size difference between presets.
+    const maxPresetWidth = WM_PREVIEW_SIZE_PRESETS.large.width;
+    const scale = Math.min(1, (w / 2.2) / maxPresetWidth);
+    let tileW = preset.width * scale;
+    const tileH = preset.height * scale;
+    const fontSize = preset.fontSize * scale;
+    const ink = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#000';
+
+    const text = (document.getElementById('watermarkText')?.value || 'CONFIDENTIEL').toUpperCase();
+    if (watermarkType !== 'logo') {
+        // Widen the tile to fit the actual measured text (real canvas measurement, more accurate
+        // than the backend's character-count heuristic) — otherwise a long phrase overlaps its
+        // own next repeat so badly it becomes unreadable (confirmed with a real multi-word
+        // watermark). Capped, same rationale as watermark.js's MAX_TILE_WIDTH: beyond a point,
+        // sparser repeats stop being useful and we'd rather the tile just not keep growing.
+        ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+        const measured = ctx.measureText(text).width;
+        tileW = Math.max(tileW, measured + fontSize * 1.4);
+        tileW = Math.min(tileW, 900 * scale); // mirrors watermark.js's MAX_TILE_WIDTH, scaled down to preview size
+    }
+
+    const cols = Math.ceil(w / tileW) + 1;
+    const rows = Math.ceil(h / tileH) + 1;
+
+    const drawTile = (drawOne) => {
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const cx = col * tileW + tileW / 2;
+                const cy = row * tileH + tileH / 2;
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate((WM_PREVIEW_ANGLE * Math.PI) / 180);
+                drawOne();
+                ctx.restore();
+            }
+        }
+    };
+
+    if (watermarkType === 'logo' && watermarkLogoPath) {
+        if (wmPreviewLogoPathLoaded !== watermarkLogoPath) {
+            wmPreviewLogoImg = new Image();
+            wmPreviewLogoImg.onload = () => renderWatermarkPreview();
+            wmPreviewLogoImg.src = `bweb-file://${encodeURIComponent(watermarkLogoPath)}`;
+            wmPreviewLogoPathLoaded = watermarkLogoPath;
+            return; // redraws once loaded
+        }
+        if (wmPreviewLogoImg && wmPreviewLogoImg.complete && wmPreviewLogoImg.naturalWidth) {
+            const boxSize = Math.min(tileW, tileH) * 0.6;
+            const ratio = wmPreviewLogoImg.naturalWidth / wmPreviewLogoImg.naturalHeight;
+            const logoW = ratio >= 1 ? boxSize : boxSize * ratio;
+            const logoH = ratio >= 1 ? boxSize / ratio : boxSize;
+            ctx.globalAlpha = 0.35;
+            drawTile(() => ctx.drawImage(wmPreviewLogoImg, -logoW / 2, -logoH / 2, logoW, logoH));
+            ctx.globalAlpha = 1;
+        }
+    } else {
+        ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = ink;
+        drawTile(() => ctx.fillText(text, 0, 0));
+        ctx.globalAlpha = 1;
+    }
+}
+
+async function doWatermarkChooseLogo() {
+    const p = await window.api.watermarkChooseLogo();
+    if (p) {
+        watermarkLogoPath = p;
+        document.getElementById('watermarkLogoName').textContent = p.split('/').pop();
+    }
+    onWatermarkOptionsChange();
+}
+
+function onWatermarkOptionsChange() {
+    renderWatermarkPreview();
+    const btn = document.getElementById('watermarkBtn');
+    const readyCount = watermarkItems.filter((i) => i.state === 'ready').length;
+    const hasValidOptions = watermarkType === 'text'
+        ? document.getElementById('watermarkText').value.trim().length > 0
+        : !!watermarkLogoPath;
+
+    btn.disabled = readyCount === 0 || !hasValidOptions || watermarkRunning;
+    btn.textContent = t('watermark.btn.n') ? t('watermark.btn.n')(readyCount) : `Watermark ${readyCount}`;
+}
+
+function watermarkStatusLabel(item) {
+    switch (item.state) {
+        case 'unsupported': return t('watermark.unsupported') || 'Unsupported';
+        case 'ready': return t('watermark.status.pending') || 'Pending';
+        case 'watermarking': return t('watermark.status.watermarking') || 'Watermarking…';
+        case 'done': return t('watermark.status.done') || '✓ Done';
+        case 'error': return t('watermark.status.error') || 'Failed';
+        default: return '';
+    }
+}
+
+function renderWatermarkList() {
+    const list = document.getElementById('watermarkList');
+    const count = document.getElementById('watermarkListCount');
+    if (!list) return;
+
+    count.textContent = watermarkItems.length ? `${watermarkItems.length}` : '';
+    list.innerHTML = watermarkItems.map((item) => `
+        <div class="convert-batch-item convert-batch-item-${item.state}">
+            <span class="convert-batch-item-name">${escapeHtml(item.name)}</span>
+            <span class="convert-batch-item-status">${escapeHtml(watermarkStatusLabel(item))}</span>
+        </div>
+    `).join('');
+}
+
+function doWatermarkClear() {
+    if (watermarkRunning) return;
+    watermarkItems = [];
+    watermarkType = 'text';
+    watermarkSize = 'medium';
+    watermarkLogoPath = null;
+
+    document.getElementById('watermarkDropZone').style.display = 'flex';
+    document.getElementById('watermarkListWrap').style.display = 'none';
+    document.getElementById('watermarkOptions').style.display = 'none';
+    document.getElementById('watermarkText').value = '';
+    document.getElementById('watermarkLogoName').textContent = '';
+    document.getElementById('watermarkBtn').disabled = true;
+    document.getElementById('watermarkBtn').textContent = t('watermark.btn');
+    document.querySelectorAll('#watermarkOptions [data-wmtype]').forEach((b) => b.classList.toggle('active', b.dataset.wmtype === 'text'));
+    document.querySelectorAll('#watermarkOptions [data-wmsize]').forEach((b) => b.classList.toggle('active', b.dataset.wmsize === 'medium'));
+    document.getElementById('watermarkTextWrap').style.display = 'flex';
+    document.getElementById('watermarkLogoWrap').style.display = 'none';
+    document.querySelector('#tab-privacy .convert-center-wrapper')?.classList.remove('has-content');
+    wmPreviewLogoImg = null;
+    wmPreviewLogoPathLoaded = null;
+    const previewCanvas = document.getElementById('watermarkPreviewCanvas');
+    if (previewCanvas) previewCanvas.getContext('2d').clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+}
+
+async function doWatermark() {
+    const readyItems = watermarkItems.filter((i) => i.state === 'ready');
+    if (readyItems.length === 0 || watermarkRunning) return;
+
+    const options = watermarkType === 'text'
+        ? { type: 'text', text: document.getElementById('watermarkText').value.trim(), size: watermarkSize }
+        : { type: 'logo', logoPath: watermarkLogoPath, size: watermarkSize };
+
+    watermarkRunning = true;
+    const btn = document.getElementById('watermarkBtn');
+    btn.disabled = true;
+
+    for (const item of readyItems) {
+        item.state = 'watermarking';
+        renderWatermarkList();
+        try {
+            const result = await window.api.watermarkRun(item.path, options);
+            item.state = 'done';
+            addLog(`Watermarked: ${result.outputPath}`);
+        } catch (err) {
+            item.state = 'error';
+            addLog(`Watermark failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderWatermarkList();
+    }
+
+    watermarkRunning = false;
+    btn.disabled = false;
+    btn.textContent = t('watermark.done') || 'Done ✓';
+    setTimeout(() => { if (!watermarkRunning) doWatermarkClear(); }, 1800);
+}
+
+// Privacy / Redact tab — single file at a time, by design. Zones are drawn per-file against the
+// exact pixels of that one file's preview; batching several unrelated files (the pattern used by
+// Compress/Watermark) would either force the same zones onto images with different layouts, or
+// require a separate zone-drawing pass per file anyway. A "choose another file" flow after
+// finishing one file gets the repeat-usage benefit of batch without that mismatch.
+let redactFilePath = null;
+let redactFileType = null; // 'image' | 'pdf'
+let redactPdfPages = [];   // data URLs, one per page, at preview DPI
+let redactCurrentPage = 1;
+// Each zone carries its OWN method/color/intensity, captured from the sidebar's current
+// settings at the moment it's drawn — not a single global look applied to every zone. Changing
+// the color or intensity afterward only affects zones drawn from then on, matching how a real
+// annotation tool behaves (each mark keeps what it was made with) and letting a document have
+// zones with different colors, per explicit user request.
+let redactZones = [];      // { page, xPct, yPct, wPct, hPct, method, color, intensity }
+// redactPen holds what NEW zones will be drawn with. redactMethod/Color/Intensity are what the
+// sidebar currently DISPLAYS/EDITS — normally a mirror of redactPen, but temporarily overridden
+// to mirror the SELECTED zone's own settings while editing one (see selectRedactZone). Keeping
+// these separate means deselecting a zone restores the pen exactly as the user left it, instead
+// of leaking whatever that zone happened to be set to.
+let redactPen = { method: 'blackout', color: '#000000', intensity: 50 };
+let redactMethod = redactPen.method;
+let redactColor = redactPen.color;
+let redactIntensity = redactPen.intensity; // 0-100, meaning depends on method (see intensityToBlur/intensityToBlocks)
+let redactRunning = false;
+let redactDraft = null;    // { startXPct, startYPct, el } — drawing a brand new zone
+let redactSelectedZone = null; // the zone object currently selected for move/resize/edit, or null
+let redactZoneDrag = null; // { zone, mode: 'move'|'resize', handle, rect, start: {xPct,yPct,wPct,hPct}, startMouse: {x,y} }
+
+function initPrivacyRedactTab() {
+    const layer = document.getElementById('redactZonesLayer');
+    if (!layer || layer._initialized) return;
+    layer._initialized = true;
+
+    layer.addEventListener('mousedown', (e) => {
+        if (e.target !== layer || redactRunning) return;
+        deselectRedactZone();
+        const rect = layer.getBoundingClientRect();
+        const startXPct = (e.clientX - rect.left) / rect.width;
+        const startYPct = (e.clientY - rect.top) / rect.height;
+        const el = document.createElement('div');
+        el.className = 'redact-zone-draft';
+        layer.appendChild(el);
+        redactDraft = { startXPct, startYPct, el, rect };
+    });
+
+    layer.addEventListener('mousemove', (e) => {
+        if (redactZoneDrag) {
+            handleRedactZoneDragMove(e);
+            return;
+        }
+        if (!redactDraft) return;
+        const { startXPct, startYPct, el, rect } = redactDraft;
+        const curXPct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        const curYPct = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+        const x = Math.min(startXPct, curXPct);
+        const y = Math.min(startYPct, curYPct);
+        const w = Math.abs(curXPct - startXPct);
+        const h = Math.abs(curYPct - startYPct);
+        el.style.left = `${x * 100}%`;
+        el.style.top = `${y * 100}%`;
+        el.style.width = `${w * 100}%`;
+        el.style.height = `${h * 100}%`;
+        redactDraft._last = { x, y, w, h };
+    });
+
+    const finishDraft = () => {
+        if (redactZoneDrag) {
+            const { zone, moved } = redactZoneDrag;
+            redactZoneDrag = null;
+            if (!moved) selectRedactZone(zone);
+            else updateRedactButton(); // zone coordinates changed, nothing else did
+            return;
+        }
+        if (!redactDraft) return;
+        const { el, _last } = redactDraft;
+        el.remove();
+        redactDraft = null;
+        // Ignore accidental clicks/micro-drags — require a real rectangle.
+        if (_last && _last.w > 0.01 && _last.h > 0.01) {
+            redactZones.push({
+                page: redactCurrentPage, xPct: _last.x, yPct: _last.y, wPct: _last.w, hPct: _last.h,
+                method: redactPen.method, color: redactPen.color, intensity: redactPen.intensity,
+            });
+            renderRedactZones();
+            updateRedactButton();
+        }
+    };
+    layer.addEventListener('mouseup', finishDraft);
+    layer.addEventListener('mouseleave', finishDraft);
+}
+
+function setPrivacyMode(mode) {
+    document.querySelectorAll('#tab-privacy > .dl-mode-tabs [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('privacyWatermarkView').style.display = mode === 'watermark' ? '' : 'none';
+    document.getElementById('privacyRedactView').style.display = mode === 'redact' ? '' : 'none';
+    if (mode === 'redact') {
+        initPrivacyRedactTab();
+        loadRedactDestPath();
+    }
+}
+
+async function loadRedactDestPath() {
+    const p = await window.api.redactGetDestPath();
+    document.getElementById('redactDestPath').textContent = p || '-';
+}
+
+async function doChooseRedactDestPath() {
+    const p = await window.api.redactChooseDestPath();
+    document.getElementById('redactDestPath').textContent = p || '-';
+}
+
+async function doRedactChooseFile() {
+    const p = await window.api.redactChooseFile();
+    if (p) loadRedactFile(p);
+}
+
+async function loadRedactFile(filePath) {
+    const type = await window.api.redactDetectType(filePath);
+    if (type !== 'image' && type !== 'pdf') {
+        addLog(`Redact: unsupported file type for ${filePath.split('/').pop()}`, 'error');
+        return;
+    }
+
+    redactFilePath = filePath;
+    redactFileType = type;
+    redactZones = [];
+    redactCurrentPage = 1;
+    redactPdfPages = [];
+
+    document.getElementById('redactDropZone').style.display = 'none';
+    document.getElementById('redactEditorWrap').style.display = 'flex';
+    document.getElementById('redactBtn').style.display = '';
+    document.getElementById('redactFileName').textContent = filePath.split('/').pop();
+    document.querySelector('#privacyRedactView .convert-center-wrapper')?.classList.add('has-content');
+
+    if (type === 'pdf') {
+        document.getElementById('redactStageImg').removeAttribute('src');
+        document.getElementById('redactPageNav').style.display = 'none';
+        addLog('Rendering PDF preview…');
+        try {
+            redactPdfPages = await window.api.redactPdfPreview(filePath);
+        } catch (err) {
+            addLog(`Redact: failed to render PDF preview — ${err.message}`, 'error');
+            doRedactClear();
+            return;
+        }
+        document.getElementById('redactPageNav').style.display = redactPdfPages.length > 1 ? 'flex' : 'none';
+    }
+
+    renderRedactStage();
+    updateRedactButton();
+}
+
+function renderRedactStage() {
+    const img = document.getElementById('redactStageImg');
+    // Pixelate zones/swatch sample real pixels via canvas — re-render once the image has
+    // actually decoded, not just when its src attribute is set.
+    img.onload = () => { renderRedactZones(); renderRedactPenPreview(); };
+    if (redactFileType === 'pdf') {
+        img.src = redactPdfPages[redactCurrentPage - 1] || '';
+        document.getElementById('redactPageLabel').textContent =
+            (t('redact.page.of') ? t('redact.page.of')(redactCurrentPage, redactPdfPages.length) : `Page ${redactCurrentPage} of ${redactPdfPages.length}`);
+    } else {
+        img.src = `bweb-file://${encodeURIComponent(redactFilePath)}`;
+    }
+    renderRedactZones();
+    renderRedactPenPreview();
+}
+
+function redactPrevPage() {
+    if (redactCurrentPage <= 1) return;
+    redactCurrentPage--;
+    renderRedactStage();
+}
+
+function redactNextPage() {
+    if (redactCurrentPage >= redactPdfPages.length) return;
+    redactCurrentPage++;
+    renderRedactStage();
+}
+
+// Intensity is a single 0-100 slider whose meaning depends on the method — kept in sync with
+// the exact same mapping used server-side (redact.js) so the live preview matches the real
+// output, not just an approximation of "more/less".
+function intensityToBlurPx(intensity) {
+    return 2 + (intensity / 100) * 38; // 2-40px
+}
+
+function intensityToBlockCount(intensity) {
+    // Blocks ACROSS the zone's short side — fewer blocks = coarser/more destructive pixelation.
+    return Math.round(30 - (intensity / 100) * 26); // 30 (fine) down to 4 (very blocky)
+}
+
+const RESIZE_HANDLES = ['nw', 'ne', 'sw', 'se'];
+
+// Renders each zone showing the ACTUAL method/color/intensity it was drawn with — not just an
+// outline — so what's on screen is a real preview, not a placeholder. blackout is a solid fill;
+// blur uses a real CSS backdrop-filter over the image underneath (the closest thing to the real
+// sharp blur without an IPC round-trip); pixelate draws a small canvas sampling the real image
+// pixels under the zone, downscaled then upscaled with `image-rendering: pixelated` — the
+// browser does the hard-edged upscale for us, same visual result as the backend's
+// downscale+nearest-neighbor-upscale approach. Each zone uses ITS OWN stored settings, captured
+// when it was drawn — not the sidebar's current settings — so changing color/intensity/method
+// afterward doesn't retroactively repaint zones already on the page (unless that zone is the
+// one currently SELECTED — see selectRedactZone). Clicking a zone selects it (for move/resize/
+// edit) rather than deleting it outright — deletion is now a deliberate button, not a stray
+// click, after feedback that click-to-delete destroyed careful placement too easily.
+function renderRedactZones() {
+    const layer = document.getElementById('redactZonesLayer');
+    const img = document.getElementById('redactStageImg');
+    if (!layer) return;
+    layer.innerHTML = '';
+    redactZones
+        .filter((z) => z.page === redactCurrentPage)
+        .forEach((zone) => {
+            const method = zone.method || 'blackout';
+            const el = document.createElement('div');
+            el.className = `redact-zone redact-zone-${method}`;
+            if (zone === redactSelectedZone) el.classList.add('selected');
+            el.style.left = `${zone.xPct * 100}%`;
+            el.style.top = `${zone.yPct * 100}%`;
+            el.style.width = `${zone.wPct * 100}%`;
+            el.style.height = `${zone.hPct * 100}%`;
+            el.title = t('redact.zone.select') || 'Click to select — drag to move';
+
+            if (method === 'blackout') {
+                el.style.background = zone.color || '#000000';
+            } else if (method === 'blur') {
+                const blurPx = intensityToBlurPx(zone.intensity ?? 50);
+                el.style.backdropFilter = `blur(${blurPx}px)`;
+                el.style.webkitBackdropFilter = `blur(${blurPx}px)`;
+            } else if (method === 'pixelate' && img && img.naturalWidth) {
+                const sx = zone.xPct * img.naturalWidth;
+                const sy = zone.yPct * img.naturalHeight;
+                const sw = zone.wPct * img.naturalWidth;
+                const sh = zone.hPct * img.naturalHeight;
+                const blocks = intensityToBlockCount(zone.intensity ?? 50);
+                const canvas = document.createElement('canvas');
+                canvas.width = blocks;
+                canvas.height = Math.max(1, Math.round(blocks * (sh / sw)));
+                canvas.className = 'redact-zone-pixelate-canvas';
+                const cctx = canvas.getContext('2d');
+                try {
+                    cctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                    el.appendChild(canvas);
+                } catch { /* canvas draw can throw before the image is fully decoded — next render catches it */ }
+            }
+
+            const del = document.createElement('span');
+            del.className = 'redact-zone-delete';
+            del.textContent = '×';
+            del.title = t('redact.zone.remove') || 'Delete zone';
+            del.addEventListener('mousedown', (e) => e.stopPropagation());
+            del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                redactZones.splice(redactZones.indexOf(zone), 1);
+                if (redactSelectedZone === zone) deselectRedactZone();
+                renderRedactZones();
+                updateRedactButton();
+            });
+            el.appendChild(del);
+
+            if (zone === redactSelectedZone) {
+                RESIZE_HANDLES.forEach((handle) => {
+                    const h = document.createElement('span');
+                    h.className = `redact-zone-handle redact-zone-handle-${handle}`;
+                    h.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        startRedactZoneDrag(e, zone, 'resize', handle);
+                    });
+                    el.appendChild(h);
+                });
+            }
+
+            // Body drag = move; a real drag (beyond a few px) moves the zone, a plain click
+            // (no meaningful movement) selects it instead — same click-vs-drag distinction used
+            // for drawing a brand new zone.
+            el.addEventListener('mousedown', (e) => {
+                if (e.target !== el) return; // handles/delete button already stopped propagation
+                startRedactZoneDrag(e, zone, 'move');
+            });
+            layer.appendChild(el);
+        });
+}
+
+function startRedactZoneDrag(e, zone, mode, handle) {
+    const layer = document.getElementById('redactZonesLayer');
+    const rect = layer.getBoundingClientRect();
+    redactZoneDrag = {
+        zone, mode, handle, rect,
+        start: { xPct: zone.xPct, yPct: zone.yPct, wPct: zone.wPct, hPct: zone.hPct },
+        startMouse: { x: e.clientX, y: e.clientY },
+        moved: false,
+    };
+}
+
+function handleRedactZoneDragMove(e) {
+    const drag = redactZoneDrag;
+    const { zone, mode, handle, rect, start, startMouse } = drag;
+    const dxPct = (e.clientX - startMouse.x) / rect.width;
+    const dyPct = (e.clientY - startMouse.y) / rect.height;
+    if (Math.abs(dxPct) > 0.003 || Math.abs(dyPct) > 0.003) drag.moved = true;
+    if (!drag.moved) return;
+
+    const MIN = 0.02;
+    if (mode === 'move') {
+        zone.xPct = Math.min(Math.max(0, start.xPct + dxPct), 1 - start.wPct);
+        zone.yPct = Math.min(Math.max(0, start.yPct + dyPct), 1 - start.hPct);
+    } else {
+        // Resize from whichever corner was grabbed — the OPPOSITE corner stays fixed.
+        let left = start.xPct, top = start.yPct, right = start.xPct + start.wPct, bottom = start.yPct + start.hPct;
+        if (handle.includes('w')) left = Math.min(right - MIN, Math.max(0, start.xPct + dxPct));
+        if (handle.includes('e')) right = Math.max(left + MIN, Math.min(1, right + dxPct));
+        if (handle.includes('n')) top = Math.min(bottom - MIN, Math.max(0, start.yPct + dyPct));
+        if (handle.includes('s')) bottom = Math.max(top + MIN, Math.min(1, bottom + dyPct));
+        zone.xPct = left;
+        zone.yPct = top;
+        zone.wPct = right - left;
+        zone.hPct = bottom - top;
+    }
+    renderRedactZones();
+}
+
+// The sidebar's Method/Color/Intensity controls double as a "properties panel": with a zone
+// selected, they edit THAT zone; with nothing selected, they set the pen new zones will be
+// drawn with. This reuses one UI surface instead of building a second one just for editing.
+function selectRedactZone(zone) {
+    redactSelectedZone = zone;
+    redactMethod = zone.method || 'blackout';
+    redactColor = zone.color || '#000000';
+    redactIntensity = zone.intensity ?? 50;
+    syncRedactSidebarToCurrentSettings();
+    renderRedactZones();
+    renderRedactPenPreview();
+}
+
+function deselectRedactZone() {
+    if (!redactSelectedZone) return;
+    redactSelectedZone = null;
+    redactMethod = redactPen.method;
+    redactColor = redactPen.color;
+    redactIntensity = redactPen.intensity;
+    syncRedactSidebarToCurrentSettings();
+    renderRedactZones();
+    renderRedactPenPreview();
+}
+
+function syncRedactSidebarToCurrentSettings() {
+    document.querySelectorAll('#privacyRedactView [data-rmethod]').forEach((b) => b.classList.toggle('active', b.dataset.rmethod === redactMethod));
+    document.getElementById('redactColorRow').style.display = redactMethod === 'blackout' ? 'flex' : 'none';
+    document.getElementById('redactIntensityRow').style.display = redactMethod === 'blackout' ? 'none' : 'flex';
+    document.getElementById('redactColorInput').value = redactColor;
+    document.getElementById('redactIntensityInput').value = redactIntensity;
+    const banner = document.getElementById('redactZoneEditingBanner');
+    if (banner) banner.style.display = redactSelectedZone ? 'flex' : 'none';
+    const previewLabel = document.getElementById('redactPenPreviewLabel');
+    if (previewLabel) {
+        previewLabel.textContent = redactSelectedZone
+            ? (t('redact.preview.selected') || 'Selected zone preview')
+            : (t('redact.preview.label') || 'New zone preview');
+    }
+}
+
+function deleteSelectedRedactZone() {
+    if (!redactSelectedZone) return;
+    redactZones.splice(redactZones.indexOf(redactSelectedZone), 1);
+    deselectRedactZone();
+    updateRedactButton();
+}
+
+function setRedactMethod(method) {
+    redactMethod = method;
+    document.querySelectorAll('#privacyRedactView [data-rmethod]').forEach((b) => b.classList.toggle('active', b.dataset.rmethod === method));
+    document.getElementById('redactColorRow').style.display = method === 'blackout' ? 'flex' : 'none';
+    document.getElementById('redactIntensityRow').style.display = method === 'blackout' ? 'none' : 'flex';
+    if (redactSelectedZone) {
+        redactSelectedZone.method = method;
+        renderRedactZones();
+    } else {
+        redactPen.method = method;
+    }
+    renderRedactPenPreview();
+}
+
+function setRedactColor(value) {
+    redactColor = value;
+    if (redactSelectedZone) {
+        redactSelectedZone.color = value;
+        renderRedactZones();
+    } else {
+        redactPen.color = value;
+    }
+    renderRedactPenPreview();
+}
+
+function setRedactIntensity(value) {
+    redactIntensity = Number(value);
+    if (redactSelectedZone) {
+        redactSelectedZone.intensity = redactIntensity;
+        renderRedactZones();
+    } else {
+        redactPen.intensity = redactIntensity;
+    }
+    renderRedactPenPreview();
+}
+
+// A compact swatch showing what a NEW zone would look like with the current pen settings —
+// zones already on the page keep their own look (see redactZones), so this is the only place
+// a method/color/intensity change is reflected live before you actually draw with it.
+function renderRedactPenPreview() {
+    const swatch = document.getElementById('redactPenPreview');
+    if (!swatch) return;
+    swatch.innerHTML = '';
+    swatch.style.background = '';
+    const img = document.getElementById('redactStageImg');
+
+    if (redactMethod === 'blackout') {
+        swatch.style.background = redactColor;
+    } else if (redactMethod === 'blur' && img && img.naturalWidth) {
+        const sample = document.createElement('img');
+        sample.src = img.src;
+        sample.className = 'redact-pen-preview-sample';
+        sample.style.filter = `blur(${intensityToBlurPx(redactIntensity) / 3}px)`;
+        swatch.appendChild(sample);
+    } else if (redactMethod === 'pixelate' && img && img.naturalWidth) {
+        const blocks = intensityToBlockCount(redactIntensity);
+        const canvas = document.createElement('canvas');
+        canvas.width = blocks;
+        canvas.height = blocks;
+        canvas.className = 'redact-zone-pixelate-canvas';
+        const cctx = canvas.getContext('2d');
+        const cropSize = Math.min(img.naturalWidth, img.naturalHeight) * 0.3;
+        try {
+            cctx.drawImage(img, img.naturalWidth * 0.15, img.naturalHeight * 0.15, cropSize, cropSize, 0, 0, blocks, blocks);
+            swatch.appendChild(canvas);
+        } catch { /* image not decoded yet — next call catches it */ }
+    }
+}
+
+function updateRedactButton() {
+    const btn = document.getElementById('redactBtn');
+    if (!btn) return;
+    const count = redactZones.length;
+    btn.disabled = count === 0 || redactRunning;
+    btn.textContent = count > 0 && t('redact.btn.n') ? t('redact.btn.n')(count) : (t('redact.btn') || 'Apply redaction');
+    const counter = document.getElementById('redactZoneCount');
+    if (counter) counter.textContent = count ? (t('redact.zones.count') ? t('redact.zones.count')(count) : `${count} zone(s) marked`) : '';
+}
+
+function doRedactClear() {
+    if (redactRunning) return;
+    redactFilePath = null;
+    redactFileType = null;
+    redactPdfPages = [];
+    redactCurrentPage = 1;
+    redactZones = [];
+    redactSelectedZone = null;
+    redactZoneDrag = null;
+    redactPen = { method: 'blackout', color: '#000000', intensity: 50 };
+    redactMethod = redactPen.method;
+    redactColor = redactPen.color;
+    redactIntensity = redactPen.intensity;
+
+    document.getElementById('redactDropZone').style.display = 'flex';
+    document.getElementById('redactEditorWrap').style.display = 'none';
+    document.getElementById('redactBtn').style.display = 'none';
+    document.getElementById('redactBtn').disabled = true;
+    document.getElementById('redactBtn').textContent = t('redact.btn') || 'Apply redaction';
+    document.getElementById('redactZonesLayer').innerHTML = '';
+    document.getElementById('redactStageImg').removeAttribute('src');
+    document.getElementById('redactPageNav').style.display = 'none';
+    document.querySelectorAll('#privacyRedactView [data-rmethod]').forEach((b) => b.classList.toggle('active', b.dataset.rmethod === 'blackout'));
+    const colorInput = document.getElementById('redactColorInput');
+    if (colorInput) colorInput.value = '#000000';
+    const intensityInput = document.getElementById('redactIntensityInput');
+    if (intensityInput) intensityInput.value = 50;
+    document.getElementById('redactColorRow').style.display = 'flex';
+    document.getElementById('redactIntensityRow').style.display = 'none';
+    document.querySelector('#privacyRedactView .convert-center-wrapper')?.classList.remove('has-content');
+}
+
+async function doRedact() {
+    if (redactZones.length === 0 || redactRunning || !redactFilePath) return;
+
+    redactRunning = true;
+    const btn = document.getElementById('redactBtn');
+    btn.disabled = true;
+    btn.textContent = t('redact.running') || 'Redacting…';
+
+    try {
+        const result = await window.api.redactRun(redactFilePath, redactZones);
+        addLog(`Redacted: ${result.outputPath}`);
+        btn.textContent = t('redact.done') || 'Done ✓';
+        setTimeout(() => { if (!redactRunning) doRedactClear(); }, 1800);
+    } catch (err) {
+        addLog(`Redact failed: ${err.message}`, 'error');
+        btn.textContent = t('redact.error') || 'Redaction failed';
+        btn.disabled = false;
+    } finally {
+        redactRunning = false;
+    }
+}
+
 function initConvertTab() {
     const dropZone = document.getElementById('convertDropZone');
     if (!dropZone || dropZone._initialized) return;
@@ -2951,6 +4067,325 @@ async function doConvert() {
 async function doCancelConvert() {
     convertStopRequested = true;
     await window.api.convertCancel();
+}
+
+// --- QR Generator ---
+// Rendered entirely client-side via the vendored qr-code-styling (MIT, kozakdenys) — Electron's
+// renderer is a real Chromium window, so its canvas/SVG APIs work natively here without any
+// native Node dependency (no node-canvas, no image-processing library needed just for this).
+// The main process is only asked to write the final bytes to disk.
+
+let qrFormat = 'png';
+let qrSize = 1024;
+let qrFrame = 'square';
+let qrDebounceTimer = null;
+let qrCodeInstance = null;
+let qrLogoDataUrl = null;
+
+function initQrTab() {
+    loadQrDestPath();
+}
+
+async function loadQrDestPath() {
+    const p = await window.api.qrGetDestPath();
+    document.getElementById('qrDestPath').textContent = p || '-';
+}
+
+async function doChooseQrDestPath() {
+    const p = await window.api.qrChooseDestPath();
+    document.getElementById('qrDestPath').textContent = p || '-';
+}
+
+function setQrFormat(format) {
+    qrFormat = format;
+    document.querySelectorAll('#tab-qrcode [data-qrformat]').forEach((b) => b.classList.toggle('active', b.dataset.qrformat === format));
+}
+
+// Canva-style slider with 3 snap points instead of a row of preset buttons — a row of
+// full-width-text buttons ("512 × 512" / "1024 × 1024" / "2048 × 2048") doesn't fit the QR
+// sidebar's fixed column width and was overflowing past its right edge (found by testing at a
+// realistic window size). A slider has no such overflow risk since it's just width: 100%.
+const QR_SIZE_STEPS = [512, 1024, 2048];
+
+function setQrSize(size) {
+    qrSize = size;
+    const idx = QR_SIZE_STEPS.indexOf(size);
+    const slider = document.getElementById('qrSizeSlider');
+    if (slider && idx !== -1) slider.value = idx;
+    const label = document.getElementById('qrSizeValue');
+    if (label) label.textContent = `${size} × ${size}`;
+}
+
+function onQrSizeSliderInput(stepIndex) {
+    setQrSize(QR_SIZE_STEPS[Number(stepIndex)]);
+}
+
+// "Frame" is the actual thing people picture when they say "customize the QR code" — a shaped
+// card/badge the code sits inside — as opposed to the individual module dot style, which is a
+// much smaller, optional flourish (see the collapsed "Dot style" control below). Applied live via
+// CSS on the preview wrapper, and baked into the exported PNG by compositing onto a bigger canvas
+// (see applyFrameToPngBlob) — SVG export stays frame-less for now, noted in the UI via the format
+// picker rather than silently dropping it.
+function setQrFrame(frame) {
+    qrFrame = frame;
+    document.querySelectorAll('#tab-qrcode [data-qrframe]').forEach((b) => b.classList.toggle('active', b.dataset.qrframe === frame));
+    applyQrFrameToPreview();
+}
+
+// Framed on #qrPreviewContainer, NOT the outer .qr-preview-wrap: the wrap is a flex box that
+// stretches to fill its grid column on wide windows, so its own width/height ratio is never
+// actually square — border-radius: 50% on it produces a squashed oval that clips the QR, not a
+// circle (found by testing at a realistic wide window size, not just the small one used during
+// development). #qrPreviewContainer instead hugs the canvas tightly and the canvas is always
+// square, so padding it equally on all sides keeps the framed box itself square too.
+// A circle only fully contains a square if its radius reaches the square's corners — i.e. at
+// least half the diagonal (side * √2/2 ≈ 70.7% of the side), not just half the side. Padding
+// smaller than that (an earlier version of this used a small fixed CSS padding) still leaves the
+// QR's own corners poking out past the circle. framePaddingRatio returns, per frame, how much
+// padding (as a fraction of the QR's side) to add on each edge before clipping — mirrored exactly
+// in applyFrameToPngBlob below so the live preview and the exported file agree.
+function framePaddingRatio(frame) {
+    if (frame === 'circle') return Math.SQRT2 / 2 - 0.5 + 0.04; // touch-the-corners minimum + a small breathing-room buffer
+    if (frame === 'rounded') return 0.08;
+    return 0;
+}
+
+function applyQrFrameToPreview() {
+    const container = document.getElementById('qrPreviewContainer');
+    const lightColor = document.getElementById('qrLightColor').value;
+    const isFramed = qrFrame !== 'square';
+    container.classList.toggle('qr-preview-framed', isFramed);
+    if (!isFramed) {
+        container.style.borderRadius = '';
+        container.style.background = '';
+        container.style.padding = '';
+        return;
+    }
+    const content = container.querySelector('canvas, svg');
+    const size = content ? content.getBoundingClientRect().width : 280;
+    const pad = Math.round(size * framePaddingRatio(qrFrame));
+    container.style.padding = `${pad}px`;
+    container.style.borderRadius = qrFrame === 'circle' ? '50%' : '20px';
+    container.style.background = lightColor;
+}
+
+function onQrLogoChosen(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        qrLogoDataUrl = reader.result;
+        const preview = document.getElementById('qrLogoPreview');
+        preview.style.backgroundImage = `url(${qrLogoDataUrl})`;
+        preview.style.display = 'block';
+        document.getElementById('qrLogoPickerIcon').style.display = 'none';
+        document.getElementById('qrLogoClearBtn').style.display = 'flex';
+        onQrInputChange();
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearQrLogo() {
+    qrLogoDataUrl = null;
+    document.getElementById('qrLogoInput').value = '';
+    document.getElementById('qrLogoPreview').style.display = 'none';
+    document.getElementById('qrLogoPickerIcon').style.display = '';
+    document.getElementById('qrLogoClearBtn').style.display = 'none';
+    onQrInputChange();
+}
+
+// `size` is the actual export resolution — the preview itself is rendered smaller (see
+// renderQrPreview) since there's no reason to draw a 2048px canvas just to display it at 280px
+// on screen, but export always uses the real value. Error correction is never shown to the user
+// (it's meaningless jargon to anyone who isn't building QR codes) — it's set automatically here
+// instead: high when a logo covers part of the code, since that needs the redundancy to still
+// scan; normal otherwise.
+function currentQrOptions(size) {
+    return {
+        width: size,
+        height: size,
+        type: 'canvas',
+        data: document.getElementById('qrText').value.trim(),
+        image: qrLogoDataUrl || undefined,
+        margin: Math.round(size * 0.03),
+        qrOptions: { errorCorrectionLevel: qrLogoDataUrl ? 'H' : 'M' },
+        dotsOptions: {
+            type: document.getElementById('qrShape').value,
+            color: document.getElementById('qrDarkColor').value,
+        },
+        backgroundOptions: { color: document.getElementById('qrLightColor').value },
+        imageOptions: { crossOrigin: 'anonymous', margin: Math.round(size * 0.02), imageSize: 0.3 },
+    };
+}
+
+// Debounced so a live preview regenerates as you type/adjust colors without redrawing on every
+// single keystroke.
+function onQrInputChange() {
+    clearTimeout(qrDebounceTimer);
+    qrDebounceTimer = setTimeout(renderQrPreview, 150);
+}
+
+function renderQrPreview() {
+    const text = document.getElementById('qrText').value.trim();
+    const container = document.getElementById('qrPreviewContainer');
+    const empty = document.getElementById('qrPreviewEmpty');
+    const btn = document.getElementById('qrExportBtn');
+
+    if (!text) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        empty.style.display = '';
+        btn.disabled = true;
+        return;
+    }
+
+    const previewOptions = currentQrOptions(280);
+    if (!qrCodeInstance) {
+        qrCodeInstance = new QRCodeStyling(previewOptions);
+        container.innerHTML = '';
+        qrCodeInstance.append(container);
+    } else {
+        qrCodeInstance.update(previewOptions);
+    }
+    container.style.display = 'block';
+    empty.style.display = 'none';
+    btn.disabled = false;
+    applyQrFrameToPreview();
+}
+
+// Bakes the "Shape" choice into the actual exported file — without this, "Circle" would only
+// ever be a preview trick that disappears the moment the file is saved. Draws the plain QR onto
+// a bigger canvas with a padded rounded/circular background in the chosen light color.
+async function applyFrameToPngBlob(blob, frame, bgColor) {
+    if (frame === 'square') return blob;
+    const bitmap = await createImageBitmap(blob);
+    const pad = Math.round(bitmap.width * framePaddingRatio(frame));
+    const size = bitmap.width + pad * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bgColor;
+    if (frame === 'circle') {
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        const r = Math.round(size * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.arcTo(size, 0, size, size, r);
+        ctx.arcTo(size, size, 0, size, r);
+        ctx.arcTo(0, size, 0, 0, r);
+        ctx.arcTo(0, 0, size, 0, r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.drawImage(bitmap, pad, pad);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function doQrExport() {
+    const text = document.getElementById('qrText').value.trim();
+    if (!text) return;
+    const btn = document.getElementById('qrExportBtn');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = t('qrcode.exporting') || 'Exporting…';
+
+    try {
+        const exportInstance = new QRCodeStyling(currentQrOptions(qrSize));
+        let blob = await exportInstance.getRawData(qrFormat);
+        if (qrFormat === 'png') {
+            blob = await applyFrameToPngBlob(blob, qrFrame, document.getElementById('qrLightColor').value);
+        }
+        const buffer = await blob.arrayBuffer();
+        const result = await window.api.qrExport(new Uint8Array(buffer), qrFormat);
+        addLog(`QR code exported: ${result.outputPath}`);
+        btn.textContent = t('qrcode.done') || 'Done ✓';
+        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+    } catch (err) {
+        addLog(`QR export failed: ${err.message}`, 'error');
+        btn.textContent = t('qrcode.error') || 'Export failed';
+        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+    }
+}
+
+// --- Background Remover ---
+
+let bgRemoveFilePath = null;
+let bgRemoveRunning = false;
+
+function initBgRemoveTab() {
+    loadBgRemoveDestPath();
+}
+
+async function loadBgRemoveDestPath() {
+    const p = await window.api.bgRemoveGetDestPath();
+    document.getElementById('bgRemoveDestPath').textContent = p || '-';
+}
+
+async function doChooseBgRemoveDestPath() {
+    const p = await window.api.bgRemoveChooseDestPath();
+    document.getElementById('bgRemoveDestPath').textContent = p || '-';
+}
+
+async function doBgRemoveChooseFile() {
+    const p = await window.api.bgRemoveChooseFile();
+    if (p) loadBgRemoveFile(p);
+}
+
+async function loadBgRemoveFile(filePath) {
+    bgRemoveFilePath = filePath;
+    document.getElementById('bgRemoveDropZone').style.display = 'none';
+    document.getElementById('bgRemoveResultWrap').style.display = 'none';
+    document.getElementById('bgRemoveLoading').style.display = 'flex';
+    document.querySelector('#tab-bgremove .convert-center-wrapper')?.classList.add('has-content');
+
+    try {
+        const beforeUrl = `bweb-file://${encodeURIComponent(filePath)}`;
+        const afterUrl = await window.api.bgRemovePreview(filePath);
+        document.getElementById('bgRemoveLoading').style.display = 'none';
+        document.getElementById('bgRemoveResultWrap').style.display = 'flex';
+        document.getElementById('bgRemoveFileName').textContent = filePath.split('/').pop();
+        document.getElementById('bgRemoveBeforeImg').src = beforeUrl;
+        document.getElementById('bgRemoveAfterImg').src = afterUrl;
+    } catch (err) {
+        addLog(`Background Remover: failed — ${err.message}`, 'error');
+        document.getElementById('bgRemoveLoading').style.display = 'none';
+        doBgRemoveClear();
+    }
+}
+
+function doBgRemoveClear() {
+    bgRemoveFilePath = null;
+    document.getElementById('bgRemoveDropZone').style.display = '';
+    document.getElementById('bgRemoveLoading').style.display = 'none';
+    document.getElementById('bgRemoveResultWrap').style.display = 'none';
+    document.getElementById('bgRemoveBeforeImg').removeAttribute('src');
+    document.getElementById('bgRemoveAfterImg').removeAttribute('src');
+    document.querySelector('#tab-bgremove .convert-center-wrapper')?.classList.remove('has-content');
+}
+
+async function doBgRemoveExport() {
+    if (!bgRemoveFilePath || bgRemoveRunning) return;
+    bgRemoveRunning = true;
+    const btn = document.getElementById('bgRemoveExportBtn');
+    btn.disabled = true;
+    btn.textContent = t('bgremove.exporting') || 'Exporting…';
+
+    try {
+        const result = await window.api.bgRemoveRun(bgRemoveFilePath);
+        addLog(`Background removed: ${result.outputPath}`);
+        btn.textContent = t('bgremove.done') || 'Done ✓';
+        setTimeout(() => { btn.textContent = t('bgremove.export') || 'Export PNG'; btn.disabled = false; }, 1500);
+    } catch (err) {
+        addLog(`Background Remover export failed: ${err.message}`, 'error');
+        btn.textContent = t('bgremove.error') || 'Export failed';
+        setTimeout(() => { btn.textContent = t('bgremove.export') || 'Export PNG'; btn.disabled = false; }, 1500);
+    } finally {
+        bgRemoveRunning = false;
+    }
 }
 
 initLang();
