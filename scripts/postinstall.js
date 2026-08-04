@@ -179,6 +179,37 @@ async function downloadDeno() {
     }
 }
 
+// Background Remover's model weights (~433MB) are too large for a normal git push
+// (GitHub hard-blocks anything over 100MB) so they're gitignored and fetched here
+// instead, the same way yt-dlp/deno are — see src/main/bgRemover.js for how the app
+// resolves this path at runtime.
+const MODELS_DIR = path.join(__dirname, '..', 'resources', 'models');
+const WITHOUTBG_MODEL_URL = 'https://huggingface.co/withoutbg/withoutbg-openweights-onnx/resolve/main/withoutbg-open-weights.onnx';
+
+async function downloadWithoutbgModel() {
+    const outputPath = path.join(MODELS_DIR, 'withoutbg-open-weights.onnx');
+
+    if (fs.existsSync(outputPath)) {
+        console.log('  ✓ withoutbg model already exists at resources/models/withoutbg-open-weights.onnx');
+        return;
+    }
+
+    if (!fs.existsSync(MODELS_DIR)) {
+        fs.mkdirSync(MODELS_DIR, { recursive: true });
+    }
+
+    console.log('  Downloading Background Remover model (~433MB, one-time)...');
+
+    try {
+        await downloadFile(WITHOUTBG_MODEL_URL, outputPath, 'withoutbg model');
+        console.log('  ✓ withoutbg model installed to resources/models/withoutbg-open-weights.onnx');
+    } catch (err) {
+        console.error(`  ✗ Failed to download withoutbg model: ${err.message}`);
+        console.error(`    You can manually download it from: https://huggingface.co/withoutbg/withoutbg-openweights-onnx`);
+        console.error('    Place it at resources/models/withoutbg-open-weights.onnx');
+    }
+}
+
 // Cross-platform builds (see README) reuse this same bin/ folder across platform
 // switches. Without this, a leftover binary from a previous platform's install just
 // sits there — and since electron-builder's per-platform extraResources filter only
@@ -208,6 +239,7 @@ async function main() {
     removeForeignPlatformBinaries();
     await downloadYtdlp();
     await downloadDeno();
+    await downloadWithoutbgModel();
 }
 
 main();
