@@ -5,8 +5,10 @@
 # bWeb
 
 Download videos and audio from anywhere — YouTube, Vimeo, Twitter/X, Instagram,
-and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
-Everything runs locally on your machine. No cloud, no subscriptions, no tracking.
+and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) —
+plus a growing set of everyday creator tools: compress, watermark, redact,
+remove backgrounds, generate QR codes. Everything runs locally on your machine.
+No cloud, no subscriptions, no tracking, no uploads.
 
 **[Download the latest release](https://github.com/CellPod/bweb/releases/latest)**
 
@@ -96,9 +98,30 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 - Trim with a visual timeline before converting
 - Cancel mid-conversion — no partial output file left behind
 
+### Compress
+- Drop an image (JPG/PNG/WebP/AVIF/TIFF) or PDF, batch multiple files at once
+- Three no-jargon presets — Maximum quality / Balanced / Smallest — ranked by actual measured output size, not a fixed setting
+- Target-size mode for images: enter a size in MB and bWeb finds the closest match
+- Never overwrites the original — always writes a new `_compressed` file
+
+### Privacy (Watermark & Redact)
+- **Watermark** — Tile a text or logo watermark diagonally across images or PDFs, batch mode. PDF watermarking rasterizes each page so the mark can't be stripped in a couple of clicks in Acrobat/Illustrator
+- **Redact** — Draw zones over an image or PDF page to permanently black out, blur, or pixelate sensitive content. Redaction is real pixel destruction (rasterized), not a shape drawn on top that can be removed to reveal the original underneath
+
+### QR Code
+- Generate a QR code from any link or text, live preview as you type
+- Optional logo in the center (error correction is bumped automatically — nothing to configure)
+- Shape: square, rounded, or circle frame — baked into the exported file, not just the preview
+- Export as PNG (512/1024/2048px) or SVG
+
+### Background Remover
+- Drop a photo, get a transparent PNG back — runs a local AI model, nothing uploaded
+- Before/after preview on a checkerboard so you can see the real transparency
+
 ### Account sign-in
 - **YouTube** — Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
 - **Instagram** — Sign in to download from your saved collections. The app opens Instagram's login page directly — your password is never stored
+- **Vimeo** — Sign in for Pro/private videos, or import your entire Vimeo library via a personal access token (title, description, upload date, direct download — bypasses yt-dlp's Vimeo bot detection entirely)
 
 ### Instagram saved collections
 yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a built-in scraper:
@@ -116,7 +139,7 @@ yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a b
 ### Settings
 - **Download location** — Change where files are saved (defaults to `~/Downloads/bWeb`)
 - **Language, theme, accent color** — see Interface above
-- **Automatic updates** — Off by default. When a new version is found, you're asked once whether to enable it — nothing is ever downloaded or installed without your say-so. If you decline, you'll still see a plain notification with a link to grab the update manually; you're only asked again for the *next* new version
+- **Updates** — bWeb checks GitHub for a newer version on launch (and on demand from the About tab) and shows a notification with a link to the release — nothing is ever silently downloaded or installed
 
 ---
 
@@ -142,7 +165,8 @@ npm install
 npm run dev
 ```
 
-`npm install` downloads yt-dlp and ffmpeg automatically for your platform.
+`npm install` downloads yt-dlp and ffmpeg automatically for your platform, plus the
+Background Remover's ONNX model (~433MB, one-time — skipped if already present).
 
 ### Builds
 
@@ -188,27 +212,42 @@ npm run build:linux
 bweb/
 ├── src/
 │   ├── main/
-│   │   ├── main.js         # Electron main process — window, IPC, history
-│   │   ├── preload.js      # Context bridge (window.api)
-│   │   ├── ytdlp.js        # yt-dlp integration — spawn, parse, download
-│   │   ├── queue.js        # Sequential download queue with per-item state
-│   │   ├── cookies.js      # YouTube + Instagram cookie auth
-│   │   ├── scraper.js      # Instagram collection scraper (BrowserWindow)
-│   │   ├── converter.js    # Local file conversion via ffmpeg
-│   │   ├── updater.js      # Update checker via GitHub Releases API (shows a banner/link)
-│   │   │                   # electron-updater (in main.js) handles auto-update once opted in
-│   │   ├── localServer.js  # Loopback-only HTTP server the renderer loads from (not file://,
-│   │   │                   # so the YouTube trim preview embed is allowed to load)
-│   │   └── utils.js        # Dev mode flag, logging helpers
+│   │   ├── main.js              # Electron main process — window, IPC, history
+│   │   ├── preload.js           # Context bridge (window.api)
+│   │   ├── ytdlp.js             # yt-dlp integration — spawn, parse, download
+│   │   ├── queue.js             # Sequential download queue with per-item state
+│   │   ├── cookies.js           # YouTube + Instagram cookie auth
+│   │   ├── scraper.js           # Instagram collection scraper (BrowserWindow)
+│   │   ├── vimeoApi.js          # Vimeo API-based library import
+│   │   ├── directDownload.js    # Plain-HTTPS downloader (Vimeo library items)
+│   │   ├── converter.js         # Local file conversion via ffmpeg
+│   │   ├── compressor.js        # Image/PDF compression (sharp + Ghostscript)
+│   │   ├── ghostscriptClient.js # Talks to the Ghostscript worker subprocess
+│   │   ├── ghostscriptWorker.js # Isolated subprocess running Ghostscript WASM
+│   │   ├── watermark.js         # Tiled watermark, images + PDF
+│   │   ├── redact.js            # Zone-based black out / blur / pixelate
+│   │   ├── bgRemover.js         # Background removal (local ONNX model)
+│   │   ├── qrGenerator.js       # QR export file-write helper (rendering is client-side)
+│   │   ├── updater.js           # Update checker via GitHub Releases API
+│   │   ├── localServer.js       # Loopback-only HTTP server the renderer loads from (not
+│   │   │                        # file://, so the YouTube trim preview embed can load)
+│   │   └── utils.js             # Dev mode flag, logging helpers
 │   └── renderer/
 │       ├── index.html      # UI structure
 │       ├── renderer.js     # UI logic, state, rendering
 │       ├── i18n.js         # EN/FR translations and language toggle
-│       └── index.css       # All styles
+│       ├── index.css       # All styles
+│       ├── fonts/          # Bundled Inter woff2 weights
+│       └── vendor/         # Vendored client-side libs (qr-code-styling)
 ├── scripts/
-│   ├── postinstall.js      # Downloads yt-dlp + Deno binaries on npm install
+│   ├── postinstall.js      # Downloads yt-dlp, Deno, and the Background Remover
+│   │                       # model on npm install
+│   ├── release-all.js      # Automates the mac/Linux/Windows release sequence
 │   └── fix-ffmpeg-win.js   # Renames ffmpeg binary for Windows builds
 ├── bin/                    # yt-dlp + Deno binaries (auto-populated by postinstall)
+├── resources/models/       # Background Remover's ONNX model (gitignored — fetched by
+│                           # postinstall, too large for a normal git push)
+├── licenses/               # Third-party license texts required for bundled models
 ├── build/                  # App icons (icon.icns, icon.ico, icon.png)
 ├── package.json
 ├── LICENSE
@@ -223,6 +262,10 @@ bweb/
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the engine that does all the downloading
 - [Electron](https://www.electronjs.org/) — desktop app framework
 - [ffmpeg](https://ffmpeg.org/) — audio/video processing (bundled via ffmpeg-static)
+- [sharp](https://github.com/lovell/sharp) — image compression and processing
+- [Ghostscript](https://www.ghostscript.com/) (via [@jspawn/ghostscript-wasm](https://github.com/jsscheller/ghostscript-wasm)) — PDF compression/rasterization
+- [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) — QR code rendering
+- [withoutBG](https://github.com/withoutbg/withoutbg-python) — Background Remover model (built with [DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license/))
 
 ---
 
