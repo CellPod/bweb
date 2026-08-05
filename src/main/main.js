@@ -9,7 +9,9 @@ const redact = require('./redact');
 const qrGenerator = require('./qrGenerator');
 const bgRemover = require('./bgRemover');
 const path = require('path');
-const Store = require('electron-store');
+// v11+ is ESM-only; require(esm) (stable since Node 23, bundled by Electron 43) resolves it,
+// but the interop wraps the export in { default }.
+const Store = require('electron-store').default;
 const ytdlp = require('./ytdlp');
 const cookies = require('./cookies');
 const { queue } = require('./queue');
