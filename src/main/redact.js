@@ -20,7 +20,6 @@ const { log, logError } = require('./utils');
 const { rasterizePdf } = require('./ghostscriptClient');
 
 const RASTERIZE_DPI = 200;
-const PREVIEW_DPI = 110;
 
 function getRedactedOutputPath(inputPath, destDir) {
     const dir = destDir || path.dirname(inputPath);
@@ -57,8 +56,9 @@ function intensityToBlockCount(intensity) {
 
 // zones: [{ xPct, yPct, wPct, hPct, method, color, intensity }] — xPct/etc. are fractions (0..1)
 // of the image's own width/height, not absolute pixels, so the same zone coordinates recorded
-// against a lower-DPI PDF preview still land correctly when re-applied to the higher-DPI buffer
-// used for the actual redaction (same page, same aspect ratio, only the pixel grid differs).
+// while editing at whatever zoom level the user picked still land correctly when re-applied to
+// the RASTERIZE_DPI buffer used for the actual redaction (same page, same aspect ratio, only the
+// pixel grid differs).
 // Each zone carries its OWN method/color/intensity — captured client-side at the moment it was
 // drawn — so a document can freely mix e.g. a red blackout zone with a heavily-pixelated zone
 // elsewhere, and changing the sidebar's current settings never repaints zones already placed.
@@ -185,18 +185,8 @@ async function redactPdf(inputPath, pageZones, destDir) {
     }
 }
 
-// Lower-DPI page previews for the zone-drawing UI — kept separate from the RASTERIZE_DPI pass
-// used for the actual redaction so paging through a multi-page PDF in the editor stays fast.
-// Returns data URLs directly (small enough over IPC for typical documents; this editor is
-// single-file-at-a-time by design, see redact UI notes in TODO.md).
-async function getPdfPreviewPages(inputPath) {
-    const buffers = await rasterizePdf(inputPath, PREVIEW_DPI);
-    return buffers.map((b) => `data:image/png;base64,${b.toString('base64')}`);
-}
-
 module.exports = {
     redactImage,
     redactPdf,
-    getPdfPreviewPages,
     getRedactedOutputPath,
 };

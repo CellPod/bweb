@@ -20,7 +20,6 @@ const scraper = require('./scraper');
 const vimeoApi = require('./vimeoApi');
 const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
 const fs = require('fs');
-const { Readable } = require('stream');
 const { startLocalServer } = require('./localServer');
 
 const MEDIA_MIME_TYPES = {
@@ -36,6 +35,16 @@ const MEDIA_MIME_TYPES = {
 function mimeTypeFor(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     return MEDIA_MIME_TYPES[ext] || 'application/octet-stream';
+}
+
+function readFileRange(filePath, start, end) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        const stream = fs.createReadStream(filePath, { start, end });
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+    });
 }
 
 const APP_NAME = 'bWeb';
@@ -145,25 +154,41 @@ app.whenReady().then(() => {
         // <video>/<audio> needs real byte-range support to determine duration and to seek —
         // without it (e.g. the old plain net.fetch(file://...) passthrough), some containers
         // like WAV never resolve a finite duration and scrubbing silently does nothing.
+        //
+        // Two things matter here, both found by testing real playback (not just checking that
+        // the HTTP response looked correct):
+        // 1. An open-ended range ("bytes=0-") must NOT be answered with the entire rest of the
+        //    file in one response. Chromium's media pipeline sends that request as a metadata
+        //    probe expecting a small reply, then issues further Range requests as it actually
+        //    needs more — handing back e.g. a 20MB single response instead silently produced a
+        //    video element stuck at readyState 4 with correct duration/dimensions but every
+        //    decoded frame black and playback time frozen at 0, no error ever surfaced.
+        // 2. The body must be a real, fully-read Buffer, not `Readable.toWeb(fs.createReadStream)`
+        //    — that combination measured as returning a near-empty body (a couple bytes) despite
+        //    Content-Length claiming the full range, even though the network log reported 206
+        //    success. Buffering the (now capped, so small) range directly avoids that.
+        const RANGE_CHUNK_CAP = 2 * 1024 * 1024; // 2MB — plenty for a probe or a seek buffer-ahead
         const range = request.headers.get('range');
         if (range) {
             const match = /bytes=(\d+)-(\d+)?/.exec(range);
             const start = match ? parseInt(match[1], 10) : 0;
-            const end = match && match[2] ? parseInt(match[2], 10) : fileSize - 1;
-            const stream = fs.createReadStream(filePath, { start, end });
-            return new Response(Readable.toWeb(stream), {
+            const end = match && match[2]
+                ? Math.min(parseInt(match[2], 10), fileSize - 1)
+                : fileSize - 1;
+            const buffer = await readFileRange(filePath, start, end);
+            return new Response(buffer, {
                 status: 206,
                 headers: {
                     'Content-Range': `bytes ${start}-${end}/${fileSize}`,
                     'Accept-Ranges': 'bytes',
-                    'Content-Length': String(end - start + 1),
+                    'Content-Length': String(buffer.length),
                     'Content-Type': contentType,
                 },
             });
         }
 
-        const stream = fs.createReadStream(filePath);
-        return new Response(Readable.toWeb(stream), {
+        const buffer = await fs.promises.readFile(filePath);
+        return new Response(buffer, {
             status: 200,
             headers: {
                 'Accept-Ranges': 'bytes',
@@ -177,6 +202,7 @@ app.whenReady().then(() => {
         name: 'app-config',
         defaults: {
             downloadPath: path.join(app.getPath('downloads'), APP_NAME),
+            convertDestPath: path.join(app.getPath('downloads'), APP_NAME),
             compressDestPath: path.join(app.getPath('downloads'), APP_NAME),
             compressAutoOpen: false,
             watermarkDestPath: path.join(app.getPath('downloads'), APP_NAME),
@@ -637,7 +663,9 @@ let currentConvertHandle = null;
 ipcMain.handle('convert:file', async (_e, { inputPath, format, startTime, endTime }) => {
     log('Convert requested:', inputPath, '->', format, startTime ? `[${startTime} - ${endTime || 'end'}]` : '');
     const ffmpegBin = ytdlp.getFfmpegPath();
-    const outputPath = converter.getOutputPath(inputPath, format, startTime, endTime);
+    const destDir = store.get('convertDestPath');
+    if (destDir) fs.mkdirSync(destDir, { recursive: true });
+    const outputPath = converter.getOutputPath(inputPath, format, startTime, endTime, destDir);
     if (!outputPath) throw new Error(`Unknown format: ${format}`);
 
     const handle = {};
@@ -680,6 +708,45 @@ ipcMain.handle('convert:cancel', () => {
     }
     return false;
 });
+
+registerDestPathHandlers('convert', 'convertDestPath', 'converted files');
+
+// Registers the getDestPath/chooseDestPath/getAutoOpen/setAutoOpen/openDestFolder quintet
+// that every processing tool (Compress, Watermark, Redact, QR, Background Remover, Convert)
+// needs identically — a "Saving to: … [Change]" destination plus an "Open folder after X"
+// toggle. Was previously copy-pasted per tool with Convert and the auto-open toggle missing
+// from most of them; this is the single place that behavior now lives.
+function registerDestPathHandlers(prefix, storeKey, folderLabel) {
+    ipcMain.handle(`${prefix}:getDestPath`, () => store.get(storeKey));
+
+    ipcMain.handle(`${prefix}:chooseDestPath`, async () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return store.get(storeKey);
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory', 'createDirectory'],
+            title: `Choose destination folder for ${folderLabel}`,
+        });
+        if (!result.canceled && result.filePaths[0]) {
+            store.set(storeKey, result.filePaths[0]);
+            log(`${prefix} destination path changed:`, result.filePaths[0]);
+            return result.filePaths[0];
+        }
+        return store.get(storeKey);
+    });
+
+    ipcMain.handle(`${prefix}:getAutoOpen`, () => store.get(`${prefix}AutoOpen`));
+
+    ipcMain.handle(`${prefix}:setAutoOpen`, (_e, value) => {
+        store.set(`${prefix}AutoOpen`, !!value);
+        return store.get(`${prefix}AutoOpen`);
+    });
+
+    ipcMain.handle(`${prefix}:openDestFolder`, () => {
+        // shell.openPath asks the OS to reveal the folder — on macOS/Windows this focuses an
+        // already-open Finder/Explorer window for that same path instead of opening a new
+        // one, so no extra window-dedup logic is needed on our end.
+        shell.openPath(store.get(storeKey));
+    });
+}
 
 // Compress
 
@@ -733,35 +800,7 @@ ipcMain.handle('compress:runTarget', async (_e, { filePath, targetBytes }) => {
     return result;
 });
 
-ipcMain.handle('compress:getDestPath', () => store.get('compressDestPath'));
-
-ipcMain.handle('compress:chooseDestPath', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return store.get('compressDestPath');
-    const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Choose destination folder for compressed files',
-    });
-    if (!result.canceled && result.filePaths[0]) {
-        store.set('compressDestPath', result.filePaths[0]);
-        log('Compress destination path changed:', result.filePaths[0]);
-        return result.filePaths[0];
-    }
-    return store.get('compressDestPath');
-});
-
-ipcMain.handle('compress:openDestFolder', () => {
-    // shell.openPath asks the OS to reveal the folder — on macOS/Windows this focuses an
-    // already-open Finder/Explorer window for that same path instead of opening a new one,
-    // so no extra window-dedup logic is needed on our end.
-    shell.openPath(store.get('compressDestPath'));
-});
-
-ipcMain.handle('compress:getAutoOpen', () => store.get('compressAutoOpen'));
-
-ipcMain.handle('compress:setAutoOpen', (_e, value) => {
-    store.set('compressAutoOpen', !!value);
-    return store.get('compressAutoOpen');
-});
+registerDestPathHandlers('compress', 'compressDestPath', 'compressed files');
 
 // Watermark
 
@@ -805,21 +844,7 @@ ipcMain.handle('watermark:run', async (_e, { filePath, options }) => {
     return result;
 });
 
-ipcMain.handle('watermark:getDestPath', () => store.get('watermarkDestPath'));
-
-ipcMain.handle('watermark:chooseDestPath', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return store.get('watermarkDestPath');
-    const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Choose destination folder for watermarked files',
-    });
-    if (!result.canceled && result.filePaths[0]) {
-        store.set('watermarkDestPath', result.filePaths[0]);
-        log('Watermark destination path changed:', result.filePaths[0]);
-        return result.filePaths[0];
-    }
-    return store.get('watermarkDestPath');
-});
+registerDestPathHandlers('watermark', 'watermarkDestPath', 'watermarked files');
 
 // Redact
 
@@ -841,8 +866,6 @@ ipcMain.handle('redact:chooseFile', async () => {
 
 ipcMain.handle('redact:detectType', (_e, filePath) => compressor.detectFileType(filePath));
 
-ipcMain.handle('redact:pdfPreview', async (_e, filePath) => redact.getPdfPreviewPages(filePath));
-
 ipcMain.handle('redact:run', async (_e, { filePath, zones }) => {
     const type = compressor.detectFileType(filePath);
     const destDir = store.get('redactDestPath');
@@ -854,21 +877,7 @@ ipcMain.handle('redact:run', async (_e, { filePath, zones }) => {
     return result;
 });
 
-ipcMain.handle('redact:getDestPath', () => store.get('redactDestPath'));
-
-ipcMain.handle('redact:chooseDestPath', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return store.get('redactDestPath');
-    const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Choose destination folder for redacted files',
-    });
-    if (!result.canceled && result.filePaths[0]) {
-        store.set('redactDestPath', result.filePaths[0]);
-        log('Redact destination path changed:', result.filePaths[0]);
-        return result.filePaths[0];
-    }
-    return store.get('redactDestPath');
-});
+registerDestPathHandlers('redact', 'redactDestPath', 'redacted files');
 
 // QR Generator
 
@@ -879,20 +888,19 @@ ipcMain.handle('qr:export', async (_e, { bytes, format }) => {
     return result;
 });
 
-ipcMain.handle('qr:getDestPath', () => store.get('qrDestPath'));
+registerDestPathHandlers('qr', 'qrDestPath', 'QR codes');
 
-ipcMain.handle('qr:chooseDestPath', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return store.get('qrDestPath');
-    const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Choose destination folder for QR codes',
-    });
-    if (!result.canceled && result.filePaths[0]) {
-        store.set('qrDestPath', result.filePaths[0]);
-        log('QR destination path changed:', result.filePaths[0]);
-        return result.filePaths[0];
-    }
-    return store.get('qrDestPath');
+// Clipboard paste — lets a tab accept Cmd/Ctrl+V of an image copied from elsewhere (another app,
+// a browser) instead of requiring "choose file"/drag-and-drop every time. Generic (not scoped to
+// one tab) since the renderer decides which tab's `paste` listener is active; this just turns
+// whatever image bytes the renderer already read from `clipboardData` into a real file on disk,
+// since every processing pipeline in this app works off file paths, not in-memory buffers.
+ipcMain.handle('clipboard:saveImage', async (_e, bytes, ext) => {
+    const tempDir = path.join(app.getPath('temp'), 'bWeb-clipboard');
+    fs.mkdirSync(tempDir, { recursive: true });
+    const filePath = path.join(tempDir, `pasted-${Date.now()}.${ext}`);
+    fs.writeFileSync(filePath, Buffer.from(bytes));
+    return filePath;
 });
 
 // Background Remover
@@ -920,21 +928,7 @@ ipcMain.handle('bgremove:run', async (_e, filePath) => {
     return result;
 });
 
-ipcMain.handle('bgremove:getDestPath', () => store.get('bgRemoveDestPath'));
-
-ipcMain.handle('bgremove:chooseDestPath', async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return store.get('bgRemoveDestPath');
-    const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Choose destination folder for background-removed images',
-    });
-    if (!result.canceled && result.filePaths[0]) {
-        store.set('bgRemoveDestPath', result.filePaths[0]);
-        log('Background Remover destination path changed:', result.filePaths[0]);
-        return result.filePaths[0];
-    }
-    return store.get('bgRemoveDestPath');
-});
+registerDestPathHandlers('bgremove', 'bgRemoveDestPath', 'background-removed images');
 
 ipcMain.handle('app:reset', async () => {
     try {

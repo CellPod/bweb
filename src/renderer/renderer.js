@@ -198,13 +198,66 @@ const $qRetryFailedBtn = $('qRetryFailedBtn');
 const $qClearDoneBtn = $('qClearDoneBtn');
 const $qCancelAllBtn = $('qCancelAllBtn');
 
+const DOWNLOAD_GROUP_TABS = ['download', 'queue', 'history'];
+
+// Destination popover — shared by every processing tool's "Saving to" + "Open folder after
+// X" panel. Only one open at a time; clicking outside (or re-clicking the same trigger)
+// closes it.
+function closeAllDestPopovers() {
+    document.querySelectorAll('.dest-popover.open').forEach((p) => p.classList.remove('open'));
+    document.querySelectorAll('.dest-popover-trigger.open').forEach((b) => b.classList.remove('open'));
+}
+
+function setDestFolderLabel(elId, path) {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = path ? path.split('/').pop() : '—';
+}
+
+function toggleDestPopover(prefix) {
+    const popover = document.getElementById(`${prefix}DestPopover`);
+    const trigger = document.getElementById(`${prefix}DestTrigger`);
+    if (!popover) return;
+    const willOpen = !popover.classList.contains('open');
+    closeAllDestPopovers();
+    if (willOpen) {
+        popover.classList.add('open');
+        trigger?.classList.add('open');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.view-header-actions')) closeAllDestPopovers();
+});
+
+// Manual override for the Download nav group's expanded/collapsed state — set by clicking the
+// chevron (toggleDownloadNavGroup). Without this, switchTab() used to force the group open on
+// every single click while on Fetch/Queue/History, making the chevron's collapse have zero
+// lasting effect: you could never see e.g. Queue with the sub-tabs list collapsed to save space.
+let downloadGroupCollapsed = false;
+
 function switchTab(tabId) {
+    const previousTab = document.querySelector('.nav-item.active')?.dataset.tab;
+
     document.querySelectorAll('.nav-item').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
     document.querySelectorAll('.view').forEach((panel) => {
         panel.classList.toggle('active', panel.id === 'tab-' + tabId);
     });
+
+    const downloadGroup = document.getElementById('downloadNavGroup');
+    if (downloadGroup) {
+        const inGroup = DOWNLOAD_GROUP_TABS.includes(tabId);
+        const wasInGroup = DOWNLOAD_GROUP_TABS.includes(previousTab);
+        // Entering the group from outside (e.g. clicking "Download" from Convert) always reveals
+        // the sub-tabs — a manual collapse from a previous visit shouldn't hide them on re-entry.
+        // Moving between sub-tabs while already inside the group (Fetch -> Queue) respects
+        // whatever the user last chose with the chevron.
+        if (inGroup && !wasInGroup) downloadGroupCollapsed = false;
+        const expanded = inGroup && !downloadGroupCollapsed;
+        downloadGroup.classList.toggle('expanded', expanded);
+        document.getElementById('downloadNavToggle')?.setAttribute('aria-expanded', String(expanded));
+    }
 
     if (tabId === 'history') loadHistory();
     if (tabId === 'settings') loadSettings();
@@ -214,6 +267,20 @@ function switchTab(tabId) {
     if (tabId === 'privacy') initPrivacyTab();
     if (tabId === 'qrcode') initQrTab();
     if (tabId === 'bgremove') initBgRemoveTab();
+}
+
+// Chevron-only click target: collapses/expands the Download group's sub-tabs list without
+// navigating away from whichever of Fetch/Queue/History is currently active (e.g. lets you sit
+// on Queue with the sub-tabs list hidden to save sidebar space). Separate from clicking the
+// rest of the header row, which still navigates to Fetch via switchTab('download').
+function toggleDownloadNavGroup(event) {
+    event.stopPropagation();
+    downloadGroupCollapsed = !downloadGroupCollapsed;
+    const downloadGroup = document.getElementById('downloadNavGroup');
+    const inGroup = DOWNLOAD_GROUP_TABS.includes(document.querySelector('.nav-item.active')?.dataset.tab);
+    const expanded = inGroup && !downloadGroupCollapsed;
+    downloadGroup?.classList.toggle('expanded', expanded);
+    document.getElementById('downloadNavToggle')?.setAttribute('aria-expanded', String(expanded));
 }
 
 function addLog(msg, type = '') {
@@ -800,9 +867,9 @@ function renderFetchPanel() {
 
             let actionsHtml = '';
             if (item.status === 'error') {
-                actionsHtml = `<button class="fp-item-remove" data-action="retry" data-id="${item.id}" title="Retry">↻</button>`;
+                actionsHtml = `<button class="fp-item-remove" data-action="retry" data-id="${item.id}" title="Retry" aria-label="Retry">↻</button>`;
             }
-            actionsHtml += `<button class="fp-item-remove" data-action="remove" data-id="${item.id}" title="Remove">×</button>`;
+            actionsHtml += `<button class="fp-item-remove" data-action="remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
 
             return `
                 <div class="fp-item ${stateClass} ${activeClass}" data-id="${item.id}">
@@ -1175,7 +1242,7 @@ function addTrimSegment() {
         + `<input class="trim-time-input" type="text" placeholder="00:00" oninput="onSegmentInput(this)">`
         + `<span class="trim-time-sep">→</span>`
         + `<input class="trim-time-input" type="text" placeholder="end">`
-        + `<button class="trim-seg-remove" onclick="removeTrimSegment(this)">×</button>`;
+        + `<button class="trim-seg-remove" onclick="removeTrimSegment(this)" aria-label="Remove segment">×</button>`;
     list.appendChild(row);
 }
 
@@ -1603,7 +1670,7 @@ function queueItemHTML(item) {
 
     if (item.state === 'pending') {
         statusHTML = '<span class="q-item-status waiting">Waiting...</span>';
-        actionsHTML = `<button class="q-item-remove" data-id="${item.id}" title="Remove">×</button>`;
+        actionsHTML = `<button class="q-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
     } else if (item.state === 'downloading') {
         const pct = item.progress?.percent || '0%';
         const speed = item.progress?.speed || '';
@@ -1616,11 +1683,11 @@ function queueItemHTML(item) {
         actionsHTML = `<button class="q-item-cancel" title="Stop and skip to next item">Skip</button>`;
     } else if (item.state === 'completed') {
         statusHTML = '<span class="q-item-status completed">Complete ✓</span>';
-        actionsHTML = `<button class="q-item-open-folder" title="Open folder" onclick="doOpenFolder()">Open folder</button><button class="q-item-remove" data-id="${item.id}" title="Remove">×</button>`;
+        actionsHTML = `<button class="q-item-open-folder" title="Open folder" onclick="doOpenFolder()">Open folder</button><button class="q-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
     } else if (item.state === 'failed') {
         const errText = escapeHtml(item.error || 'Failed');
         statusHTML = `<span class="q-item-status failed" title="${errText}">${errText}</span>`;
-        actionsHTML = `<button class="q-item-retry" data-id="${item.id}" title="Retry">Retry</button><button class="q-item-remove" data-id="${item.id}" title="Remove">×</button>`;
+        actionsHTML = `<button class="q-item-retry" data-id="${item.id}" title="Retry">Retry</button><button class="q-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
     }
 
     return `
@@ -2122,7 +2189,7 @@ function renderHistory() {
                     <div class="history-sub">${subParts.join(' <span class="meta-sep">·</span> ')}</div>
                 </div>
                 <div class="history-actions">
-                    <button class="history-remove" data-id="${escapeHtml(id)}" data-ext="${escapeHtml(ext)}" title="Remove">×</button>
+                    <button class="history-remove" data-id="${escapeHtml(id)}" data-ext="${escapeHtml(ext)}" title="Remove" aria-label="Remove">×</button>
                 </div>
             </div>`;
         })
@@ -2312,7 +2379,7 @@ function showUpdateBanner() {
     banner.innerHTML =
         `<span>${escapeHtml(t('update.newVersion'))} <strong>v${escapeHtml(updateInfo.latest)}</strong></span>` +
         `<button class="btn-sm" onclick="openExternal('${escapeHtml(updateInfo.url)}')">${escapeHtml(t('update.download'))}</button>` +
-        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}">×</button>`;
+        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}" aria-label="${escapeHtml(t('update.dismiss'))}">×</button>`;
     banner.classList.add('visible');
 }
 
@@ -2735,11 +2802,13 @@ function initCompressTab() {
 async function loadCompressDestPath() {
     const p = await window.api.compressGetDestPath();
     document.getElementById('compressDestPath').textContent = p || '-';
+    setDestFolderLabel('compressDestFolderName', p);
 }
 
 async function doChooseCompressDestPath() {
     const p = await window.api.compressChooseDestPath();
     document.getElementById('compressDestPath').textContent = p || '-';
+    setDestFolderLabel('compressDestFolderName', p);
 }
 
 async function loadCompressAutoOpen() {
@@ -2917,23 +2986,51 @@ function compressStatusLabel(item) {
     }
 }
 
+// Image/PDF file-type badge — same visual language as Convert's video/audio badge, shared
+// helper since both just color-code `item.type` onto a small extension square.
+function mediaTypeBadgeHtml(name, type) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const category = type === 'pdf' ? 'pdf' : 'image';
+    return `<div class="file-type-badge file-type-${category}">${escapeHtml(ext.slice(0, 4).toUpperCase())}</div>`;
+}
+
+const COMPRESS_BUSY_STATES = new Set(['detecting', 'estimating', 'compressing']);
+
+// Tracks which item ids have already rendered once, so newly-added files get an entrance
+// animation without re-triggering it on every status re-render (mirrors convertRenderedIds).
+let compressRenderedIds = new Set();
+
 function renderCompressList() {
     const list = document.getElementById('compressList');
     const count = document.getElementById('compressListCount');
     if (!list) return;
 
     count.textContent = compressItems.length ? `${compressItems.length}` : '';
-    list.innerHTML = compressItems.map((item) => `
-        <div class="convert-batch-item convert-batch-item-${item.state}">
-            <span class="convert-batch-item-name">${escapeHtml(item.name)}</span>
-            <span class="convert-batch-item-status">${escapeHtml(compressStatusLabel(item))}</span>
-        </div>
-    `).join('');
+
+    const currentIds = new Set(compressItems.map((i) => i.id));
+    list.innerHTML = compressItems.map((item) => {
+        const isNew = !compressRenderedIds.has(item.id);
+        const progressBar = COMPRESS_BUSY_STATES.has(item.state)
+            ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill indeterminate"></div></div>`
+            : '';
+        return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
+            mediaTypeBadgeHtml(item.name, item.type) +
+            `<div class="convert-batch-item-info">` +
+                `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
+                `<div class="convert-batch-item-meta">` +
+                    `<span class="convert-batch-item-status">${escapeHtml(compressStatusLabel(item))}</span>` +
+                    progressBar +
+                `</div>` +
+            `</div>` +
+        `</div>`;
+    }).join('');
+    compressRenderedIds = currentIds;
 }
 
 function doCompressClear() {
     if (compressRunning) return;
     compressItems = [];
+    compressRenderedIds.clear();
     compressPreset = 'balanced';
     compressMode = 'presets';
 
@@ -3017,6 +3114,7 @@ let watermarkRunning = false;
 function initPrivacyTab() {
     const dropZone = document.getElementById('watermarkDropZone');
     loadWatermarkDestPath();
+    loadWatermarkAutoOpen();
     if (dropZone && !dropZone._initialized) {
         dropZone._initialized = true;
         dropZone.addEventListener('dragover', (e) => {
@@ -3052,11 +3150,22 @@ function initPrivacyTab() {
 async function loadWatermarkDestPath() {
     const p = await window.api.watermarkGetDestPath();
     document.getElementById('watermarkDestPath').textContent = p || '-';
+    setDestFolderLabel('watermarkDestFolderName', p);
 }
 
 async function doChooseWatermarkDestPath() {
     const p = await window.api.watermarkChooseDestPath();
     document.getElementById('watermarkDestPath').textContent = p || '-';
+    setDestFolderLabel('watermarkDestFolderName', p);
+}
+
+async function loadWatermarkAutoOpen() {
+    const enabled = await window.api.watermarkGetAutoOpen();
+    document.getElementById('watermarkAutoOpenCheck').checked = !!enabled;
+}
+
+function onWatermarkAutoOpenChange(checked) {
+    window.api.watermarkSetAutoOpen(checked);
 }
 
 async function doWatermarkChooseFile() {
@@ -3196,6 +3305,12 @@ async function doWatermarkChooseLogo() {
     if (p) {
         watermarkLogoPath = p;
         document.getElementById('watermarkLogoName').textContent = p.split('/').pop();
+        // Same real-file preview mechanism already used for Background Remover's before/after
+        // images — the app's own bweb-file:// protocol, not a data URL round-trip.
+        const preview = document.getElementById('watermarkLogoPreview');
+        preview.style.backgroundImage = `url(bweb-file://${encodeURIComponent(p)})`;
+        preview.style.display = 'block';
+        document.getElementById('watermarkLogoPickerIcon').style.display = 'none';
     }
     onWatermarkOptionsChange();
 }
@@ -3223,23 +3338,41 @@ function watermarkStatusLabel(item) {
     }
 }
 
+// Tracks which item ids have already rendered once, so newly-added files get an entrance
+// animation without re-triggering it on every status re-render (mirrors convertRenderedIds).
+let watermarkRenderedIds = new Set();
+
 function renderWatermarkList() {
     const list = document.getElementById('watermarkList');
     const count = document.getElementById('watermarkListCount');
     if (!list) return;
 
     count.textContent = watermarkItems.length ? `${watermarkItems.length}` : '';
-    list.innerHTML = watermarkItems.map((item) => `
-        <div class="convert-batch-item convert-batch-item-${item.state}">
-            <span class="convert-batch-item-name">${escapeHtml(item.name)}</span>
-            <span class="convert-batch-item-status">${escapeHtml(watermarkStatusLabel(item))}</span>
-        </div>
-    `).join('');
+
+    const currentIds = new Set(watermarkItems.map((i) => i.id));
+    list.innerHTML = watermarkItems.map((item) => {
+        const isNew = !watermarkRenderedIds.has(item.id);
+        const progressBar = item.state === 'watermarking'
+            ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill indeterminate"></div></div>`
+            : '';
+        return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
+            mediaTypeBadgeHtml(item.name, item.type) +
+            `<div class="convert-batch-item-info">` +
+                `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
+                `<div class="convert-batch-item-meta">` +
+                    `<span class="convert-batch-item-status">${escapeHtml(watermarkStatusLabel(item))}</span>` +
+                    progressBar +
+                `</div>` +
+            `</div>` +
+        `</div>`;
+    }).join('');
+    watermarkRenderedIds = currentIds;
 }
 
 function doWatermarkClear() {
     if (watermarkRunning) return;
     watermarkItems = [];
+    watermarkRenderedIds.clear();
     watermarkType = 'text';
     watermarkSize = 'medium';
     watermarkLogoPath = null;
@@ -3248,7 +3381,10 @@ function doWatermarkClear() {
     document.getElementById('watermarkListWrap').style.display = 'none';
     document.getElementById('watermarkOptions').style.display = 'none';
     document.getElementById('watermarkText').value = '';
-    document.getElementById('watermarkLogoName').textContent = '';
+    document.getElementById('watermarkLogoName').textContent = t('watermark.logo.none');
+    document.getElementById('watermarkLogoPreview').style.display = 'none';
+    document.getElementById('watermarkLogoPreview').style.backgroundImage = '';
+    document.getElementById('watermarkLogoPickerIcon').style.display = '';
     document.getElementById('watermarkBtn').disabled = true;
     document.getElementById('watermarkBtn').textContent = t('watermark.btn');
     document.querySelectorAll('#watermarkOptions [data-wmtype]').forEach((b) => b.classList.toggle('active', b.dataset.wmtype === 'text'));
@@ -3291,6 +3427,11 @@ async function doWatermark() {
     watermarkRunning = false;
     btn.disabled = false;
     btn.textContent = t('watermark.done') || 'Done ✓';
+
+    if (readyItems.some((i) => i.state === 'done') && document.getElementById('watermarkAutoOpenCheck')?.checked) {
+        window.api.watermarkOpenDestFolder();
+    }
+
     setTimeout(() => { if (!watermarkRunning) doWatermarkClear(); }, 1800);
 }
 
@@ -3301,8 +3442,15 @@ async function doWatermark() {
 // finishing one file gets the repeat-usage benefit of batch without that mismatch.
 let redactFilePath = null;
 let redactFileType = null; // 'image' | 'pdf'
-let redactPdfPages = [];   // data URLs, one per page, at preview DPI
+// PDF pages render live via pdf.js straight into a <canvas>, at whatever zoom scale the user
+// picks — replaced a fixed-110-DPI Ghostscript rasterization that had no zoom at all, unusable
+// for a high-resolution/detailed source PDF (e.g. cartography). redactPdfDoc is a pdf.js
+// PDFDocumentProxy; redactPdfPageCount avoids an extra await just to read .numPages elsewhere.
+let redactPdfDoc = null;
+let redactPdfPageCount = 0;
 let redactCurrentPage = 1;
+let redactZoomScale = 1;        // 1 = "100%" (1 PDF point = 1 CSS px at the display's own pixel ratio)
+let redactPdfRenderToken = 0;   // guards a slow render from clobbering a newer one (rapid zoom clicks)
 // Each zone carries its OWN method/color/intensity, captured from the sidebar's current
 // settings at the moment it's drawn — not a single global look applied to every zone. Changing
 // the color or intensity afterward only affects zones drawn from then on, matching how a real
@@ -3322,14 +3470,55 @@ let redactRunning = false;
 let redactDraft = null;    // { startXPct, startYPct, el } — drawing a brand new zone
 let redactSelectedZone = null; // the zone object currently selected for move/resize/edit, or null
 let redactZoneDrag = null; // { zone, mode: 'move'|'resize', handle, rect, start: {xPct,yPct,wPct,hPct}, startMouse: {x,y} }
+// Space-to-pan (the Photoshop/Figma convention) — held space swaps the zones-layer from
+// "click-drag draws a new zone" to "click-drag scrolls the viewport", since those two gestures
+// would otherwise collide on the exact same mousedown-drag. redactPanDrag holds the scroll
+// position + pointer position at pan-start while a pan is actually in progress.
+let redactSpaceHeld = false;
+let redactPanDrag = null; // { startScrollLeft, startScrollTop, startX, startY }
 
 function initPrivacyRedactTab() {
     const layer = document.getElementById('redactZonesLayer');
     if (!layer || layer._initialized) return;
     layer._initialized = true;
 
+    document.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space' || redactFileType !== 'pdf' || document.activeElement?.matches?.('input, textarea')) return;
+        e.preventDefault(); // stop the page from scrolling on space
+        if (!redactSpaceHeld) {
+            redactSpaceHeld = true;
+            layer.classList.add('redact-zones-layer-pan');
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        if (e.code !== 'Space') return;
+        redactSpaceHeld = false;
+        redactPanDrag = null;
+        layer.classList.remove('redact-zones-layer-pan');
+    });
+
+    // Ctrl/Cmd+wheel (and trackpad pinch, which Chromium reports as a wheel event with
+    // ctrlKey=true) zooms centered on the pointer; a plain wheel/trackpad scroll pans via the
+    // browser's own native scrolling on #redactStageScroll — no handler needed for that half.
+    document.getElementById('redactStageScroll')?.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey || redactFileType !== 'pdf') return;
+        e.preventDefault();
+        // Clamp deltaY first — a real mouse wheel notch is often ~100-120 and a trackpad pinch
+        // can spike much higher for one event; without a cap either would jump several zoom
+        // levels in a single tick instead of a smooth continuous feel.
+        const clampedDelta = Math.max(-100, Math.min(100, e.deltaY));
+        const factor = Math.exp(-clampedDelta * 0.0025);
+        setRedactZoom(redactZoomScale * factor, { x: e.clientX, y: e.clientY });
+    }, { passive: false });
+
     layer.addEventListener('mousedown', (e) => {
-        if (e.target !== layer || redactRunning) return;
+        if (redactRunning) return;
+        if (redactSpaceHeld) {
+            const scroll = document.getElementById('redactStageScroll');
+            redactPanDrag = { startScrollLeft: scroll.scrollLeft, startScrollTop: scroll.scrollTop, startX: e.clientX, startY: e.clientY };
+            return;
+        }
+        if (e.target !== layer) return;
         deselectRedactZone();
         const rect = layer.getBoundingClientRect();
         const startXPct = (e.clientX - rect.left) / rect.width;
@@ -3341,6 +3530,12 @@ function initPrivacyRedactTab() {
     });
 
     layer.addEventListener('mousemove', (e) => {
+        if (redactPanDrag) {
+            const scroll = document.getElementById('redactStageScroll');
+            scroll.scrollLeft = redactPanDrag.startScrollLeft - (e.clientX - redactPanDrag.startX);
+            scroll.scrollTop = redactPanDrag.startScrollTop - (e.clientY - redactPanDrag.startY);
+            return;
+        }
         if (redactZoneDrag) {
             handleRedactZoneDragMove(e);
             return;
@@ -3361,6 +3556,10 @@ function initPrivacyRedactTab() {
     });
 
     const finishDraft = () => {
+        if (redactPanDrag) {
+            redactPanDrag = null;
+            return;
+        }
         if (redactZoneDrag) {
             const { zone, moved } = redactZoneDrag;
             redactZoneDrag = null;
@@ -3390,20 +3589,35 @@ function setPrivacyMode(mode) {
     document.querySelectorAll('#tab-privacy > .dl-mode-tabs [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
     document.getElementById('privacyWatermarkView').style.display = mode === 'watermark' ? '' : 'none';
     document.getElementById('privacyRedactView').style.display = mode === 'redact' ? '' : 'none';
+    document.getElementById('watermarkDestActions').style.display = mode === 'watermark' ? '' : 'none';
+    document.getElementById('redactDestActions').style.display = mode === 'redact' ? '' : 'none';
+    closeAllDestPopovers();
     if (mode === 'redact') {
         initPrivacyRedactTab();
         loadRedactDestPath();
+        loadRedactAutoOpen();
     }
 }
 
 async function loadRedactDestPath() {
     const p = await window.api.redactGetDestPath();
     document.getElementById('redactDestPath').textContent = p || '-';
+    setDestFolderLabel('redactDestFolderName', p);
 }
 
 async function doChooseRedactDestPath() {
     const p = await window.api.redactChooseDestPath();
     document.getElementById('redactDestPath').textContent = p || '-';
+    setDestFolderLabel('redactDestFolderName', p);
+}
+
+async function loadRedactAutoOpen() {
+    const enabled = await window.api.redactGetAutoOpen();
+    document.getElementById('redactAutoOpenCheck').checked = !!enabled;
+}
+
+function onRedactAutoOpenChange(checked) {
+    window.api.redactSetAutoOpen(checked);
 }
 
 async function doRedactChooseFile() {
@@ -3422,7 +3636,9 @@ async function loadRedactFile(filePath) {
     redactFileType = type;
     redactZones = [];
     redactCurrentPage = 1;
-    redactPdfPages = [];
+    redactPdfDoc = null;
+    redactPdfPageCount = 0;
+    redactZoomScale = 1;
 
     document.getElementById('redactDropZone').style.display = 'none';
     document.getElementById('redactEditorWrap').style.display = 'flex';
@@ -3430,50 +3646,154 @@ async function loadRedactFile(filePath) {
     document.getElementById('redactFileName').textContent = filePath.split('/').pop();
     document.querySelector('#privacyRedactView .convert-center-wrapper')?.classList.add('has-content');
 
+    const stage = document.getElementById('redactStage');
+    const img = document.getElementById('redactStageImg');
+    const canvas = document.getElementById('redactStageCanvas');
+
     if (type === 'pdf') {
-        document.getElementById('redactStageImg').removeAttribute('src');
-        document.getElementById('redactPageNav').style.display = 'none';
-        addLog('Rendering PDF preview…');
+        img.style.display = 'none';
+        img.removeAttribute('src');
+        canvas.style.display = 'block';
+        stage.classList.add('redact-stage-zoom');
+        document.getElementById('redactZoomControls').style.display = 'flex';
+        addLog('Loading PDF…');
         try {
-            redactPdfPages = await window.api.redactPdfPreview(filePath);
+            redactPdfDoc = await window.pdfjsLib.getDocument({ url: `/__media/${encodeURIComponent(filePath)}` }).promise;
+            redactPdfPageCount = redactPdfDoc.numPages;
         } catch (err) {
-            addLog(`Redact: failed to render PDF preview — ${err.message}`, 'error');
+            addLog(`Redact: failed to load PDF — ${err.message}`, 'error');
             doRedactClear();
             return;
         }
-        document.getElementById('redactPageNav').style.display = redactPdfPages.length > 1 ? 'flex' : 'none';
+        document.getElementById('redactPageNav').style.display = redactPdfPageCount > 1 ? 'flex' : 'none';
+        await renderRedactPdfPage(true);
+    } else {
+        canvas.style.display = 'none';
+        stage.classList.remove('redact-stage-zoom');
+        document.getElementById('redactZoomControls').style.display = 'none';
+        document.getElementById('redactPageNav').style.display = 'none';
+        img.style.display = 'block';
+        renderRedactStage();
     }
-
-    renderRedactStage();
     updateRedactButton();
 }
 
+// Images only — PDF pages render via renderRedactPdfPage() (pdf.js + canvas) below.
 function renderRedactStage() {
     const img = document.getElementById('redactStageImg');
     // Pixelate zones/swatch sample real pixels via canvas — re-render once the image has
     // actually decoded, not just when its src attribute is set.
     img.onload = () => { renderRedactZones(); renderRedactPenPreview(); };
-    if (redactFileType === 'pdf') {
-        img.src = redactPdfPages[redactCurrentPage - 1] || '';
-        document.getElementById('redactPageLabel').textContent =
-            (t('redact.page.of') ? t('redact.page.of')(redactCurrentPage, redactPdfPages.length) : `Page ${redactCurrentPage} of ${redactPdfPages.length}`);
-    } else {
-        img.src = `bweb-file://${encodeURIComponent(redactFilePath)}`;
-    }
+    img.src = `bweb-file://${encodeURIComponent(redactFilePath)}`;
     renderRedactZones();
     renderRedactPenPreview();
+}
+
+// Renders the current PDF page into #redactStageCanvas at redactZoomScale via pdf.js — real
+// vector rendering at whatever resolution the zoom level needs, not a fixed-DPI raster. Pass
+// computeFit=true to (re)compute a "fit to the stage's available width" scale first (used on
+// initial load, page change, and the explicit Fit button); zoom in/out reuse the current scale.
+async function renderRedactPdfPage(computeFit) {
+    if (!redactPdfDoc) return;
+    const page = await redactPdfDoc.getPage(redactCurrentPage);
+    const canvas = document.getElementById('redactStageCanvas');
+
+    if (computeFit) {
+        const naturalViewport = page.getViewport({ scale: 1 });
+        const availableWidth = document.getElementById('redactStageScroll').clientWidth || naturalViewport.width;
+        redactZoomScale = Math.min(2, availableWidth / naturalViewport.width) || 1;
+    }
+
+    // Rendered at the display's real device pixel ratio so zooming in on a high-resolution PDF
+    // (the exact case this replaced a fixed-DPI rasterizer for) actually shows more detail
+    // instead of an upscaled blur — canvas.width/height are the real backing-store pixels,
+    // style.width/height is what CSS/layout (and the zone overlay's percentages) sees.
+    const dpr = window.devicePixelRatio || 1;
+    const viewport = page.getViewport({ scale: redactZoomScale * dpr });
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    canvas.style.width = `${Math.round(viewport.width / dpr)}px`;
+    canvas.style.height = `${Math.round(viewport.height / dpr)}px`;
+
+    const myToken = ++redactPdfRenderToken;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    if (myToken !== redactPdfRenderToken) return; // a newer render started meanwhile — discard
+
+    document.getElementById('redactPageLabel').textContent =
+        (t('redact.page.of') ? t('redact.page.of')(redactCurrentPage, redactPdfPageCount) : `Page ${redactCurrentPage} of ${redactPdfPageCount}`);
+    document.getElementById('redactZoomLabel').textContent = `${Math.round(redactZoomScale * 100)}%`;
+
+    renderRedactZones();
+    renderRedactPenPreview();
+}
+
+const REDACT_ZOOM_STEP = 1.25;
+const REDACT_ZOOM_MIN = 0.25;
+const REDACT_ZOOM_MAX = 4;
+const REDACT_ZOOM_DEBOUNCE_MS = 180;
+let redactZoomRenderTimer = null;
+
+// Zooming used to feel "mechanical" because every step waited on a full pdf.js re-render (a real
+// decode+paint, a few hundred ms on a detailed page) before anything on screen moved. Real map/
+// design tools (Google Maps, Figma) fake instant feedback with a CSS transform on the existing
+// canvas first, then swap in a freshly rendered, crisp bitmap once things settle — same trick
+// here. `cursorPoint` (viewport {x,y}, e.g. from a wheel event) keeps whatever's under the
+// pointer visually fixed while scaling instead of always zooming toward the top-left corner,
+// which is what actually reads as "natural" vs "mechanical" for this kind of interaction.
+function setRedactZoom(newScale, cursorPoint) {
+    newScale = Math.max(REDACT_ZOOM_MIN, Math.min(REDACT_ZOOM_MAX, newScale));
+    if (newScale === redactZoomScale) return;
+
+    const canvas = document.getElementById('redactStageCanvas');
+    const scroll = document.getElementById('redactStageScroll');
+    if (!canvas || !scroll) return;
+    const scrollRect = scroll.getBoundingClientRect();
+    const viewportX = cursorPoint ? cursorPoint.x - scrollRect.left : scroll.clientWidth / 2;
+    const viewportY = cursorPoint ? cursorPoint.y - scrollRect.top : scroll.clientHeight / 2;
+    const anchorX = scroll.scrollLeft + viewportX;
+    const anchorY = scroll.scrollTop + viewportY;
+
+    const ratio = newScale / redactZoomScale;
+    canvas.style.transformOrigin = '0 0';
+    canvas.style.transform = `scale(${ratio})`;
+    scroll.scrollLeft = anchorX * ratio - viewportX;
+    scroll.scrollTop = anchorY * ratio - viewportY;
+
+    redactZoomScale = newScale;
+    document.getElementById('redactZoomLabel').textContent = `${Math.round(newScale * 100)}%`;
+
+    clearTimeout(redactZoomRenderTimer);
+    redactZoomRenderTimer = setTimeout(() => {
+        canvas.style.transform = '';
+        renderRedactPdfPage(false);
+    }, REDACT_ZOOM_DEBOUNCE_MS);
+}
+
+function redactZoomIn() {
+    setRedactZoom(redactZoomScale * REDACT_ZOOM_STEP);
+}
+
+function redactZoomOut() {
+    setRedactZoom(redactZoomScale / REDACT_ZOOM_STEP);
+}
+
+function redactZoomFit() {
+    clearTimeout(redactZoomRenderTimer);
+    const canvas = document.getElementById('redactStageCanvas');
+    if (canvas) canvas.style.transform = '';
+    renderRedactPdfPage(true);
 }
 
 function redactPrevPage() {
     if (redactCurrentPage <= 1) return;
     redactCurrentPage--;
-    renderRedactStage();
+    renderRedactPdfPage(false);
 }
 
 function redactNextPage() {
-    if (redactCurrentPage >= redactPdfPages.length) return;
+    if (redactCurrentPage >= redactPdfPageCount) return;
     redactCurrentPage++;
-    renderRedactStage();
+    renderRedactPdfPage(false);
 }
 
 // Intensity is a single 0-100 slider whose meaning depends on the method — kept in sync with
@@ -3504,7 +3824,15 @@ const RESIZE_HANDLES = ['nw', 'ne', 'sw', 'se'];
 // click, after feedback that click-to-delete destroyed careful placement too easily.
 function renderRedactZones() {
     const layer = document.getElementById('redactZonesLayer');
-    const img = document.getElementById('redactStageImg');
+    // Pixelate zones sample real pixels from whichever element is actually showing content —
+    // the <img> for a plain image, or the pdf.js-rendered <canvas> for a PDF page. drawImage()
+    // accepts either as a source; naturalWidth/naturalHeight isn't meaningful on a canvas, so
+    // width/height (its real backing-store pixel size) is used there instead.
+    const stageEl = redactFileType === 'pdf'
+        ? document.getElementById('redactStageCanvas')
+        : document.getElementById('redactStageImg');
+    const stageW = redactFileType === 'pdf' ? stageEl?.width : stageEl?.naturalWidth;
+    const stageH = redactFileType === 'pdf' ? stageEl?.height : stageEl?.naturalHeight;
     if (!layer) return;
     layer.innerHTML = '';
     redactZones
@@ -3526,11 +3854,11 @@ function renderRedactZones() {
                 const blurPx = intensityToBlurPx(zone.intensity ?? 50);
                 el.style.backdropFilter = `blur(${blurPx}px)`;
                 el.style.webkitBackdropFilter = `blur(${blurPx}px)`;
-            } else if (method === 'pixelate' && img && img.naturalWidth) {
-                const sx = zone.xPct * img.naturalWidth;
-                const sy = zone.yPct * img.naturalHeight;
-                const sw = zone.wPct * img.naturalWidth;
-                const sh = zone.hPct * img.naturalHeight;
+            } else if (method === 'pixelate' && stageEl && stageW) {
+                const sx = zone.xPct * stageW;
+                const sy = zone.yPct * stageH;
+                const sw = zone.wPct * stageW;
+                const sh = zone.hPct * stageH;
                 const blocks = intensityToBlockCount(zone.intensity ?? 50);
                 const canvas = document.createElement('canvas');
                 canvas.width = blocks;
@@ -3538,22 +3866,32 @@ function renderRedactZones() {
                 canvas.className = 'redact-zone-pixelate-canvas';
                 const cctx = canvas.getContext('2d');
                 try {
-                    cctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                    cctx.drawImage(stageEl, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
                     el.appendChild(canvas);
-                } catch { /* canvas draw can throw before the image is fully decoded — next render catches it */ }
+                } catch { /* canvas draw can throw before the source has decoded/rendered — next render catches it */ }
             }
 
             const del = document.createElement('span');
             del.className = 'redact-zone-delete';
             del.textContent = '×';
             del.title = t('redact.zone.remove') || 'Delete zone';
-            del.addEventListener('mousedown', (e) => e.stopPropagation());
-            del.addEventListener('click', (e) => {
+            // Not a <button> because it's absolutely positioned inside a drag/resize zone
+            // overlay — role="button" + tabindex + a keydown handler give it the same
+            // accessible name/keyboard behavior without restyling the drag geometry.
+            del.setAttribute('role', 'button');
+            del.setAttribute('tabindex', '0');
+            del.setAttribute('aria-label', t('redact.zone.remove') || 'Delete zone');
+            const deleteZone = (e) => {
                 e.stopPropagation();
                 redactZones.splice(redactZones.indexOf(zone), 1);
                 if (redactSelectedZone === zone) deselectRedactZone();
                 renderRedactZones();
                 updateRedactButton();
+            };
+            del.addEventListener('mousedown', (e) => e.stopPropagation());
+            del.addEventListener('click', deleteZone);
+            del.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') deleteZone(e);
             });
             el.appendChild(del);
 
@@ -3749,8 +4087,10 @@ function doRedactClear() {
     if (redactRunning) return;
     redactFilePath = null;
     redactFileType = null;
-    redactPdfPages = [];
+    redactPdfDoc = null;
+    redactPdfPageCount = 0;
     redactCurrentPage = 1;
+    redactZoomScale = 1;
     redactZones = [];
     redactSelectedZone = null;
     redactZoneDrag = null;
@@ -3767,6 +4107,8 @@ function doRedactClear() {
     document.getElementById('redactZonesLayer').innerHTML = '';
     document.getElementById('redactStageImg').removeAttribute('src');
     document.getElementById('redactPageNav').style.display = 'none';
+    document.getElementById('redactZoomControls').style.display = 'none';
+    document.getElementById('redactStage').classList.remove('redact-stage-zoom');
     document.querySelectorAll('#privacyRedactView [data-rmethod]').forEach((b) => b.classList.toggle('active', b.dataset.rmethod === 'blackout'));
     const colorInput = document.getElementById('redactColorInput');
     if (colorInput) colorInput.value = '#000000';
@@ -3789,6 +4131,7 @@ async function doRedact() {
         const result = await window.api.redactRun(redactFilePath, redactZones);
         addLog(`Redacted: ${result.outputPath}`);
         btn.textContent = t('redact.done') || 'Done ✓';
+        if (document.getElementById('redactAutoOpenCheck')?.checked) window.api.redactOpenDestFolder();
         setTimeout(() => { if (!redactRunning) doRedactClear(); }, 1800);
     } catch (err) {
         addLog(`Redact failed: ${err.message}`, 'error');
@@ -3801,6 +4144,8 @@ async function doRedact() {
 
 function initConvertTab() {
     const dropZone = document.getElementById('convertDropZone');
+    loadConvertDestPath();
+    loadConvertAutoOpen();
     if (!dropZone || dropZone._initialized) return;
     dropZone._initialized = true;
 
@@ -3855,16 +4200,37 @@ function addFilesToConvertList(paths) {
 function removeConvertItem(id) {
     const item = convertItems.find((i) => i.id === id);
     if (!item || item.state === 'converting') return;
-    convertItems = convertItems.filter((i) => i.id !== id);
 
-    if (convertItems.length === 0) {
-        doConvertClear();
-        return;
+    let removed = false;
+    const finishRemoval = () => {
+        if (removed) return;
+        removed = true;
+        convertItems = convertItems.filter((i) => i.id !== id);
+        convertRenderedIds.delete(id);
+
+        if (convertItems.length === 0) {
+            doConvertClear();
+            return;
+        }
+        if (convertItems.length === 1) {
+            loadConvertPreview(convertItems[0].path);
+        }
+        renderConvertList();
+    };
+
+    // Animate the row shrinking away before actually removing it from state — a plain
+    // instant list re-render on delete feels abrupt; respects prefers-reduced-motion via
+    // the global rule that collapses all transition durations to ~0.
+    const el = document.querySelector(`.convert-batch-item[data-item-id="${id}"]`);
+    if (el) {
+        el.classList.add('convert-batch-item-leaving');
+        el.addEventListener('transitionend', finishRemoval, { once: true });
+        // Safety net: if the transition never fires (e.g. element detached mid-animation),
+        // don't leave the item stuck forever.
+        setTimeout(finishRemoval, 400);
+    } else {
+        finishRemoval();
     }
-    if (convertItems.length === 1) {
-        loadConvertPreview(convertItems[0].path);
-    }
-    renderConvertList();
 }
 
 function doConvertClear() {
@@ -3884,12 +4250,28 @@ function doConvertClear() {
     if (listWrap) listWrap.style.display = 'none';
     if (progressWrap) progressWrap.style.display = 'none';
     if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; }
-    if (video) { video.pause(); video.src = ''; }
+    if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
 
     closeConvertTrim();
     clearConvertTrim();
     document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
 }
+
+const CONVERT_AUDIO_EXTS = new Set(['mp3', 'wav', 'flac', 'm4a', 'aac', 'opus', 'ogg']);
+
+// File-type badge shown per row — prototype for Convert only, per user request, before
+// rolling the same treatment out to Compress/Watermark's file lists.
+function fileTypeBadgeHtml(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const category = CONVERT_AUDIO_EXTS.has(ext) ? 'audio' : 'video';
+    return `<div class="file-type-badge file-type-${category}">${escapeHtml(ext.slice(0, 4).toUpperCase())}</div>`;
+}
+
+// Tracks which item ids have already been rendered at least once, so a fresh file gets a
+// real entrance animation while an in-place status/progress update on an existing row
+// doesn't keep re-triggering it on every render (renderConvertList runs on every progress
+// tick — a naive "always animate" would look like constant flickering, not motion).
+let convertRenderedIds = new Set();
 
 function renderConvertList() {
     const list = document.getElementById('convertList');
@@ -3914,6 +4296,7 @@ function renderConvertList() {
 
     if (trimToggleWrap) trimToggleWrap.style.display = convertItems.length === 1 ? 'flex' : 'none';
 
+    const currentIds = new Set(convertItems.map((i) => i.id));
     list.innerHTML = convertItems.map((item) => {
         const removable = item.state === 'pending' || item.state === 'error' || item.state === 'cancelled';
         const statusText = {
@@ -3923,12 +4306,30 @@ function renderConvertList() {
             error: t('convert.status.error'),
             cancelled: t('convert.status.cancelled'),
         }[item.state];
-        return `<div class="convert-batch-item convert-batch-item-${item.state}">` +
-            `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
-            `<span class="convert-batch-item-status">${escapeHtml(statusText)}</span>` +
-            (removable ? `<button class="convert-batch-item-remove" onclick="removeConvertItem(${item.id})">×</button>` : `<span class="convert-batch-item-remove-spacer"></span>`) +
+        const progressBar = item.state === 'converting'
+            ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill" style="width:${item.percent || '0%'}"></div></div>`
+            : '';
+        const removeIcon = item.state === 'done'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>'
+            : '×';
+        const isNew = !convertRenderedIds.has(item.id);
+        return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
+            fileTypeBadgeHtml(item.name) +
+            `<div class="convert-batch-item-info">` +
+                `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
+                `<div class="convert-batch-item-meta">` +
+                    `<span class="convert-batch-item-status">${escapeHtml(statusText)}</span>` +
+                    progressBar +
+                `</div>` +
+            `</div>` +
+            (removable
+                ? `<button class="convert-batch-item-remove" onclick="removeConvertItem(${item.id})" aria-label="Remove file">×</button>`
+                : (item.state === 'done'
+                    ? `<span class="convert-batch-item-remove" aria-hidden="true" style="color:var(--success)">${removeIcon}</span>`
+                    : `<span class="convert-batch-item-remove-spacer"></span>`)) +
             `</div>`;
     }).join('');
+    convertRenderedIds = currentIds;
 }
 
 function loadConvertPreview(filePath) {
@@ -3937,10 +4338,16 @@ function loadConvertPreview(filePath) {
     const video = document.getElementById('convertVideo');
     if (!video) return;
 
-    // Plain file:// is blocked by Electron's URL safety check now that the renderer
-    // loads over http:// (see localServer.js) — bweb-file:// proxies to a real file
-    // read from the main process instead (see main.js's protocol.handle).
-    video.src = `bweb-file://${encodeURIComponent(filePath)}`;
+    // Served through the app's own local HTTP server (see localServer.js's `/__media/` route),
+    // NOT the bweb-file:// custom protocol — found by testing real playback that Electron's
+    // protocol.handle mechanism silently fails to decode certain H.264+AAC files served through
+    // it (readyState/duration resolve fine, but every frame is black and currentTime never
+    // advances). The exact same bytes play back correctly over a plain http:// origin.
+    // .load() is required here: reassigning .src alone while a previous load is still
+    // in flight (e.g. switching files back-to-back) leaves the element wedged with a
+    // stale MEDIA_ERR_SRC_NOT_SUPPORTED that a later valid .src never clears on its own.
+    video.src = `/__media/${encodeURIComponent(filePath)}`;
+    video.load();
     video.style.maxHeight = AUDIO_EXTS.has(ext) ? '40px' : '240px';
     video.onloadedmetadata = () => {
         const durEl = document.getElementById('convertTrimDuration');
@@ -4057,6 +4464,31 @@ async function runConvertQueue() {
         if (convertStopRequested) showToast(`${kind} cancelled`, 'info');
         else showToast(`${kind} ${failed ? 'finished with errors' : 'complete ✓'}`, failed ? 'error' : 'success');
     }
+
+    if (convertItems.some((i) => i.state === 'done') && document.getElementById('convertAutoOpenCheck')?.checked) {
+        window.api.convertOpenDestFolder();
+    }
+}
+
+async function loadConvertDestPath() {
+    const p = await window.api.convertGetDestPath();
+    document.getElementById('convertDestPath').textContent = p || '-';
+    setDestFolderLabel('convertDestFolderName', p);
+}
+
+async function doChooseConvertDestPath() {
+    const p = await window.api.convertChooseDestPath();
+    document.getElementById('convertDestPath').textContent = p || '-';
+    setDestFolderLabel('convertDestFolderName', p);
+}
+
+async function loadConvertAutoOpen() {
+    const enabled = await window.api.convertGetAutoOpen();
+    document.getElementById('convertAutoOpenCheck').checked = !!enabled;
+}
+
+function onConvertAutoOpenChange(checked) {
+    window.api.convertSetAutoOpen(checked);
 }
 
 async function doConvert() {
@@ -4084,16 +4516,28 @@ let qrLogoDataUrl = null;
 
 function initQrTab() {
     loadQrDestPath();
+    loadQrAutoOpen();
+}
+
+async function loadQrAutoOpen() {
+    const enabled = await window.api.qrGetAutoOpen();
+    document.getElementById('qrAutoOpenCheck').checked = !!enabled;
+}
+
+function onQrAutoOpenChange(checked) {
+    window.api.qrSetAutoOpen(checked);
 }
 
 async function loadQrDestPath() {
     const p = await window.api.qrGetDestPath();
     document.getElementById('qrDestPath').textContent = p || '-';
+    setDestFolderLabel('qrDestFolderName', p);
 }
 
 async function doChooseQrDestPath() {
     const p = await window.api.qrChooseDestPath();
     document.getElementById('qrDestPath').textContent = p || '-';
+    setDestFolderLabel('qrDestFolderName', p);
 }
 
 function setQrFormat(format) {
@@ -4303,6 +4747,7 @@ async function doQrExport() {
         const result = await window.api.qrExport(new Uint8Array(buffer), qrFormat);
         addLog(`QR code exported: ${result.outputPath}`);
         btn.textContent = t('qrcode.done') || 'Done ✓';
+        if (document.getElementById('qrAutoOpenCheck')?.checked) window.api.qrOpenDestFolder();
         setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
     } catch (err) {
         addLog(`QR export failed: ${err.message}`, 'error');
@@ -4318,22 +4763,73 @@ let bgRemoveRunning = false;
 
 function initBgRemoveTab() {
     loadBgRemoveDestPath();
+    loadBgRemoveAutoOpen();
+
+    const dropZone = document.getElementById('bgRemoveDropZone');
+    if (dropZone && !dropZone._initialized) {
+        dropZone._initialized = true;
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const filePath = window.api.getPathForFile(e.dataTransfer.files[0]);
+            if (filePath) loadBgRemoveFile(filePath);
+        });
+    }
 }
 
 async function loadBgRemoveDestPath() {
     const p = await window.api.bgRemoveGetDestPath();
     document.getElementById('bgRemoveDestPath').textContent = p || '-';
+    setDestFolderLabel('bgRemoveDestFolderName', p);
 }
 
 async function doChooseBgRemoveDestPath() {
     const p = await window.api.bgRemoveChooseDestPath();
     document.getElementById('bgRemoveDestPath').textContent = p || '-';
+    setDestFolderLabel('bgRemoveDestFolderName', p);
+}
+
+async function loadBgRemoveAutoOpen() {
+    const enabled = await window.api.bgRemoveGetAutoOpen();
+    document.getElementById('bgRemoveAutoOpenCheck').checked = !!enabled;
+}
+
+function onBgRemoveAutoOpenChange(checked) {
+    window.api.bgRemoveSetAutoOpen(checked);
 }
 
 async function doBgRemoveChooseFile() {
     const p = await window.api.bgRemoveChooseFile();
     if (p) loadBgRemoveFile(p);
 }
+
+// Cmd/Ctrl+V an image (from another app, a browser, a screenshot) straight into Background
+// Remover — an explicit "choose file"/drag-and-drop round trip is unnecessary friction when the
+// image is already on the clipboard. Every processing pipeline in this app works off a real file
+// path, so the pasted bytes get written to a temp file (via the main process — the renderer has
+// no direct filesystem access) before handing that path to the exact same loadBgRemoveFile() a
+// chosen/dropped file would use.
+document.addEventListener('paste', async (e) => {
+    const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
+    if (activeTab !== 'bgremove' || bgRemoveRunning) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'));
+    if (!imageItem) return;
+
+    e.preventDefault();
+    const blob = imageItem.getAsFile();
+    const buffer = new Uint8Array(await blob.arrayBuffer());
+    const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+    const tempPath = await window.api.saveClipboardImage(buffer, ext);
+    if (tempPath) loadBgRemoveFile(tempPath);
+});
 
 async function loadBgRemoveFile(filePath) {
     bgRemoveFilePath = filePath;
@@ -4344,12 +4840,18 @@ async function loadBgRemoveFile(filePath) {
 
     try {
         const beforeUrl = `bweb-file://${encodeURIComponent(filePath)}`;
-        const afterUrl = await window.api.bgRemovePreview(filePath);
+        const { dataUrl: afterUrl, fallback } = await window.api.bgRemovePreview(filePath);
         document.getElementById('bgRemoveLoading').style.display = 'none';
         document.getElementById('bgRemoveResultWrap').style.display = 'flex';
         document.getElementById('bgRemoveFileName').textContent = filePath.split('/').pop();
         document.getElementById('bgRemoveBeforeImg').src = beforeUrl;
         document.getElementById('bgRemoveAfterImg').src = afterUrl;
+        // No isolated subject found (e.g. a full scene/landscape photo, not a product-on-
+        // background shot) — the automatic border-trim fallback already ran (see bgRemover.js),
+        // so what's shown is a plain crop, not a transparent cutout. Say so, since an opaque
+        // photo sitting on the "transparent" checkerboard would otherwise look like a bug.
+        const note = document.getElementById('bgRemoveFallbackNote');
+        if (note) note.style.display = fallback === 'trimmed' ? 'block' : 'none';
     } catch (err) {
         addLog(`Background Remover: failed — ${err.message}`, 'error');
         document.getElementById('bgRemoveLoading').style.display = 'none';
@@ -4364,6 +4866,8 @@ function doBgRemoveClear() {
     document.getElementById('bgRemoveResultWrap').style.display = 'none';
     document.getElementById('bgRemoveBeforeImg').removeAttribute('src');
     document.getElementById('bgRemoveAfterImg').removeAttribute('src');
+    const note = document.getElementById('bgRemoveFallbackNote');
+    if (note) note.style.display = 'none';
     document.querySelector('#tab-bgremove .convert-center-wrapper')?.classList.remove('has-content');
 }
 
@@ -4376,8 +4880,11 @@ async function doBgRemoveExport() {
 
     try {
         const result = await window.api.bgRemoveRun(bgRemoveFilePath);
-        addLog(`Background removed: ${result.outputPath}`);
+        addLog(result.fallback === 'trimmed'
+            ? `No subject detected — exported a border-trimmed crop instead: ${result.outputPath}`
+            : `Background removed: ${result.outputPath}`);
         btn.textContent = t('bgremove.done') || 'Done ✓';
+        if (document.getElementById('bgRemoveAutoOpenCheck')?.checked) window.api.bgRemoveOpenDestFolder();
         setTimeout(() => { btn.textContent = t('bgremove.export') || 'Export PNG'; btn.disabled = false; }, 1500);
     } catch (err) {
         addLog(`Background Remover export failed: ${err.message}`, 'error');

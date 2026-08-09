@@ -8,6 +8,7 @@ const TRANSLATIONS = {
     en: {
         // Nav
         'nav.download':  'Download',
+        'nav.fetch':     'Fetch',
         'nav.queue':     'Queue',
         'nav.history':   'History',
         'nav.convert':   'Convert',
@@ -34,6 +35,7 @@ const TRANSLATIONS = {
         'qrcode.logo.sub':       'Shown in the middle of the code',
         'qrcode.logo.clear':     '×',
         'qrcode.format':         'Export as',
+        'qrcode.dest.autoopen':  'Open folder after exporting',
         'qrcode.export':         'Export QR code',
         'qrcode.exporting':      'Exporting…',
         'qrcode.done':           'Done ✓',
@@ -42,8 +44,9 @@ const TRANSLATIONS = {
         // Background Remover view
         'bgremove.title':          'Background Remover',
         'bgremove.subtitle':       'Cut a subject out of an image, right on your computer',
+        'bgremove.dest.autoopen':  'Open folder after removing background',
         'bgremove.drop.title':     'Drop an image, or click to browse',
-        'bgremove.drop.sub':       'JPG, PNG, WebP, AVIF, TIFF',
+        'bgremove.drop.sub':       'JPG, PNG, WebP, AVIF, TIFF — or paste an image',
         'bgremove.processing':     'Removing background…',
         'bgremove.before':         'Before',
         'bgremove.after':          'After',
@@ -51,6 +54,7 @@ const TRANSLATIONS = {
         'bgremove.exporting':      'Exporting…',
         'bgremove.done':           'Done ✓',
         'bgremove.error':          'Export failed',
+        'bgremove.fallback.note':  'No distinct subject found — showing a border-trimmed crop instead of a cutout.',
 
         // Download view
         'dl.title':           'Download',
@@ -122,20 +126,26 @@ const TRANSLATIONS = {
         'history.empty.title': 'No history yet',
         'history.empty.sub':   'Videos you fetch will appear here',
 
+        // Shared destination popover trigger (Convert/Compress/Watermark/Redact/QR/BG Remover)
+        'dest.trigger.label':  'Saving to',
+
         // Convert view
         'convert.title':         'Convert',
         'convert.subtitle':      'Convert local audio & video files — any format to any format, right on your computer',
+        'convert.dest.label':    'Saving to',
+        'convert.dest.autoopen': 'Open folder after converting',
         'convert.drop.title':    'Drop one or more media files, or click to browse',
         'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — drop several at once to convert them all',
         'convert.list.title':    'Files to convert',
         'convert.addMore':       '+ Add',
         'convert.reset':         'Reset',
         'convert.trim.toggle':   'Trim (optional)',
-        'convert.trim.label':    'Trim',
+        'convert.trim.label':    'Trim clip',
         'convert.trim.optional': '(optional)',
         'convert.trim.clear':    'Clear',
-        'convert.trim.now1':     '◀ Now',
-        'convert.trim.now2':     'Now →',
+        'convert.trim.hint':     'Watch below and mark the part you want.',
+        'convert.trim.now1':     '● Mark start',
+        'convert.trim.now2':     '● Mark end',
         'convert.format.label':  'Output format',
         'convert.format.more':   'More formats',
         'convert.format.choose': 'Choose a format…',
@@ -155,7 +165,7 @@ const TRANSLATIONS = {
         // Compress view
         'compress.title':             'Compress',
         'compress.subtitle':          'Reduce the file size of an image or PDF, right on your computer',
-        'compress.dest.label':        'Saving to:',
+        'compress.dest.label':        'Saving to',
         'compress.dest.autoopen':     'Open folder after compressing',
         'compress.drop.title':        'Drop one or more images or PDFs, or click to browse',
         'compress.drop.sub':          'JPG, PNG, WebP, AVIF, TIFF, PDF…',
@@ -188,12 +198,14 @@ const TRANSLATIONS = {
         'privacy.mode.redact':    'Redact',
         'privacy.soon':           'Soon',
         'privacy.dest.label':     'Saving to:',
+        'watermark.dest.autoopen': 'Open folder after watermarking',
+        'redact.dest.autoopen':   'Open folder after redacting',
         'watermark.drop.title':   'Drop one or more images or PDFs, or click to browse',
         'watermark.drop.sub':     'JPG, PNG, WebP, AVIF, TIFF, PDF…',
         'watermark.list.title':   'Files to watermark',
         'watermark.type.text':    'Text',
         'watermark.type.logo':    'Logo',
-        'watermark.logo.choose':  'Choose logo…',
+        'watermark.logo.choose':  'Add a logo',
         'watermark.logo.none':    'No logo chosen',
         'watermark.size.label':   'Size',
         'watermark.size.small':   'Small',
@@ -309,6 +321,7 @@ const TRANSLATIONS = {
         'about.by':                'by Archis',
         'about.bgRemove':          'Background removal by',
         'about.dinov3':            'Built with DINOv3',
+        'about.icons':             'Icons by',
 
         // Dynamic (renderer.js)
         'status.pending':     'Pending',
@@ -335,6 +348,7 @@ const TRANSLATIONS = {
     fr: {
         // Nav
         'nav.download':  'Télécharger',
+        'nav.fetch':     'Récupérer',
         'nav.queue':     'Attente',
         'nav.history':   'Historique',
         'nav.convert':   'Convertir',
@@ -361,6 +375,7 @@ const TRANSLATIONS = {
         'qrcode.logo.sub':       'Affiché au centre du QR code',
         'qrcode.logo.clear':     '×',
         'qrcode.format':         'Exporter en',
+        'qrcode.dest.autoopen':  'Ouvrir le dossier après export',
         'qrcode.export':         'Exporter le QR code',
         'qrcode.exporting':      'Export en cours…',
         'qrcode.done':           'Terminé ✓',
@@ -369,8 +384,9 @@ const TRANSLATIONS = {
         // Background Remover view
         'bgremove.title':          'Retrait de fond',
         'bgremove.subtitle':       'Détourer un sujet d\'une image, directement sur ton ordinateur',
+        'bgremove.dest.autoopen':  'Ouvrir le dossier après détourage',
         'bgremove.drop.title':     'Déposer une image, ou cliquer pour parcourir',
-        'bgremove.drop.sub':       'JPG, PNG, WebP, AVIF, TIFF',
+        'bgremove.drop.sub':       'JPG, PNG, WebP, AVIF, TIFF — ou coller une image',
         'bgremove.processing':     'Retrait du fond en cours…',
         'bgremove.before':         'Avant',
         'bgremove.after':          'Après',
@@ -378,6 +394,7 @@ const TRANSLATIONS = {
         'bgremove.exporting':      'Export en cours…',
         'bgremove.done':           'Terminé ✓',
         'bgremove.error':          'Échec de l\'export',
+        'bgremove.fallback.note':  'Aucun sujet distinct trouvé — recadrage des bordures affiché à la place d\'un détourage.',
 
         // Download view
         'dl.title':           'Télécharger',
@@ -449,20 +466,26 @@ const TRANSLATIONS = {
         'history.empty.title': 'Aucun historique',
         'history.empty.sub':   'Les vidéos récupérées apparaîtront ici',
 
+        // Shared destination popover trigger (Convert/Compress/Watermark/Redact/QR/BG Remover)
+        'dest.trigger.label':  'Enregistrer dans',
+
         // Convert view
         'convert.title':         'Convertir',
         'convert.subtitle':      'Convertir des fichiers audio & vidéo locaux — de n\'importe quel format à n\'importe quel format, sur votre ordinateur',
+        'convert.dest.label':    'Enregistrer dans',
+        'convert.dest.autoopen': 'Ouvrir le dossier après conversion',
         'convert.drop.title':    'Déposer un ou plusieurs fichiers, ou cliquer pour parcourir',
         'convert.drop.sub':      'MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A… — déposez-en plusieurs à la fois pour tous les convertir',
         'convert.list.title':    'Fichiers à convertir',
         'convert.addMore':       '+ Ajouter',
         'convert.reset':         'Réinitialiser',
         'convert.trim.toggle':   'Couper (optionnel)',
-        'convert.trim.label':    'Couper',
+        'convert.trim.label':    'Couper le clip',
         'convert.trim.optional': '(optionnel)',
         'convert.trim.clear':    'Effacer',
-        'convert.trim.now1':     '◀ Ici',
-        'convert.trim.now2':     'Ici →',
+        'convert.trim.hint':     'Regarde ci-dessous et marque le passage voulu.',
+        'convert.trim.now1':     '● Marquer le début',
+        'convert.trim.now2':     '● Marquer la fin',
         'convert.format.label':  'Format de sortie',
         'convert.format.more':   'Plus de formats',
         'convert.format.choose': 'Choisir un format…',
@@ -482,7 +505,7 @@ const TRANSLATIONS = {
         // Compress view
         'compress.title':             'Compresser',
         'compress.subtitle':          'Réduire la taille d\'une image ou d\'un PDF, sur votre ordinateur',
-        'compress.dest.label':        'Enregistrer dans :',
+        'compress.dest.label':        'Enregistrer dans',
         'compress.dest.autoopen':     'Ouvrir le dossier après compression',
         'compress.drop.title':        'Déposer une ou plusieurs images ou PDF, ou cliquer pour parcourir',
         'compress.drop.sub':          'JPG, PNG, WebP, AVIF, TIFF, PDF…',
@@ -515,12 +538,14 @@ const TRANSLATIONS = {
         'privacy.mode.redact':    'Masquage',
         'privacy.soon':           'Bientôt',
         'privacy.dest.label':     'Enregistrer dans :',
+        'watermark.dest.autoopen': 'Ouvrir le dossier après filigrane',
+        'redact.dest.autoopen':   'Ouvrir le dossier après masquage',
         'watermark.drop.title':   'Déposer une ou plusieurs images ou PDF, ou cliquer pour parcourir',
         'watermark.drop.sub':     'JPG, PNG, WebP, AVIF, TIFF, PDF…',
         'watermark.list.title':   'Fichiers à filigraner',
         'watermark.type.text':    'Texte',
         'watermark.type.logo':    'Logo',
-        'watermark.logo.choose':  'Choisir un logo…',
+        'watermark.logo.choose':  'Ajouter un logo',
         'watermark.logo.none':    'Aucun logo choisi',
         'watermark.size.label':   'Taille',
         'watermark.size.small':   'Petit',
@@ -636,6 +661,7 @@ const TRANSLATIONS = {
         'about.by':                'par Archis',
         'about.bgRemove':          'Suppression d\'arrière-plan par',
         'about.dinov3':            'Construit avec DINOv3',
+        'about.icons':             'Icônes par',
 
         // Dynamic (renderer.js)
         'status.pending':     'En attente',

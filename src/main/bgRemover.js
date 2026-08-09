@@ -91,13 +91,55 @@ async function computeAlphaMask(inputPath, targetWidth, targetHeight) {
         .toBuffer();
 }
 
-function getOutputPath(inputPath, destDir) {
+// Automatic fallback for when the AI subject cutout below finds nothing at all — crops
+// solid-color padding bars (e.g. white pillarboxing from a portrait photo fit into a wider
+// frame) instead. Added after finding that "remove the white" is sometimes actually this, not
+// AI background removal: the withoutbg model is a salient-subject cutout, and fed a full
+// landscape photo with no isolated foreground subject (trees/road/sky, the whole frame IS the
+// scene), it has nothing confident to call "foreground" and wipes the entire image to fully
+// transparent — a real photo tested this exact way, confirmed pixel-by-pixel: every pixel's
+// alpha came back 0, including the actual photo content, not just the white bars.
+//
+// sharp's `.trim()` DEFAULT threshold (10) was found — by checking actual per-column pixel
+// values on a real exported file, not just eyeballing it — to leave a ~7-8px sliver of
+// near-white still uncropped on one edge (JPEG compression softens the true white/content
+// boundary just enough that a strict default threshold stops a few pixels early). 30 cut that
+// down to ~1px but a user re-check (denser sampling, every 10 rows instead of 20 — the first
+// pass' sampling was too sparse to rule out a thin remainder) caught that 1px was still visibly
+// white at real display scale. 50 removes it completely — re-verified column-by-column across
+// both edges with the denser sampling, output width stable from 50 through 110 (i.e. there's a
+// real, stable content boundary there, not a threshold creeping into actual photo content).
+const TRIM_THRESHOLD = 50;
+
+// A real subject cutout always leaves large confident regions (alpha near 0 or near 255
+// somewhere) — a mask that's near-uniformly close to zero everywhere means the model found
+// nothing to call foreground at all, not a subtle/uncertain result worth keeping.
+const EMPTY_MASK_THRESHOLD = 3; // average alpha (0-255)
+
+function isMaskEmpty(maskRaw) {
+    let sum = 0;
+    for (let i = 0; i < maskRaw.length; i++) sum += maskRaw[i];
+    return sum / maskRaw.length < EMPTY_MASK_THRESHOLD;
+}
+
+// Returns a full-resolution, already-trimmed PNG buffer if the image has a meaningful uniform
+// border to crop (>2% of width or height), or null if there's nothing worth trimming.
+async function getTrimmedBufferIfMeaningful(inputPath) {
+    const untrimmed = await sharp(inputPath).rotate().metadata();
+    const { data, info } = await sharp(inputPath).rotate().trim({ threshold: TRIM_THRESHOLD }).png().toBuffer({ resolveWithObject: true });
+    const shrankMeaningfully = info.width < untrimmed.width * 0.98 || info.height < untrimmed.height * 0.98;
+    return shrankMeaningfully ? { buffer: data, width: info.width, height: info.height } : null;
+}
+
+function getOutputPath(inputPath, destDir, forceExt) {
     const dir = destDir || path.dirname(inputPath);
     const base = path.basename(inputPath, path.extname(inputPath));
-    let outputPath = path.join(dir, `${base}_nobg.png`);
+    const suffix = forceExt ? '_trimmed' : '_nobg';
+    const ext = forceExt || '.png';
+    let outputPath = path.join(dir, `${base}${suffix}${ext}`);
     let n = 1;
     while (fs.existsSync(outputPath)) {
-        outputPath = path.join(dir, `${base}_nobg_${n}.png`);
+        outputPath = path.join(dir, `${base}${suffix}_${n}${ext}`);
         n++;
     }
     return outputPath;
@@ -109,6 +151,22 @@ async function removeBackground(inputPath, destDir) {
     const original = await sharp(inputPath).rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const { width, height } = original.info;
     const maskRaw = await computeAlphaMask(inputPath, width, height);
+
+    // No isolated subject found at all (e.g. a full landscape/scene photo, not a product-on-
+    // background shot) — automatically fall back to a plain border crop instead of silently
+    // handing back a fully transparent, unusable image. Native/automatic on purpose: a user
+    // shouldn't have to notice the AI failed and go find a separate "Trim borders" button.
+    if (isMaskEmpty(maskRaw)) {
+        const trimmed = await getTrimmedBufferIfMeaningful(inputPath);
+        if (trimmed) {
+            const outputPath = getOutputPath(inputPath, destDir, path.extname(inputPath));
+            fs.writeFileSync(outputPath, trimmed.buffer);
+            log('Background removed: no subject detected, fell back to border trim ->', outputPath);
+            return { outputPath, fallback: 'trimmed' };
+        }
+        // No borders to trim either — nothing more to automatically do; fall through and return
+        // the honest (fully transparent) AI result rather than inventing a result.
+    }
 
     const outBuffer = Buffer.from(original.data);
     for (let i = 0; i < width * height; i++) {
@@ -134,12 +192,26 @@ async function previewBackground(inputPath) {
     const { width, height } = original.info;
     const maskRaw = await computeAlphaMask(inputPath, width, height);
 
+    // Same automatic fallback as removeBackground() — the preview should already show what
+    // export will actually produce, not a blank checkerboard the real export then "mysteriously"
+    // avoids.
+    if (isMaskEmpty(maskRaw)) {
+        const trimmed = await getTrimmedBufferIfMeaningful(inputPath);
+        if (trimmed) {
+            const previewBuffer = await sharp(trimmed.buffer)
+                .resize(PREVIEW_SIZE, PREVIEW_SIZE, { fit: 'inside', withoutEnlargement: true })
+                .png()
+                .toBuffer();
+            return { dataUrl: `data:image/png;base64,${previewBuffer.toString('base64')}`, fallback: 'trimmed' };
+        }
+    }
+
     const outBuffer = Buffer.from(original.data);
     for (let i = 0; i < width * height; i++) {
         outBuffer[i * 4 + 3] = maskRaw[i];
     }
     const pngBuffer = await sharp(outBuffer, { raw: { width, height, channels: 4 } }).png().toBuffer();
-    return `data:image/png;base64,${pngBuffer.toString('base64')}`;
+    return { dataUrl: `data:image/png;base64,${pngBuffer.toString('base64')}`, fallback: null };
 }
 
 module.exports = { removeBackground, previewBackground };

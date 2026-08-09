@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-05T00:00:00Z",
+  "title": "Design System: bWeb",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Deep Tomato", "canonical": "oklch(0.52 0.195 35)", "tonalRamp": ["oklch(0.18 0.06 35)", "oklch(0.28 0.10 35)", "oklch(0.38 0.14 35)", "oklch(0.44 0.165 35)", "oklch(0.52 0.195 35)", "oklch(0.66 0.200 35)", "oklch(0.80 0.14 35)", "oklch(0.92 0.06 35)"] },
+      "bg": { "role": "neutral", "displayName": "Warm Paper", "canonical": "oklch(0.96 0.012 60)", "tonalRamp": ["oklch(0.14 0.008 258)", "oklch(0.25 0.010 55)", "oklch(0.42 0.020 40)", "oklch(0.64 0.015 40)", "oklch(0.88 0.018 55)", "oklch(0.93 0.015 58)", "oklch(0.96 0.012 60)", "oklch(0.99 0.004 55)"] },
+      "text": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.18 0.025 40)", "tonalRamp": ["oklch(0.18 0.025 40)", "oklch(0.30 0.024 40)", "oklch(0.42 0.020 40)", "oklch(0.52 0.018 40)", "oklch(0.64 0.015 40)", "oklch(0.76 0.012 40)", "oklch(0.88 0.008 40)", "oklch(0.95 0.004 40)"] }
+    },
+    "typographyMeta": {
+      "page-title": { "displayName": "Page Title", "purpose": "One per view, top of each tab (.view-title)." },
+      "card-title": { "displayName": "Card Title", "purpose": "Video/card headline text." },
+      "body": { "displayName": "Body", "purpose": "Default running text throughout the app." },
+      "label": { "displayName": "Label", "purpose": "Secondary labels, meta text, uppercase section headers." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 3px oklch(0.18 0.025 40 / 0.07)", "purpose": "Default resting shadow on cards." },
+      { "name": "shadow", "value": "0 2px 10px oklch(0.18 0.025 40 / 0.10)", "purpose": "Hover/active states, popovers, modals." }
+    ],
+    "motion": [
+      { "name": "press", "value": "transform 0.15s, scale(0.97) on :active", "purpose": "Tactile button-press feedback." },
+      { "name": "nav-transition", "value": "background 0.12s, color 0.12s", "purpose": "Sidebar nav-item hover/active state changes." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action button (Fetch, Convert, Compress, etc.)",
+      "html": "<button class=\"ds-btn-primary\">Fetch</button>",
+      "css": ".ds-btn-primary { background: oklch(0.52 0.195 35); color: #fff; font-size: 14px; font-weight: 600; font-family: 'Inter', system-ui, sans-serif; padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; transition: background 0.15s, transform 0.15s; } .ds-btn-primary:hover { background: oklch(0.44 0.165 35); } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.52 0.195 35); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action button (Clear, Cancel, small controls)",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: oklch(0.42 0.020 40); font-size: 12px; font-weight: 500; font-family: 'Inter', system-ui, sans-serif; padding: 6px 12px; border: 1px solid oklch(0.85 0.018 55); border-radius: 6px; cursor: pointer; transition: color 0.15s, border-color 0.15s; } .ds-btn-ghost:hover { color: oklch(0.18 0.025 40); border-color: oklch(0.64 0.015 40); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(0.52 0.195 35); outline-offset: 2px; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Sidebar navigation row, default and active state",
+      "html": "<button class=\"ds-nav-item ds-nav-item-active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M12 3v12m0 0l-4-4m4 4l4-4M4 21h16\"/></svg><span>Fetch</span></button>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 11px; border: none; border-radius: 8px; background: transparent; color: oklch(0.42 0.020 40); font-size: 13px; font-weight: 500; font-family: 'Inter', system-ui, sans-serif; cursor: pointer; transition: background 0.12s, color 0.12s; } .ds-nav-item:hover { background: oklch(0.93 0.015 58); color: oklch(0.18 0.025 40); } .ds-nav-item-active { background: oklch(0.52 0.195 35 / 0.10); color: oklch(0.52 0.195 35); font-weight: 600; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Base surface for content blocks (video card, playlist card)",
+      "html": "<div class=\"ds-card\"><strong>Card title</strong><p>Supporting text goes here.</p></div>",
+      "css": ".ds-card { background: oklch(0.99 0.004 55); border: 1px solid oklch(0.88 0.015 58); border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px oklch(0.18 0.025 40 / 0.07); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "URL / text input field",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Paste a video or playlist URL…\" />",
+      "css": ".ds-input { background: oklch(0.99 0.004 55); border: 1px solid oklch(0.85 0.018 55); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-family: 'Inter', system-ui, sans-serif; color: oklch(0.18 0.025 40); } .ds-input:focus-visible { outline: 2px solid oklch(0.52 0.195 35); outline-offset: 1px; border-color: oklch(0.52 0.195 35); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Trusted Local Workshop",
+    "overview": "bWeb is a set of everyday creator tools (download, compress, watermark, redact, remove backgrounds, generate QR codes) that runs entirely on the user's own machine — no cloud, no uploads, no account. The design has to earn the trust that claim implies: calm, legible, never showy. It borrows its confidence from consumer products like Airbnb or Apple's own apps — clean surfaces, one warm accent doing real work, generous but not wasteful whitespace — rather than from developer tools or admin dashboards. The audience is explicitly non-technical: every screen should read as finished and self-explanatory, never like a tool that assumes prior configuration knowledge.",
+    "keyCharacteristics": [
+      "One warm accent color (deep tomato/crimson, oklch hue 35) carries all interactive meaning",
+      "Flat-by-default surfaces with subtle tonal elevation, not glassy or gradient-heavy",
+      "Small, purposeful motion — present but never showy or decorative",
+      "A single sans typeface (Inter) at a disciplined 8-step type scale"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Exactly one accent color is active at a time. A screen never mixes two accent hues to indicate two different kinds of action.", "section": "colors" },
+      { "name": "The One Scale Rule", "body": "Every font size traces back to one of the 8 steps in the --fs-* scale. A one-off pixel value is a bug, not a design choice.", "section": "typography" },
+      { "name": "The Tonal-First Rule", "body": "Reach for a surface-2/surface-3 background shift before reaching for a shadow to indicate hierarchy.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep exactly one accent color active on screen at any time",
+      "Do use small, purposeful motion tied to a real state change",
+      "Do respect prefers-reduced-motion for every animation added",
+      "Do trace every font-size and spacing value back to the existing scales",
+      "Do make every control understandable without documentation"
+    ],
+    "donts": [
+      "Don't introduce a second saturated accent color anywhere in the UI",
+      "Don't reach for glassmorphism, gradient text, or gradient-on-dark hero treatments",
+      "Don't use transition: all — list the exact properties being animated",
+      "Don't ship an interactive element with no visible :focus-visible state",
+      "Don't let a tab's design drift from the others",
+      "Don't make the interface feel like a developer tool with no polish"
+    ]
+  }
+}

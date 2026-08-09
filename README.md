@@ -107,6 +107,7 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 ### Privacy (Watermark & Redact)
 - **Watermark** — Tile a text or logo watermark diagonally across images or PDFs, batch mode. PDF watermarking rasterizes each page so the mark can't be stripped in a couple of clicks in Acrobat/Illustrator
 - **Redact** — Draw zones over an image or PDF page to permanently black out, blur, or pixelate sensitive content. Redaction is real pixel destruction (rasterized), not a shape drawn on top that can be removed to reveal the original underneath
+- **Redact PDF editor** — Real zoom (25%–400%, mouse wheel/trackpad or +/− buttons) and pan (drag or Space+drag) over the actual PDF, rendered client-side so landscape/portrait pages and fine detail (maps, technical drawings) stay sharp at any zoom level — not a fixed-resolution snapshot
 
 ### QR Code
 - Generate a QR code from any link or text, live preview as you type
@@ -115,8 +116,9 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 - Export as PNG (512/1024/2048px) or SVG
 
 ### Background Remover
-- Drop a photo, get a transparent PNG back — runs a local AI model, nothing uploaded
+- Drop, browse, or **paste an image from your clipboard** — get a transparent PNG back, runs a local AI model, nothing uploaded
 - Before/after preview on a checkerboard so you can see the real transparency
+- If a photo has no distinct subject to cut out (a full scene/landscape rather than a product-on-background shot), bWeb automatically falls back to trimming solid-color borders instead of handing back a blank image
 
 ### Account sign-in
 - **YouTube** — Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
@@ -238,7 +240,7 @@ bweb/
 │       ├── i18n.js         # EN/FR translations and language toggle
 │       ├── index.css       # All styles
 │       ├── fonts/          # Bundled Inter woff2 weights
-│       └── vendor/         # Vendored client-side libs (qr-code-styling)
+│       └── vendor/         # Vendored client-side libs (qr-code-styling, PDF.js)
 ├── scripts/
 │   ├── postinstall.js      # Downloads yt-dlp, Deno, and the Background Remover
 │   │                       # model on npm install
@@ -266,6 +268,8 @@ bweb/
 - [Ghostscript](https://www.ghostscript.com/) (via [@jspawn/ghostscript-wasm](https://github.com/jsscheller/ghostscript-wasm)) — PDF compression/rasterization
 - [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) — QR code rendering
 - [withoutBG](https://github.com/withoutbg/withoutbg-python) — Background Remover model (built with [DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license/))
+- [Iconoir](https://iconoir.com) — icon set (MIT)
+- [PDF.js](https://mozilla.github.io/pdf.js/) — client-side PDF rendering for the Redact editor (Apache-2.0)
 
 ---
 

@@ -4,6 +4,7 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 const { log, logError } = require('./utils');
 
 // Output format presets: vcodec null = audio-only, 'copy' = remux (lossless, no re-encode)
@@ -33,40 +34,41 @@ const FORMAT_PRESETS = {
     'dav':       { vcodec: 'copy',       acodec: 'copy',       ext: '.dav'  },
 };
 
-function getOutputPath(inputPath, format, startTime, endTime) {
+function getOutputPath(inputPath, format, startTime, endTime, destDir) {
     const preset = FORMAT_PRESETS[format];
     if (!preset) return null;
-    const dir = path.dirname(inputPath);
+    const dir = destDir || path.dirname(inputPath);
     const base = path.basename(inputPath, path.extname(inputPath));
     const suffix = format.includes('-') ? `-${format.split('-')[1]}` : '';
     const trimSuffix = (startTime || endTime) ? '_trim' : '';
     return path.join(dir, `${base}${suffix}${trimSuffix}_converted${preset.ext}`);
 }
 
-function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime, handle) {
+// Runs one ffmpeg pass with the given vcodec/acodec and resolves/rejects exactly like the
+// previous inline implementation. Split out so convertFile() can transparently retry once
+// with a different acodec when a "copy" remux turns out to be incompatible with the target
+// container (see the retry logic below convertFile).
+function runFfmpegPass(ffmpegBin, inputPath, outputPath, vcodec, acodec, startTime, endTime, onProgress, onLog, handle) {
     return new Promise((resolve, reject) => {
-        const preset = FORMAT_PRESETS[format];
-        if (!preset) return reject(new Error(`Unknown format: ${format}`));
-
         const args = ['-y'];
         // Fast seek: put -ss BEFORE -i for keyframe-accurate fast seek
         if (startTime) args.push('-ss', startTime);
         if (endTime) args.push('-to', endTime);
         args.push('-i', inputPath, '-progress', 'pipe:1', '-nostats');
 
-        if (preset.vcodec === null) {
-            args.push('-vn', '-acodec', preset.acodec);
+        if (vcodec === null) {
+            args.push('-vn', '-acodec', acodec);
         } else {
-            args.push('-vcodec', preset.vcodec, '-acodec', preset.acodec);
+            args.push('-vcodec', vcodec, '-acodec', acodec);
         }
 
-        if (preset.acodec === 'libmp3lame') {
+        if (acodec === 'libmp3lame') {
             args.push('-q:a', '0'); // best VBR quality for MP3
         }
 
         args.push(outputPath);
 
-        log('Converting:', inputPath, '->', outputPath, '(format:', format + ')');
+        log('Converting:', inputPath, '->', outputPath, '(vcodec:', vcodec, 'acodec:', acodec + ')');
         log('FFmpeg args:', args.join(' '));
 
         let duration = 0;
@@ -131,7 +133,9 @@ function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog
             if (code !== 0) {
                 const lastLines = stderrBuf.trim().split('\n').slice(-5).join(' ');
                 logError('Convert failed (code', code + '):', lastLines);
-                return reject(new Error(lastLines || `ffmpeg exited with code ${code}`));
+                const err = new Error(lastLines || `ffmpeg exited with code ${code}`);
+                err.stderrTail = lastLines;
+                return reject(err);
             }
             log('Convert complete:', outputPath);
             if (onProgress) onProgress({ percent: '100%', elapsed: duration.toFixed(1), total: duration.toFixed(1) });
@@ -144,6 +148,33 @@ function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog
             reject(new Error(`Cannot run ffmpeg: ${err.message}`));
         });
     });
+}
+
+// Some source files (very commonly .mov screen recordings) carry an audio codec — e.g. PCM
+// variants — that the target container's muxer refuses to hold via a stream copy, even
+// though the video-only side of the remux is perfectly fine. ffmpeg reports this as
+// "Error initializing output stream" for the audio stream specifically. Rather than
+// surfacing a cryptic ffmpeg error to a non-technical user for something that has an easy,
+// lossless-for-video fix, retry once with the audio re-encoded to AAC (universally
+// supported) while keeping the video stream copy untouched.
+function isOutputStreamInitError(err) {
+    return /Error initializing output stream/i.test(err.stderrTail || err.message || '');
+}
+
+async function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime, handle) {
+    const preset = FORMAT_PRESETS[format];
+    if (!preset) throw new Error(`Unknown format: ${format}`);
+
+    try {
+        return await runFfmpegPass(ffmpegBin, inputPath, outputPath, preset.vcodec, preset.acodec, startTime, endTime, onProgress, onLog, handle);
+    } catch (err) {
+        const canRetryWithAac = preset.acodec === 'copy' && preset.vcodec !== null && isOutputStreamInitError(err);
+        if (!canRetryWithAac) throw err;
+
+        log('Copy remux failed on the audio stream — retrying with audio re-encoded to AAC (video stays a lossless copy):', inputPath);
+        if (onLog) onLog('Audio codec incompatible with this container — re-encoding audio to AAC, video stays lossless…');
+        return runFfmpegPass(ffmpegBin, inputPath, outputPath, preset.vcodec, 'aac', startTime, endTime, onProgress, onLog, handle);
+    }
 }
 
 module.exports = { convertFile, FORMAT_PRESETS, getOutputPath };

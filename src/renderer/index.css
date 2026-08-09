@@ -195,6 +195,30 @@
     color-scheme: dark;
 }
 
+/* Every interactive element gets a visible keyboard-focus ring — :focus-visible so a mouse
+   click doesn't show it, only keyboard/programmatic focus. Individual components may still
+   override border-color on plain :focus (e.g. text inputs) without losing this ring. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 html,
 body {
     height: 100%;
@@ -364,6 +388,95 @@ html.platform-mac .update-banner {
     color: var(--text);
 }
 
+/* Collapsible group for a set of related tabs (e.g. Download's Fetch/Queue/History) —
+   collapsed by default footprint is a single row, same height as any other nav-item;
+   expanding it reveals the sub-tabs instead of three permanently flat top-level rows. */
+.nav-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 11px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+    user-select: none;
+    text-align: left;
+    -webkit-app-region: no-drag;
+}
+
+.nav-group-toggle:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+/* Highlights even while collapsed, so the group still shows "you are somewhere in here"
+   without needing to expand it. */
+.nav-group:has(.nav-item-sub.active) .nav-group-toggle {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.nav-group-chevron-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    transition: background-color 0.15s;
+}
+
+.nav-group-chevron-btn:hover {
+    background: var(--border);
+}
+
+.nav-group-chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+
+.nav-group.expanded .nav-group-chevron {
+    transform: rotate(180deg);
+}
+
+/* Grid-rows 0fr/1fr trick: animates height without knowing the content's pixel height,
+   and collapses to a true zero footprint (not just visually hidden). */
+.nav-group-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease;
+}
+
+.nav-group.expanded .nav-group-body {
+    grid-template-rows: 1fr;
+}
+
+.nav-group-body-inner {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+}
+
+.nav-item-sub {
+    padding-left: 16px;
+}
+
 .nav-item.active {
     background: var(--accent-soft);
     color: var(--accent);
@@ -441,6 +554,10 @@ html.platform-mac .update-banner {
 
 /* View header — page title area */
 .view-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
     margin-bottom: var(--space-5);
     -webkit-app-region: drag;
     user-select: none;
@@ -452,6 +569,117 @@ html.platform-mac .update-banner {
     -webkit-app-region: no-drag;
 }
 
+.view-header-text {
+    min-width: 0;
+}
+
+.view-header-actions {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* Destination popover — a folder-icon trigger that reveals "Saving to" + "Open folder after
+   X" in a small panel, instead of a permanent two-line block eating vertical space under
+   every tool's header. Shared by Convert/Compress/Watermark/Redact/QR Code/Background
+   Remover so all six behave identically. */
+.dest-popover-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    max-width: 220px;
+    padding: 0 12px 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.dest-popover-trigger:hover,
+.dest-popover-trigger.open {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dest-popover-trigger .icon-svg {
+    flex-shrink: 0;
+}
+
+.dest-popover-trigger-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+    min-width: 0;
+}
+
+.dest-popover-trigger-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+}
+
+.dest-popover-trigger-folder {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dest-popover-trigger:hover .dest-popover-trigger-folder,
+.dest-popover-trigger.open .dest-popover-trigger-folder {
+    color: var(--accent);
+}
+
+.dest-popover {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    width: 300px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: var(--space-4);
+    animation: fadeUp 0.15s ease;
+}
+
+.dest-popover.open {
+    display: block;
+}
+
+.dest-popover-label {
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+    margin-bottom: var(--space-1);
+}
+
+.dest-popover-path {
+    font-size: var(--fs-sm);
+    color: var(--text);
+    word-break: break-all;
+    margin-bottom: var(--space-3);
+}
+
+.dest-popover-autoopen {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+}
+
 .view-title {
     font-size: var(--fs-2xl);
     font-weight: 700;
@@ -459,6 +687,7 @@ html.platform-mac .update-banner {
     color: var(--text);
     line-height: 1.15;
     margin: 0;
+    text-wrap: balance;
 }
 
 .view-subtitle {
@@ -478,7 +707,7 @@ html.platform-mac .update-banner {
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -529,7 +758,7 @@ html.platform-mac .update-banner {
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .btn-download:hover:not(:disabled) {
@@ -563,7 +792,7 @@ html.platform-mac .update-banner {
     color: var(--text-2);
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .btn-sm:hover {
@@ -585,7 +814,7 @@ html.platform-mac .update-banner {
     color: var(--text-3);
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .btn-ghost:hover {
@@ -710,7 +939,10 @@ html.platform-mac .update-banner {
 
 /* Video Card */
 
-.video-card {
+/* Shared base for cards that reveal themselves once real content exists (video result,
+   playlist result) — same surface/border/radius/padding/entrance animation either way. */
+.video-card,
+.playlist-card {
     display: none;
     background: var(--card);
     border: 1px solid var(--card-border);
@@ -719,7 +951,8 @@ html.platform-mac .update-banner {
     animation: fadeUp 0.25s ease;
 }
 
-.video-card.visible {
+.video-card.visible,
+.playlist-card.visible {
     display: block;
 }
 
@@ -783,6 +1016,7 @@ html.platform-mac .update-banner {
     color: white;
     font-size: 11px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     padding: 2px 6px;
     border-radius: 4px;
 }
@@ -940,9 +1174,9 @@ html.platform-mac .update-banner {
     color: var(--text-3);
 }
 
-/* Same title/sub treatment as .queue-empty / .history-empty — these three placeholders
-   are the same UI role (nothing here yet) and should read as one consistent pattern,
-   not three independently-tuned sizes. */
+/* Shared by every "nothing here yet" placeholder in the app — Download, Queue, and
+   History all use this base class (plus a small layout override for flex contexts)
+   instead of each redeclaring their own icon/title/sub sizing. */
 .empty-state .title {
     font-size: var(--fs-md);
     font-weight: 600;
@@ -1055,7 +1289,7 @@ html.platform-mac .update-banner {
     border: 1px solid var(--card-border);
     border-radius: var(--radius);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .history-item:hover {
@@ -1138,7 +1372,7 @@ html.platform-mac .update-banner {
     border-radius: 6px;
     flex-shrink: 0;
     line-height: 1;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     opacity: 0;
 }
 
@@ -1151,36 +1385,11 @@ html.platform-mac .update-banner {
     background: var(--danger-soft);
 }
 
+/* Layout-only override: .empty-state supplies icon/title/sub styling + centering, this
+   just makes History's empty state fill its flex parent instead of the page-level 52vh. */
 .history-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 20px;
     flex: 1;
     min-height: 200px;
-    color: var(--text-3);
-}
-
-.history-empty .icon {
-    font-size: 36px;
-    margin-bottom: var(--space-2);
-    opacity: 0.22;
-    display: flex;
-    justify-content: center;
-    color: var(--text-3);
-}
-
-.history-empty .title {
-    font-size: var(--fs-md);
-    font-weight: 600;
-    color: var(--text-2);
-    margin-bottom: var(--space-1);
-}
-
-.history-empty .sub {
-    font-size: var(--fs-sm);
 }
 
 /* Settings Tab */
@@ -1525,7 +1734,7 @@ html.platform-mac .update-banner {
     cursor: pointer;
     padding: 2px 6px;
     border-radius: 4px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .log-header-actions button:hover {
@@ -1594,20 +1803,7 @@ html.platform-mac .update-banner {
     color: #4ade80;
 }
 
-/* Playlist Card */
-
-.playlist-card {
-    display: none;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    animation: fadeUp 0.25s ease;
-}
-
-.playlist-card.visible {
-    display: block;
-}
+/* Playlist Card — base surface/animation shared with .video-card, see top of file. */
 
 .playlist-header {
     display: flex;
@@ -1699,7 +1895,7 @@ html.platform-mac .update-banner {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     flex-shrink: 0;
 }
 
@@ -1866,36 +2062,11 @@ html.platform-mac .update-banner {
     border-radius: 3px;
 }
 
+/* Layout-only override: .empty-state supplies icon/title/sub styling + centering, this
+   just makes Queue's empty state fill its flex parent instead of the page-level 52vh. */
 .queue-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 20px;
     flex: 1;
     min-height: 200px;
-    color: var(--text-3);
-}
-
-.queue-empty .icon {
-    font-size: 36px;
-    margin-bottom: var(--space-2);
-    opacity: 0.22;
-    display: flex;
-    justify-content: center;
-    color: var(--text-3);
-}
-
-.queue-empty .title {
-    font-size: var(--fs-md);
-    font-weight: 600;
-    color: var(--text-2);
-    margin-bottom: var(--space-1);
-}
-
-.queue-empty .sub {
-    font-size: var(--fs-sm);
 }
 
 .q-item {
@@ -1907,7 +2078,7 @@ html.platform-mac .update-banner {
     background: var(--card);
     border: 1px solid var(--card-border);
     border-radius: var(--radius);
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .q-item-info {
@@ -1969,7 +2140,7 @@ html.platform-mac .update-banner {
     padding: 4px 10px;
     border-radius: 6px;
     line-height: 1;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     white-space: nowrap;
 }
 
@@ -2149,7 +2320,7 @@ html.platform-mac .update-banner {
     text-decoration: none;
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     cursor: pointer;
 }
 
@@ -2298,7 +2469,7 @@ html.platform-mac .update-banner {
     border: 1px solid var(--card-border);
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     position: relative;
 }
 
@@ -2384,7 +2555,7 @@ html.platform-mac .update-banner {
     border-radius: 4px;
     line-height: 1;
     opacity: 0;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     flex-shrink: 0;
 }
 
@@ -2515,7 +2686,7 @@ html.platform-mac .update-banner {
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .batch-q-btn:hover {
@@ -2608,15 +2779,10 @@ html.platform-mac .update-banner {
     background: var(--accent-soft);
 }
 
-.compress-dest-block {
-    margin-bottom: var(--space-4);
-}
-
-.compress-dest-block .dl-destination {
-    margin-bottom: var(--space-2);
-}
-
-.compress-autoopen-label {
+/* Shared by every processing tool's "Saving to: … [Change]" + "Open folder after X" block
+   (Compress/Convert/Watermark/Redact/QR Code/Background Remover) — one definition instead
+   of a per-tab copy each time a new tool needed the same destination UI. */
+.autoopen-label {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -2626,7 +2792,7 @@ html.platform-mac .update-banner {
     user-select: none;
 }
 
-.compress-autoopen-label input[type="checkbox"] {
+.autoopen-label input[type="checkbox"] {
     cursor: pointer;
 }
 
@@ -2803,30 +2969,49 @@ html.platform-mac .update-banner {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 40px 24px;
-    border: 2px dashed var(--input-border);
+    gap: var(--space-3);
+    padding: 48px 24px;
+    background: var(--surface-2);
+    border: 1.5px dashed var(--border);
     border-radius: var(--radius-lg);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .convert-drop-zone:hover,
 .convert-drop-zone.drag-over {
     border-color: var(--accent);
+    border-style: solid;
     background: var(--accent-soft);
+    box-shadow: var(--shadow-sm);
 }
 
+.convert-drop-zone:active {
+    transform: scale(0.99);
+}
+
+/* Icon lives in a colored badge rather than floating bare — same "one warm accent
+   doing real work" treatment as buttons, so the empty state doesn't read as a plain
+   unstyled placeholder. */
 .convert-drop-icon {
-    font-size: 32px;
-    color: var(--text-3);
-    opacity: 0.6;
+    width: 56px;
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    transition: transform 0.15s;
 }
-.convert-drop-title { font-weight: 600; color: var(--text); }
-.convert-drop-sub { font-size: 12px; color: var(--text-2); }
+
+.convert-drop-zone:hover .convert-drop-icon,
+.convert-drop-zone.drag-over .convert-drop-icon {
+    transform: scale(1.08);
+}
+
+.convert-drop-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.convert-drop-sub { font-size: var(--fs-xs); color: var(--text-2); }
 
 .convert-clear-btn { flex-shrink: 0; }
 
@@ -2868,19 +3053,104 @@ html.platform-mac .update-banner {
 .convert-batch-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 6px;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
     background: var(--surface-2);
     font-size: 13px;
+    overflow: hidden;
+    max-height: 100px;
+    transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease, padding 0.2s ease;
+}
+
+/* Entrance: a fresh file slides/fades in instead of just popping into the list — prototype
+   proving real motion doesn't require React/framer-motion, plain CSS + a "seen ids" set in
+   JS (renderConvertList) to only animate genuinely new rows, not every re-render. */
+.convert-batch-item-entering {
+    animation: fadeUp 0.25s ease;
+}
+
+/* Exit: applied by removeConvertItem() before the row is actually spliced out of state —
+   shrinks to nothing rather than vanishing instantly. */
+.convert-batch-item-leaving {
+    opacity: 0;
+    transform: scale(0.97);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* File-type badge — a small colored square with the extension, so a list of files reads
+   at a glance instead of every row looking identical. Color encodes category (video vs
+   audio), not decoration — kept to two hues rather than one color per extension, since
+   Convert only ever deals with those two families. */
+.file-type-badge {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.02em;
+    color: white;
+    background: var(--text-3);
+}
+
+.file-type-badge.file-type-video { background: oklch(0.58 0.16 258); }
+.file-type-badge.file-type-audio { background: oklch(0.58 0.15 320); }
+.file-type-badge.file-type-image { background: oklch(0.58 0.15 145); }
+.file-type-badge.file-type-pdf { background: oklch(0.55 0.18 15); }
+
+.convert-batch-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .convert-batch-item-name {
-    flex: 1;
     color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.convert-batch-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.convert-batch-item-progress-track {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--input-border);
+    overflow: hidden;
+}
+
+.convert-batch-item-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Indeterminate variant — Compress/Watermark report no numeric percent (single async call
+   per file, not incremental progress), so a sliding bar communicates "working" instead of
+   a fake/frozen percentage. */
+.convert-batch-item-progress-fill.indeterminate {
+    width: 30% !important;
+    animation: convertProgressIndeterminate 1.1s ease-in-out infinite;
+}
+
+@keyframes convertProgressIndeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(333%); }
 }
 
 /* Status badge — small pill, one visual language for every batch list (Convert, Compress,
@@ -2911,19 +3181,24 @@ html.platform-mac .update-banner {
 
 .convert-batch-item-remove {
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
+    border-radius: 999px;
     color: var(--text-3);
     cursor: pointer;
     font-size: 15px;
     line-height: 1;
     padding: 0;
+    transition: background-color 0.15s, color 0.15s;
 }
 
-.convert-batch-item-remove:hover { color: var(--danger); }
-.convert-batch-item-remove-spacer { width: 18px; flex-shrink: 0; }
+.convert-batch-item-remove:hover { color: var(--danger); background: var(--danger-soft); }
+.convert-batch-item-remove-spacer { width: 26px; flex-shrink: 0; }
 
 .convert-options { display: flex; flex-direction: column; gap: 12px; }
 
@@ -3000,24 +3275,51 @@ html.platform-mac .update-banner {
 
 .convert-trim-toggle-wrap { display: flex; }
 
-.convert-trim-toggle-btn {
+/* Disclosure buttons ("More formats", "Trim (optional)") — a solid secondary button with a
+   chevron that rotates open, not the dashed "add new item" style these used to borrow,
+   which signaled the wrong affordance (create) for what's actually a reveal/expand action. */
+.convert-toggle-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.convert-trim-toggle-wrap { display: flex; }
+
+.convert-toggle-btn {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 7px 12px;
-    background: none;
-    border: 1px dashed var(--border);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text-2);
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.convert-trim-toggle-btn:hover,
-.convert-trim-toggle-btn.open {
+.convert-toggle-btn:hover {
+    background: var(--accent-soft);
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.convert-toggle-btn.open {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.convert-toggle-chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+
+.convert-toggle-btn.open .convert-toggle-chevron {
+    transform: rotate(180deg);
 }
 
 .convert-player-wrap {
@@ -3025,14 +3327,6 @@ html.platform-mac .update-banner {
     flex-direction: column;
     gap: 12px;
     margin-bottom: 4px;
-}
-
-.convert-video {
-    width: 100%;
-    max-height: 240px;
-    border-radius: var(--radius);
-    background: #000;
-    display: block;
 }
 
 /* ── Shared trim styles ─────────────────────────────────────────── */
@@ -3076,18 +3370,13 @@ html.platform-mac .update-banner {
     gap: 8px;
 }
 
-.convert-trim-label,
 .dl-trim-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--text);
     flex: 1;
-}
-
-.convert-trim-optional {
-    font-weight: 400;
-    color: var(--text-3);
-    font-size: 12px;
+    display: flex;
+    align-items: center;
 }
 
 .dl-trim-duration,
@@ -3105,7 +3394,7 @@ html.platform-mac .update-banner {
     cursor: pointer;
     padding: 3px 8px;
     border-radius: 4px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     white-space: nowrap;
 }
 
@@ -3207,12 +3496,6 @@ html.platform-mac .update-banner {
     transform: scale(1.2);
 }
 
-.trim-time-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .trim-segment {
     display: flex;
     align-items: center;
@@ -3237,7 +3520,7 @@ html.platform-mac .update-banner {
     font-size: 14px;
     line-height: 1;
     flex-shrink: 0;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .trim-seg-remove:hover {
@@ -3256,7 +3539,7 @@ html.platform-mac .update-banner {
     color: var(--text-3);
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .trim-add-seg-btn:hover {
@@ -3298,7 +3581,7 @@ html.platform-mac .update-banner {
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .trim-set-btn:hover {
@@ -3706,15 +3989,70 @@ html.platform-mac .update-banner {
     text-align: center;
 }
 
-.redact-stage {
-    position: relative;
-    width: 100%;
+.redact-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: var(--space-2);
+}
+
+.redact-zoom-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.redact-zoom-btn:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.redact-zoom-label {
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    min-width: 42px;
+    text-align: center;
+}
+
+/* Outer scroll/pan viewport — always present (even for plain images, where content always fits
+   and no scrollbar ever shows) so PDF zoom can grow .redact-stage past the visible area without
+   a structurally different markup per file type. Border/radius/checkerboard live here now
+   (moved off .redact-stage itself) since they belong to the viewport's edge, not the content,
+   once content can exceed and scroll within it. */
+.redact-stage-scroll {
+    max-height: 65vh;
+    overflow: auto;
     border-radius: var(--radius-lg);
-    overflow: hidden;
     border: 1px solid var(--card-border);
     background:
         repeating-conic-gradient(var(--surface-2) 0% 25%, var(--surface) 0% 50%) 0 0 / 16px 16px;
+}
+
+.redact-stage {
+    position: relative;
+    width: 100%;
     user-select: none;
+}
+
+/* PDF/zoom mode — shrinks to the canvas's actual rendered size (which JS sets explicitly per
+   zoom level) instead of being forced to the viewport's width, so zooming in can genuinely
+   exceed the visible area and become scrollable/pannable. */
+.redact-stage.redact-stage-zoom {
+    width: max-content;
+    min-width: 100%;
 }
 
 .redact-stage-img {
@@ -3724,10 +4062,25 @@ html.platform-mac .update-banner {
     pointer-events: none;
 }
 
+.redact-stage-canvas {
+    display: block;
+    pointer-events: none;
+}
+
 .redact-zones-layer {
     position: absolute;
     inset: 0;
     cursor: crosshair;
+}
+
+/* Held space (see initPrivacyRedactTab) — same "hand tool" convention as Photoshop/Figma, swaps
+   drag-to-draw for drag-to-pan without a separate mode-toggle button to hunt for. */
+.redact-zones-layer-pan {
+    cursor: grab;
+}
+
+.redact-zones-layer-pan:active {
+    cursor: grabbing;
 }
 
 /* Base zone box — method-specific appearance (solid fill, blur, or a pixelate canvas child) is
@@ -3927,7 +4280,7 @@ html.platform-mac .update-banner {
     color: var(--text-2);
     font-size: 13px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .modal-btn:hover {
@@ -3961,7 +4314,7 @@ html.platform-mac .update-banner {
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .theme-toggle-btn:hover {
@@ -4096,9 +4449,11 @@ html.platform-mac .update-banner {
     border: 1px solid var(--card-border);
 }
 
-/* Logo picker — deliberately the first, largest control in the sidebar: user testing found the
-   logo option easy to miss when it was a small inline row buried in the middle of the panel. */
-.qr-logo-picker {
+/* Logo picker — shared by QR Code and Watermark's Logo mode. On QR it's deliberately the first,
+   largest control in the sidebar (user testing found the logo option easy to miss when it was a
+   small inline row); Watermark reuses the exact same box instead of a plain text link, so
+   "choose a logo" always looks and behaves the same way across the app. */
+.logo-picker {
     display: flex;
     align-items: center;
     gap: var(--space-3);
@@ -4114,13 +4469,13 @@ html.platform-mac .update-banner {
     transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.qr-logo-picker:hover {
+.logo-picker:hover {
     border-color: var(--accent);
     background: var(--surface-2);
 }
 
-.qr-logo-picker-icon,
-.qr-logo-picker-preview {
+.logo-picker-icon,
+.logo-picker-preview {
     flex: 0 0 auto;
     width: 40px;
     height: 40px;
@@ -4133,12 +4488,12 @@ html.platform-mac .update-banner {
     color: var(--text-3);
 }
 
-.qr-logo-picker-preview {
+.logo-picker-preview {
     background-size: cover;
     background-position: center;
 }
 
-.qr-logo-picker-text {
+.logo-picker-text {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -4146,17 +4501,17 @@ html.platform-mac .update-banner {
     min-width: 0;
 }
 
-.qr-logo-picker-title {
+.logo-picker-title {
     font-size: var(--fs-sm);
     font-weight: 600;
 }
 
-.qr-logo-picker-sub {
+.logo-picker-sub {
     font-size: var(--fs-xs);
     color: var(--text-3);
 }
 
-.qr-logo-picker-clear {
+.logo-picker-clear {
     flex: 0 0 auto;
     width: 24px;
     height: 24px;
@@ -4170,7 +4525,7 @@ html.platform-mac .update-banner {
     cursor: pointer;
 }
 
-.qr-logo-picker-clear:hover {
+.logo-picker-clear:hover {
     background: var(--surface-2);
     color: var(--text);
 }
@@ -4330,6 +4685,12 @@ html.platform-mac .update-banner {
     flex-direction: column;
     gap: var(--space-2);
     min-width: 0;
+}
+
+.bgremove-fallback-note {
+    margin: calc(var(--space-2) * -1) 0 0;
+    font-size: var(--fs-xs);
+    color: var(--warning);
 }
 
 .bgremove-col-label {

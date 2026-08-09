@@ -107,6 +107,11 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('convert:progress', handler);
         return () => ipcRenderer.removeListener('convert:progress', handler);
     },
+    convertGetDestPath: () => ipcRenderer.invoke('convert:getDestPath'),
+    convertChooseDestPath: () => ipcRenderer.invoke('convert:chooseDestPath'),
+    convertOpenDestFolder: () => ipcRenderer.invoke('convert:openDestFolder'),
+    convertGetAutoOpen: () => ipcRenderer.invoke('convert:getAutoOpen'),
+    convertSetAutoOpen: (value) => ipcRenderer.invoke('convert:setAutoOpen', value),
 
     resetApp: () => ipcRenderer.invoke('app:reset'),
 
@@ -129,24 +134,36 @@ contextBridge.exposeInMainWorld('api', {
     watermarkRun: (filePath, options) => ipcRenderer.invoke('watermark:run', { filePath, options }),
     watermarkGetDestPath: () => ipcRenderer.invoke('watermark:getDestPath'),
     watermarkChooseDestPath: () => ipcRenderer.invoke('watermark:chooseDestPath'),
+    watermarkOpenDestFolder: () => ipcRenderer.invoke('watermark:openDestFolder'),
+    watermarkGetAutoOpen: () => ipcRenderer.invoke('watermark:getAutoOpen'),
+    watermarkSetAutoOpen: (value) => ipcRenderer.invoke('watermark:setAutoOpen', value),
 
     // Redact
     redactChooseFile: () => ipcRenderer.invoke('redact:chooseFile'),
     redactDetectType: (filePath) => ipcRenderer.invoke('redact:detectType', filePath),
-    redactPdfPreview: (filePath) => ipcRenderer.invoke('redact:pdfPreview', filePath),
     redactRun: (filePath, zones) => ipcRenderer.invoke('redact:run', { filePath, zones }),
     redactGetDestPath: () => ipcRenderer.invoke('redact:getDestPath'),
     redactChooseDestPath: () => ipcRenderer.invoke('redact:chooseDestPath'),
+    redactOpenDestFolder: () => ipcRenderer.invoke('redact:openDestFolder'),
+    redactGetAutoOpen: () => ipcRenderer.invoke('redact:getAutoOpen'),
+    redactSetAutoOpen: (value) => ipcRenderer.invoke('redact:setAutoOpen', value),
 
     // QR Generator
     qrExport: (bytes, format) => ipcRenderer.invoke('qr:export', { bytes, format }),
     qrGetDestPath: () => ipcRenderer.invoke('qr:getDestPath'),
     qrChooseDestPath: () => ipcRenderer.invoke('qr:chooseDestPath'),
+    qrOpenDestFolder: () => ipcRenderer.invoke('qr:openDestFolder'),
+    qrGetAutoOpen: () => ipcRenderer.invoke('qr:getAutoOpen'),
+    qrSetAutoOpen: (value) => ipcRenderer.invoke('qr:setAutoOpen', value),
 
     // Background Remover
+    saveClipboardImage: (bytes, ext) => ipcRenderer.invoke('clipboard:saveImage', bytes, ext),
     bgRemoveChooseFile: () => ipcRenderer.invoke('bgremove:chooseFile'),
     bgRemovePreview: (filePath) => ipcRenderer.invoke('bgremove:preview', filePath),
     bgRemoveRun: (filePath) => ipcRenderer.invoke('bgremove:run', filePath),
     bgRemoveGetDestPath: () => ipcRenderer.invoke('bgremove:getDestPath'),
     bgRemoveChooseDestPath: () => ipcRenderer.invoke('bgremove:chooseDestPath'),
+    bgRemoveOpenDestFolder: () => ipcRenderer.invoke('bgremove:openDestFolder'),
+    bgRemoveGetAutoOpen: () => ipcRenderer.invoke('bgremove:getAutoOpen'),
+    bgRemoveSetAutoOpen: (value) => ipcRenderer.invoke('bgremove:setAutoOpen', value),
 });
