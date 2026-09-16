@@ -242,11 +242,11 @@ bweb/
 │       ├── fonts/          # Bundled Inter woff2 weights
 │       └── vendor/         # Vendored client-side libs (qr-code-styling, PDF.js)
 ├── scripts/
-│   ├── postinstall.js      # Downloads yt-dlp, Deno, and the Background Remover
+│   ├── postinstall.js      # Downloads yt-dlp, ffmpeg, Deno, and the Background Remover
 │   │                       # model on npm install
 │   ├── release-all.js      # Automates the mac/Linux/Windows release sequence
-│   └── fix-ffmpeg-win.js   # Renames ffmpeg binary for Windows builds
-├── bin/                    # yt-dlp + Deno binaries (auto-populated by postinstall)
+│   └── fix-ffmpeg-win.js   # Post-pack binary permission fixes + ad-hoc code signing
+├── bin/                    # yt-dlp + ffmpeg + Deno binaries (auto-populated by postinstall)
 ├── resources/models/       # Background Remover's ONNX model (gitignored — fetched by
 │                           # postinstall, too large for a normal git push)
 ├── licenses/               # Third-party license texts required for bundled models
@@ -263,7 +263,7 @@ bweb/
 - [ArcDLP](https://github.com/archisvaze/arcdlp) by Archis — the foundation this project is built on (MIT)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the engine that does all the downloading
 - [Electron](https://www.electronjs.org/) — desktop app framework
-- [ffmpeg](https://ffmpeg.org/) — audio/video processing (bundled via ffmpeg-static)
+- [ffmpeg](https://ffmpeg.org/) — audio/video processing (bundled per platform: [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) LGPL builds on Windows/Linux, [martin-riedl.de](https://ffmpeg.martin-riedl.de/) on macOS)
 - [sharp](https://github.com/lovell/sharp) — image compression and processing
 - [Ghostscript](https://www.ghostscript.com/) (via [@jspawn/ghostscript-wasm](https://github.com/jsscheller/ghostscript-wasm)) — PDF compression/rasterization
 - [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) — QR code rendering
