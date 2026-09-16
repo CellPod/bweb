@@ -391,22 +391,35 @@ async function downloadWinSparkle() {
 // sits there — and since electron-builder's per-platform extraResources filter only
 // looks at what's physically in bin/, a stale foreign binary would get bundled into
 // every subsequent build regardless of target OS.
+//
+// yt-dlp/deno/ffmpeg's *output filenames* don't encode platform or arch (only win32
+// differs, via the .exe suffix) — bin/ffmpeg is the output path for both a macOS and a
+// Linux build. A same-name check like "does bin/ffmpeg already exist" can't tell those
+// apart, so switching between two non-Windows targets (or between two archs of the same
+// OS) used to silently keep the *previous* target's binary and skip re-downloading,
+// because every download function below treats an existing file as "already up to
+// date". A marker file recording which platform+arch bin/ was last fetched for sidesteps
+// that entirely: any mismatch wipes every known binary unconditionally, regardless of
+// what their filenames happen to collide with.
+const PLATFORM_MARKER = path.join(BIN_DIR, '.fetched-for');
+const ALL_KNOWN_BINARIES = ['yt-dlp', 'yt-dlp.exe', 'deno', 'deno.exe', 'ffmpeg', 'ffmpeg.exe', 'WinSparkle.dll'];
+
 function removeForeignPlatformBinaries() {
     const platform = process.env.npm_config_platform || process.platform;
-    const outputName = getYtdlpOutputName();
-    const denoInfo = getDenoBinaryInfo();
-    const keep = new Set([outputName, denoInfo?.exe, getFfmpegOutputName()].filter(Boolean));
-    if (platform === 'win32') keep.add('WinSparkle.dll');
-    const ALL_KNOWN_BINARIES = ['yt-dlp', 'yt-dlp.exe', 'deno', 'deno.exe', 'ffmpeg', 'ffmpeg.exe', 'WinSparkle.dll'];
+    const arch = process.env.npm_config_arch || process.arch;
+    const target = `${platform}-${arch}`;
+
+    const previous = fs.existsSync(PLATFORM_MARKER) ? fs.readFileSync(PLATFORM_MARKER, 'utf8').trim() : null;
+    if (previous === target) return; // bin/ already holds (or is correctly fetching) this exact target
 
     for (const name of ALL_KNOWN_BINARIES) {
-        if (keep.has(name)) continue;
         const p = path.join(BIN_DIR, name);
         if (fs.existsSync(p)) {
             fs.unlinkSync(p);
             console.log(`  Removed stale binary from another platform: bin/${name}`);
         }
     }
+    fs.writeFileSync(PLATFORM_MARKER, target);
 }
 
 async function main() {
