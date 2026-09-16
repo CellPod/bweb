@@ -1168,21 +1168,37 @@ function initDlTrim(duration, url, opts = {}) {
     const canIframeEmbed = opts.extractorKey === 'Youtube' && !!opts.videoId;
     dlUsingPreviewVideo = !dlIsLive && !!opts.previewUrl;
 
+    // Whether there's anything to actually show in the embed/preview area — an iframe
+    // (live YouTube) or a direct <video> (progressive format available). Neither is
+    // guaranteed: e.g. long/high-res YouTube videos and livestream VODs frequently have no
+    // progressive (single muxed-file) format at all, so pickPreviewUrl() returns null.
+    const showVideoArea = (dlIsLive && canIframeEmbed) || dlUsingPreviewVideo;
+
     if (dlIsLive) {
         // Duration keeps growing while the stream is live — the range slider has nothing
         // meaningful to seek within, so swap it for the embed + mark-in/mark-out flow.
         if (durEl) durEl.textContent = '';
         if (sliderWrap) sliderWrap.style.display = 'none';
-        if (hint) { hint.dataset.i18n = 'dl.trim.liveHint'; hint.textContent = t('dl.trim.liveHint'); }
+        if (hint) {
+            const key = canIframeEmbed ? 'dl.trim.liveHint' : 'dl.trim.liveNoPreview';
+            hint.dataset.i18n = key; hint.textContent = t(key);
+        }
     } else {
         if (durEl) durEl.textContent = dlTrimDuration > 0 ? `Duration: ${formatTime(dlTrimDuration)}` : '';
         if (sliderWrap) sliderWrap.style.display = 'flex';
-        if (hint) { hint.dataset.i18n = 'dl.trim.hint'; hint.textContent = t('dl.trim.hint'); }
+        if (hint) {
+            const key = dlUsingPreviewVideo ? 'dl.trim.hint' : 'dl.trim.noPreview';
+            hint.dataset.i18n = key; hint.textContent = t(key);
+        }
     }
 
-    const showEmbedBlock = (dlIsLive && canIframeEmbed) || dlUsingPreviewVideo;
-    if (embedTrim) embedTrim.style.display = showEmbedBlock ? 'flex' : 'none';
-    if (embedWrap) embedWrap.style.display = showEmbedBlock ? 'block' : 'none';
+    // The hint (explaining why there's no preview, if that's the case) must stay visible
+    // even when there's no video/iframe to show — only the video area and the mark
+    // buttons (which need a video to read the current time from) are conditional.
+    if (embedTrim) embedTrim.style.display = 'flex';
+    if (embedWrap) embedWrap.style.display = showVideoArea ? 'block' : 'none';
+    const markRow = embedTrim ? embedTrim.querySelector('.dl-embed-mark-row') : null;
+    if (markRow) markRow.style.display = showVideoArea ? 'flex' : 'none';
 
     if (embed) {
         embed.style.display = (dlIsLive && canIframeEmbed) ? 'block' : 'none';
