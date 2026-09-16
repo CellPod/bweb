@@ -243,18 +243,28 @@ app.whenReady().then(() => {
 
     createWindow();
 
-    // Fetch dependency versions in the background, then check whether yt-dlp itself is
-    // stale — YouTube's anti-bot changes move faster than bWeb releases do, so this is
-    // what actually keeps downloads working between app updates (see depUpdater.js).
+    // Fetch dependency versions in the background, then check whether yt-dlp/ffmpeg/deno
+    // themselves are stale — each moves on its own release schedule, faster than bWeb
+    // itself ships, so this is what actually keeps the app working between bWeb updates
+    // (see depUpdater.js). Deliberately silent/background-only — no update UI for these,
+    // unlike a real bWeb release (see the Sparkle modal in renderer.js).
     ytdlp
         .getVersions()
         .then(async (v) => {
             cachedVersions = v;
             log('Versions cached:', JSON.stringify(v));
 
-            const updated = await depUpdater.maybeUpdateYtdlp(v.ytdlp);
-            if (updated) {
-                send('log', `yt-dlp mis à jour automatiquement : ${updated.previous} → ${updated.latest}`);
+            const [ytdlpUpdate, ffmpegUpdate, denoUpdate] = await Promise.all([
+                depUpdater.maybeUpdateYtdlp(v.ytdlp),
+                depUpdater.maybeUpdateFfmpeg(v.ffmpeg),
+                depUpdater.maybeUpdateDeno(v.deno),
+            ]);
+
+            if (ytdlpUpdate) send('log', `yt-dlp mis à jour automatiquement : ${ytdlpUpdate.previous} → ${ytdlpUpdate.latest}`);
+            if (ffmpegUpdate) send('log', `ffmpeg mis à jour automatiquement : ${ffmpegUpdate.previous} → ${ffmpegUpdate.latest}`);
+            if (denoUpdate) send('log', `deno mis à jour automatiquement : ${denoUpdate.previous} → ${denoUpdate.latest}`);
+
+            if (ytdlpUpdate || ffmpegUpdate || denoUpdate) {
                 ytdlp
                     .getVersions()
                     .then((v2) => {

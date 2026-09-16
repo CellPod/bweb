@@ -38,14 +38,18 @@ async function appendCookieArgs(args, url) {
 
 function getFfmpegPath() {
     const ext = process.platform === 'win32' ? '.exe' : '';
+    const names = ext ? ['ffmpeg' + ext, 'ffmpeg'] : ['ffmpeg'];
 
+    // depUpdater.js drops a fresher binary here when it finds one — always prefer it over
+    // whatever shipped with this build, since it's never older (same pattern as yt-dlp
+    // below).
     try {
-        const resBase = process.resourcesPath || '';
-        const candidates = [path.join(resBase, 'ffmpeg-static', 'ffmpeg' + ext), path.join(resBase, 'ffmpeg-static', 'ffmpeg')];
-        for (const p of candidates) {
-            if (fs.existsSync(p)) {
-                log('Using extraResources ffmpeg:', p);
-                return p;
+        const userBase = path.join(app.getPath('userData'), 'bin');
+        for (const name of names) {
+            const userPath = path.join(userBase, name);
+            if (fs.existsSync(userPath)) {
+                log('Using auto-updated ffmpeg:', userPath);
+                return userPath;
             }
         }
     } catch {
@@ -53,20 +57,25 @@ function getFfmpegPath() {
     }
 
     try {
-        const ffmpegStatic = require('ffmpeg-static');
-        if (ffmpegStatic) {
-            const unpackedPath = ffmpegStatic.replace('app.asar', 'app.asar.unpacked');
-            if (fs.existsSync(unpackedPath)) {
-                log('Using unpacked ffmpeg-static:', unpackedPath);
-                return unpackedPath;
-            }
-            if (fs.existsSync(ffmpegStatic)) {
-                log('Using ffmpeg-static:', ffmpegStatic);
-                return ffmpegStatic;
+        const resBase = path.join(process.resourcesPath || '', 'bin');
+        for (const name of names) {
+            const resPath = path.join(resBase, name);
+            if (fs.existsSync(resPath)) {
+                log('Using extraResources ffmpeg:', resPath);
+                return resPath;
             }
         }
     } catch {
         //
+    }
+
+    const devBase = path.join(__dirname, '..', '..', 'bin');
+    for (const name of names) {
+        const devPath = path.join(devBase, name);
+        if (fs.existsSync(devPath)) {
+            log('Using dev ffmpeg:', devPath);
+            return devPath;
+        }
     }
 
     log('Falling back to system ffmpeg');
@@ -124,6 +133,20 @@ function getYtdlpPath() {
 function getDenoPath() {
     const ext = process.platform === 'win32' ? '.exe' : '';
     const names = ext ? ['deno' + ext, 'deno'] : ['deno'];
+
+    // depUpdater.js drops a fresher binary here when it finds one — always prefer it.
+    try {
+        const userBase = path.join(app.getPath('userData'), 'bin');
+        for (const name of names) {
+            const userPath = path.join(userBase, name);
+            if (fs.existsSync(userPath)) {
+                log('Using auto-updated deno:', userPath);
+                return userPath;
+            }
+        }
+    } catch {
+        //
+    }
 
     // Check extraResources (production)
     try {
@@ -207,7 +230,10 @@ async function getVersions() {
         try {
             const out = await execVersion(ffmpegPath, ['-version']);
             if (out) {
-                const match = out.match(/ffmpeg version (\S+)/);
+                // BtbN's builds report "n9.0-<hash>" (git-describe style) while
+                // martin-riedl.de's report a plain "9.0.1" — strip the optional leading "n"
+                // and any trailing hash/suffix so both compare cleanly via isNewer().
+                const match = out.match(/ffmpeg version n?(\d+(?:\.\d+)*)/);
                 versions.ffmpeg = match ? match[1] : out.split('\n')[0].trim();
             }
         } catch (err) {
