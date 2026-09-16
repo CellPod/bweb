@@ -166,6 +166,29 @@ function generateAndPublishAppcast(version) {
     fs.rmSync(APPCAST_ARCHIVE_DIR, { recursive: true, force: true });
 }
 
+// electron-builder always generates latest.yml/latest-mac.yml/latest-linux.yml plus a
+// .blockmap next to every zip/nsis artifact whenever --publish is used — but those all
+// feed electron-builder's own electron-updater/Squirrel.Mac auto-update mechanism, which
+// this project doesn't use (mac/Windows go through the custom Sparkle/WinSparkle bridges
+// instead, fed by appcast.xml). They're inert here, just clutter on the release page.
+function removeUnwantedPublishArtifacts(version) {
+    step('Removing unused electron-updater artifacts (latest*.yml, *.blockmap)');
+    const unwanted = [
+        'latest.yml',
+        'latest-mac.yml',
+        'latest-linux.yml',
+        `bWeb-${version}-arm64-mac.zip.blockmap`,
+        `bWeb-Setup-${version}.exe.blockmap`,
+    ];
+    for (const name of unwanted) {
+        try {
+            run(`gh release delete-asset v${version} "${name}" --yes`);
+        } catch (err) {
+            console.warn(`Could not delete asset ${name} (may not exist): ${err.message}`);
+        }
+    }
+}
+
 function main() {
     const ghToken = execSync('gh auth token').toString().trim();
     const env = { GH_TOKEN: ghToken };
@@ -198,6 +221,8 @@ function main() {
 
     step('Windows — build + publish');
     run('npm run release:win', env);
+
+    removeUnwantedPublishArtifacts(version);
 
     step('Restoring dev binaries for local dev');
     fetchBinariesFor(DEV_PLATFORM, DEV_ARCH);
