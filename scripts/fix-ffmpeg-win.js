@@ -8,8 +8,7 @@ exports.default = async function (context) {
     const resDir = path.join(context.appOutDir, platform === 'darwin' ? 'bWeb.app/Contents/Resources' : 'resources');
 
     if (platform === 'win32') {
-        // ffmpeg.exe is pre-bundled as a real Windows binary — nothing to rename
-        const ffmpegExe = path.join(resDir, 'ffmpeg-static', 'ffmpeg.exe');
+        const ffmpegExe = path.join(resDir, 'bin', 'ffmpeg.exe');
         if (fs.existsSync(ffmpegExe)) {
             console.log('ffmpeg.exe (Windows) already present');
         } else {
@@ -18,11 +17,7 @@ exports.default = async function (context) {
     }
 
     if (platform === 'darwin') {
-        const binaries = [
-            path.join(resDir, 'bin', 'yt-dlp'),
-            path.join(resDir, 'bin', 'deno'),
-            path.join(resDir, 'ffmpeg-static', 'ffmpeg'),
-        ];
+        const binaries = [path.join(resDir, 'bin', 'yt-dlp'), path.join(resDir, 'bin', 'deno'), path.join(resDir, 'bin', 'ffmpeg')];
 
         for (const bin of binaries) {
             if (fs.existsSync(bin)) {

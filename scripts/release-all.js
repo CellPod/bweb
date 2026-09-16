@@ -1,30 +1,27 @@
 #!/usr/bin/env node
 // Full cross-platform release: mac, Linux, Windows — one command instead of a manual dance.
 //
-// Why this exists: ffmpeg-static's installer only ever fetches the binary for whatever
-// platform/arch you tell it (via npm_config_platform/npm_config_arch), and — unlike
-// scripts/postinstall.js for yt-dlp/deno — it never removes the OTHER platform's binary
-// first. If both sit in node_modules/ffmpeg-static/ at once, electron-builder's
-// asarUnpack bundles whichever one you're NOT building for right into the package too
-// (asarUnpack has no per-platform filter, unlike extraResources). That's how a stray
-// ~40-80MB binary from the wrong platform has repeatedly ended up shipped — this script
-// makes the fetch → clean → build → restore sequence impossible to get out of order.
+// yt-dlp, deno, and (since 2026-09-16) ffmpeg are all fetched by scripts/postinstall.js
+// directly into bin/, per target platform/arch — it also removes any *other* platform's
+// binary first (see removeForeignPlatformBinaries() there). That guard matters because
+// electron-builder's asarUnpack has no per-platform filter (unlike extraResources): a
+// stale binary from the wrong platform left sitting in bin/ gets bundled into every
+// subsequent build regardless of target OS. ffmpeg used to be the one exception (it came
+// from the separate `ffmpeg-static` npm package, which had this exact bug — no
+// cross-platform cleanup at all) until it was folded into the same bin/ + postinstall.js
+// mechanism as yt-dlp/deno, which is what fixed it for good instead of needing the
+// fetch → clean → build → restore dance below to compensate.
 //
-// `sharp` (added for Background Remover, 1.4.0) has the exact same problem, one level
-// worse: it ships its native addon as per-platform npm optionalDependencies
+// `sharp` (added for Background Remover, 1.4.0) has a similar problem, one level worse: it
+// ships its native addon as per-platform npm optionalDependencies
 // (@img/sharp-<platform>-<arch>), and npm only ever installs the ones matching the
 // machine you ran `npm install` on. Building all three targets from one Mac means Linux
 // and Windows builds silently got the macOS-only native binary (or none at all) baked in
 // via asarUnpack — sharp then throws "Could not load the sharp module using <target>
 // runtime" the moment the packaged app calls it, which is exactly what surfaced in 1.4.0's
 // Windows build (Background Remover was never actually exercised on Windows before
-// shipping). This script now swaps in the right platform's @img/sharp-* packages before
-// each non-native build, the same way it already does for ffmpeg/yt-dlp.
-//
-// Before this pass, the Linux leg also never re-fetched yt-dlp/ffmpeg for Linux at all —
-// it built straight after the macOS release using whatever was still sitting in bin/ and
-// node_modules/ffmpeg-static/ from the previous (macOS) step, i.e. the wrong binaries.
-// That's fixed below too.
+// shipping). This script swaps in the right platform's @img/sharp-* packages before each
+// non-native build to compensate for that one still lacking postinstall.js's guard.
 //
 // Requires: `gh` CLI authenticated (`gh auth status`). Bump the version and commit/push
 // separately before running this — that's a judgment call, not a mechanical step.
@@ -34,7 +31,6 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const FFMPEG_DIR = path.join(ROOT, 'node_modules', 'ffmpeg-static');
 const IMG_DIR = path.join(ROOT, 'node_modules', '@img');
 const KOROMIX_DIR = path.join(ROOT, 'node_modules', '@koromix');
 
@@ -46,9 +42,6 @@ const SPARKLE_BIN_DIR = path.join(ROOT, 'node_modules', 'electron-sparkle-update
 const SPARKLE_CLI = path.join(ROOT, 'node_modules', 'electron-sparkle-updater', 'bin', 'electron-sparkle-updater.js');
 const APPCAST_ARCHIVE_DIR = path.join(ROOT, 'dist', 'appcast-release');
 const DELTA_BASES = 2; // how many previous releases to fetch in as delta patch sources, bounded so this can't grow unbounded
-
-const MAC_FFMPEG_FILES = ['ffmpeg', 'ffmpeg.LICENSE', 'ffmpeg.README'];
-const WIN_FFMPEG_FILES = ['ffmpeg.exe', 'ffmpeg.exe.LICENSE', 'ffmpeg.exe.README'];
 
 // The dev machine this script runs on — restored at the very end regardless of what it is.
 const DEV_PLATFORM = process.platform;
@@ -63,17 +56,9 @@ function run(cmd, extraEnv = {}) {
     execSync(cmd, { cwd: ROOT, stdio: 'inherit', env: { ...process.env, ...extraEnv } });
 }
 
-function removeFfmpegFiles(files) {
-    for (const f of files) {
-        const p = path.join(FFMPEG_DIR, f);
-        if (fs.existsSync(p)) fs.rmSync(p);
-    }
-}
-
 function fetchBinariesFor(platform, arch) {
     const env = { npm_config_platform: platform, npm_config_arch: arch };
-    run('node scripts/postinstall.js', env); // yt-dlp + deno; removes the stale platform's binary itself
-    run('node node_modules/ffmpeg-static/install.js', env); // ffmpeg; does NOT remove the stale one — we do that below
+    run('node scripts/postinstall.js', env); // yt-dlp + deno + ffmpeg; removes the stale platform's binaries itself
 }
 
 // sharp resolves its native addon from node_modules/@img/sharp-<platform>-<arch> (plus a
@@ -195,7 +180,7 @@ function main() {
     generateAndPublishAppcast(version);
 
     step('Linux — fetching linux binaries');
-    fetchBinariesFor('linux', 'x64'); // yt-dlp/deno + ffmpeg for linux (overwrites the mac ffmpeg file in place — same filename)
+    fetchBinariesFor('linux', 'x64'); // yt-dlp/deno/ffmpeg for linux — postinstall.js removes the mac binaries first
     fetchNativePkgFor('sharp', 'linux', 'x64');
     removeNativePkgFor(IMG_DIR, DEV_PLATFORM, DEV_ARCH); // don't let the mac sharp addon leak into the Linux asarUnpack
     // koffi's native addon isn't used on Linux (winSparkleUpdater.js is win32-only) — just
@@ -207,7 +192,6 @@ function main() {
 
     step('Windows — fetching win32 binaries');
     fetchBinariesFor('win32', 'x64'); // also fetches bin/WinSparkle.dll, see postinstall.js
-    removeFfmpegFiles(MAC_FFMPEG_FILES); // prevent the linux/mac-named ffmpeg binary leaking into the win package via asarUnpack
     fetchNativePkgFor('sharp', 'win32', 'x64');
     removeNativePkgFor(IMG_DIR, 'linux', 'x64');
     fetchNativePkgFor('koffi', 'win32', 'x64');
@@ -217,7 +201,6 @@ function main() {
 
     step('Restoring dev binaries for local dev');
     fetchBinariesFor(DEV_PLATFORM, DEV_ARCH);
-    removeFfmpegFiles(WIN_FFMPEG_FILES);
     fetchNativePkgFor('sharp', DEV_PLATFORM, DEV_ARCH);
     removeNativePkgFor(IMG_DIR, 'win32', 'x64');
     fetchNativePkgFor('koffi', DEV_PLATFORM, DEV_ARCH);

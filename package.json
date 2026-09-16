@@ -54,13 +54,7 @@
                     "to": "bin/",
                     "filter": [
                         "yt-dlp",
-                        "deno"
-                    ]
-                },
-                {
-                    "from": "node_modules/ffmpeg-static/",
-                    "to": "ffmpeg-static/",
-                    "filter": [
+                        "deno",
                         "ffmpeg"
                     ]
                 },
@@ -151,14 +145,8 @@
                     "filter": [
                         "yt-dlp.exe",
                         "deno.exe",
+                        "ffmpeg.exe",
                         "WinSparkle.dll"
-                    ]
-                },
-                {
-                    "from": "node_modules/ffmpeg-static/",
-                    "to": "ffmpeg-static/",
-                    "filter": [
-                        "ffmpeg.exe"
                     ]
                 },
                 {
@@ -181,13 +169,7 @@
                     "to": "bin/",
                     "filter": [
                         "yt-dlp",
-                        "deno"
-                    ]
-                },
-                {
-                    "from": "node_modules/ffmpeg-static/",
-                    "to": "ffmpeg-static/",
-                    "filter": [
+                        "deno",
                         "ffmpeg"
                     ]
                 },
@@ -212,7 +194,6 @@
         },
         "asar": true,
         "asarUnpack": [
-            "node_modules/ffmpeg-static/**",
             "node_modules/@jspawn/ghostscript-wasm/**",
             "node_modules/onnxruntime-node/**",
             "node_modules/sharp/**",
@@ -227,12 +208,12 @@
         "@jspawn/ghostscript-wasm": "^0.0.2",
         "electron-sparkle-updater": "^0.5.0",
         "electron-store": "^11.0.2",
-        "ffmpeg-static": "^5.3.0",
         "koffi": "^3.3.0",
         "onnxruntime-node": "^1.30.0",
         "pdf-lib": "^1.17.1",
         "qr-code-styling": "^1.9.2",
-        "sharp": "^0.35.4"
+        "sharp": "^0.35.4",
+        "yauzl": "^3.4.0"
     },
     "devDependencies": {
         "electron": "^43.7.1",
