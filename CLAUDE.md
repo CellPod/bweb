@@ -83,21 +83,14 @@ These have each cost real debugging time more than once in this codebase:
 
 ## Recurring build/release bugs to watch for
 
-1. **electron-builder's per-platform `files`/`asarUnpack`/`extraFiles` do not merge with
-   the top-level arrays — a per-platform override *replaces* the top-level one entirely.**
-   Adding a `mac.files: ["!exclude/this/**"]` block meant to exclude one path, with no
-   positive include pattern, silently disabled the whole top-level whitelist
-   (`["src/**/*", "node_modules/**/*", "package.json"]`) and packed the *entire* project
-   root into `app.asar` — including gitignored internal files never meant to leave this
-   machine (`TODO.md`, `DESIGN.md`, `PRODUCT.md`), which shipped in a real published
-   release (2026-09-16, `v1.4.1`, deleted from GitHub immediately once found). If a
-   per-platform override of any of these three keys is ever needed again, always repeat
-   the relevant top-level patterns inside it, not just the new exclusion.
-2. **After changing `files`/`asarUnpack`/`extraFiles`, verify the actual built `app.asar`
-   before publishing, not after** — run `asar list <path-to-app.asar>` and compare its
-   size to the previous release's. This is the only way the bug above was caught, and it
-   was caught from a user noticing the `.dmg` was unusually large *after* the release had
-   already gone out.
+1. **electron-builder's per-platform `files`/`asarUnpack`/`extraFiles` *replace* the
+   top-level array, they don't merge with it.** A per-platform override with only
+   exclusion patterns and no positive include disables the whole whitelist — always
+   repeat the top-level patterns inside it. This once leaked gitignored internal files
+   into a published `app.asar`.
+2. **After changing `files`/`asarUnpack`/`extraFiles`, run `asar list` on the built
+   `app.asar` and compare its size to the previous release before publishing**, not
+   after.
 
 ## Git conventions
 
