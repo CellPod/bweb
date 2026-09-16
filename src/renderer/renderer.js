@@ -38,50 +38,6 @@ function updateDownloadStrip(data) {
     }
 }
 
-// ── Accent colors ──────────────────────────────────────────────────────────────
-
-const ACCENT_PRESETS = {
-    blue:   { accent: 'oklch(0.55 0.18 258)', soft: 'oklch(0.94 0.04 258)' },
-    indigo: { accent: 'oklch(0.52 0.22 280)', soft: 'oklch(0.94 0.05 280)' },
-    purple: { accent: 'oklch(0.52 0.20 305)', soft: 'oklch(0.93 0.05 305)' },
-    teal:   { accent: 'oklch(0.53 0.14 185)', soft: 'oklch(0.94 0.04 185)' },
-    tomato: { accent: 'oklch(0.57 0.24 28)',  soft: 'oklch(0.95 0.07 28)'  },
-    amber:  { accent: 'oklch(0.62 0.20 55)',  soft: 'oklch(0.96 0.07 55)'  },
-};
-
-function updateLogo(name) {
-    const src = `./bweb-${name}.png`;
-    document.querySelectorAll('.bweb-logo').forEach((img) => { img.src = src; });
-}
-
-function setAccent(name) {
-    const preset = ACCENT_PRESETS[name];
-    if (!preset) return;
-    document.documentElement.style.setProperty('--accent', preset.accent);
-    document.documentElement.style.setProperty('--accent-soft', preset.soft);
-    localStorage.setItem('accent', name);
-    document.querySelectorAll('.accent-swatch').forEach((s) => {
-        s.classList.toggle('active', s.dataset.accent === name);
-    });
-    updateLogo(name);
-}
-
-function initAccent() {
-    const saved = localStorage.getItem('accent') || 'blue';
-    const preset = ACCENT_PRESETS[saved];
-    if (preset) {
-        document.documentElement.style.setProperty('--accent', preset.accent);
-        document.documentElement.style.setProperty('--accent-soft', preset.soft);
-    }
-    updateLogo(saved);
-    // Mark swatch active after DOM ready (swatches may not exist yet)
-    requestAnimationFrame(() => {
-        document.querySelectorAll('.accent-swatch').forEach((s) => {
-            s.classList.toggle('active', s.dataset.accent === saved);
-        });
-    });
-}
-
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 function initTheme() {
@@ -1704,7 +1660,8 @@ function queueItemHTML(item) {
         actionsHTML = `<button class="q-item-cancel" title="Stop and skip to next item">Skip</button>`;
     } else if (item.state === 'completed') {
         statusHTML = '<span class="q-item-status completed">Complete ✓</span>';
-        actionsHTML = `<button class="q-item-open-folder" title="Open folder" onclick="doOpenFolder()">Open folder</button><button class="q-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
+        const folderPath = escapeHtml(item.downloadPath || '');
+        actionsHTML = `<button class="q-item-open-folder" data-path="${folderPath}" title="Open folder">Open folder</button><button class="q-item-remove" data-id="${item.id}" title="Remove" aria-label="Remove">×</button>`;
     } else if (item.state === 'failed') {
         const errText = escapeHtml(item.error || 'Failed');
         statusHTML = `<span class="q-item-status failed" title="${errText}">${errText}</span>`;
@@ -1754,6 +1711,12 @@ function attachQueueListenersOn(el) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             doCancelCurrent();
+        });
+    });
+    el.querySelectorAll('.q-item-open-folder').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.api.openFolder(btn.dataset.path || undefined);
         });
     });
 }
@@ -5084,7 +5047,6 @@ async function doBgRemoveExport() {
 
 initLang();
 initTheme();
-initAccent();
 initSidebarResize();
 initLogResize();
 init();

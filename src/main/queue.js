@@ -22,7 +22,7 @@ class DownloadQueue {
     constructor() {
         this._items = [];
         this._isProcessing = false;
-        this._paused = true; // starts paused — user clicks "Start Queue" to begin
+        this._paused = false; // downloads start automatically as soon as they're added
         this._aborted = false; // "cancel all" flag
         this._callbacks = null; // onProgress, onLog, onItemUpdate, onQueueUpdate
         this._currentProc = null; // ref to kill on cancel
@@ -338,8 +338,12 @@ class DownloadQueue {
         const path = require('path');
         const fs = require('fs');
 
-        // Get download path from the store passed during callback setup
+        // Get download path from the store passed during callback setup. Captured onto the
+        // item itself (not just read from the live global setting) so its "Open folder" button
+        // still points at where this file actually landed, even if the user changes the
+        // default download location before this item's turn comes up in the queue.
         const downloadPath = this._downloadPath || require('path').join(require('electron').app.getPath('downloads'), 'bWeb');
+        item.downloadPath = downloadPath;
         if (!fs.existsSync(downloadPath)) {
             fs.mkdirSync(downloadPath, { recursive: true });
         }

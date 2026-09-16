@@ -416,8 +416,8 @@ ipcMain.handle('settings:chooseDownloadPath', async () => {
     return store.get('downloadPath');
 });
 
-ipcMain.handle('settings:openFolder', () => {
-    shell.openPath(store.get('downloadPath'));
+ipcMain.handle('settings:openFolder', (_e, folderPath) => {
+    shell.openPath(folderPath || store.get('downloadPath'));
 });
 
 ipcMain.handle('settings:openLogs', () => {

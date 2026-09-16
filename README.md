@@ -134,13 +134,12 @@ yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a b
 
 ### Interface
 - **French / English** — Full bilingual UI, toggle in Settings
-- **6 accent colors** — Blue, Indigo, Purple, Teal, Tomato, Amber — the app logo changes color with your selection
 - **Light and dark mode** — Follows your system preference, or force one in Settings
 - **Download history** — Quick access to all previously fetched videos with cached metadata
 
 ### Settings
 - **Download location** — Change where files are saved (defaults to `~/Downloads/bWeb`)
-- **Language, theme, accent color** — see Interface above
+- **Language, theme** — see Interface above
 - **Updates** — bWeb checks GitHub for a newer version on launch (and on demand from the About tab) and shows a notification with a link to the release — nothing is ever silently downloaded or installed
 
 ---

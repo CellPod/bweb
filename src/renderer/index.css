@@ -56,10 +56,10 @@
     --text-2: oklch(0.42 0.020 40);
     --text-3: oklch(0.64 0.015 40);
 
-    /* Brand — deep crimson */
-    --accent:       oklch(0.52 0.195 35);
-    --accent-hover: oklch(0.44 0.165 35);
-    --accent-soft:  oklch(0.52 0.195 35 / 0.10);
+    /* Brand — orange */
+    --accent:       oklch(0.62 0.20 55);
+    --accent-hover: oklch(0.54 0.18 55);
+    --accent-soft:  oklch(0.62 0.20 55 / 0.10);
 
     /* Semantic */
     --danger:       oklch(0.55 0.22 20);
@@ -143,9 +143,9 @@
         --text-2: oklch(0.70 0.008 258);
         --text-3: oklch(0.50 0.008 258);
 
-        --accent:       oklch(0.66 0.200 35);
-        --accent-hover: oklch(0.73 0.180 35);
-        --accent-soft:  oklch(0.66 0.200 35 / 0.16);
+        --accent:       oklch(0.72 0.19 55);
+        --accent-hover: oklch(0.78 0.17 55);
+        --accent-soft:  oklch(0.72 0.19 55 / 0.16);
 
         --danger:       oklch(0.64 0.22 20);
         --danger-soft:  oklch(0.64 0.22 20 / 0.13);
@@ -178,9 +178,9 @@
     --text-2: oklch(0.70 0.008 258);
     --text-3: oklch(0.50 0.008 258);
 
-    --accent:       oklch(0.66 0.200 35);
-    --accent-hover: oklch(0.73 0.180 35);
-    --accent-soft:  oklch(0.66 0.200 35 / 0.16);
+    --accent:       oklch(0.72 0.19 55);
+    --accent-hover: oklch(0.78 0.17 55);
+    --accent-soft:  oklch(0.72 0.19 55 / 0.16);
 
     --danger:       oklch(0.64 0.22 20);
     --danger-soft:  oklch(0.64 0.22 20 / 0.13);
@@ -2892,34 +2892,6 @@ html.platform-mac .update-banner {
 /* Hide activity dot when count badge is also showing (avoid clutter) */
 .nav-item .nav-badge[style*="display: inline"] ~ .nav-activity-dot {
     display: none !important;
-}
-
-/* ── Accent color swatches ────────────────────────────────────────────────── */
-
-.accent-swatches {
-    display: flex;
-    gap: 7px;
-    align-items: center;
-}
-
-.accent-swatch {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
-    padding: 0;
-    background: var(--sw);
-    outline: none;
-}
-
-.accent-swatch:hover { transform: scale(1.18); }
-
-.accent-swatch.active {
-    border-color: var(--text);
-    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--sw);
-    transform: scale(1.08);
 }
 
 /* ── Convert Tab ──────────────────────────────────────────────────────────── */
