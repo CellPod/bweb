@@ -23,6 +23,14 @@
 // shipping). This script swaps in the right platform's @img/sharp-* packages before each
 // non-native build to compensate for that one still lacking postinstall.js's guard.
 //
+// `@firecrawl/anydoc` and `minipdf` (added for Convert's Document sub-view, 2026-09-16) are
+// the exact same class of problem, swapped the same way — see fetchNativePkgFor/
+// removeNativePkgByPrefix below. Neither package's per-platform naming matches sharp/koffi's
+// exactly (anydoc's Linux builds add a libc tag — "-gnu"/"-musl" — after the arch; minipdf
+// ships every platform, including win32-x64, as a bare top-level package rather than under
+// its own npm scope), which is why they get their own removal helper instead of reusing
+// removeNativePkgFor as-is.
+//
 // Requires: `gh` CLI authenticated (`gh auth status`). Bump the version and commit/push
 // separately before running this — that's a judgment call, not a mechanical step.
 
@@ -31,8 +39,15 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
+const NODE_MODULES_DIR = path.join(ROOT, 'node_modules');
 const IMG_DIR = path.join(ROOT, 'node_modules', '@img');
 const KOROMIX_DIR = path.join(ROOT, 'node_modules', '@koromix');
+const FIRECRAWL_DIR = path.join(ROOT, 'node_modules', '@firecrawl');
+// minipdf's win32-x64 variant is a bare top-level package straight after `npm install`, but
+// electron-builder's own native-module rebuild step has been observed placing it under this
+// scope instead (verified via a real `--dir` build) — scanned defensively in addition to the
+// node_modules root so a stale copy here can't survive into the next platform's build either.
+const MINI_SOFTWARE_DIR = path.join(ROOT, 'node_modules', '@mini-software');
 
 // Sparkle (macOS auto-update) release toolchain — see the "Auto-update app" section of
 // TODO.md for how this was validated end to end (1.4.1 -> 1.4.2).
@@ -80,6 +95,25 @@ function removeNativePkgFor(scopeDir, platform, arch) {
     const suffix = `${platform}-${arch}`;
     for (const name of fs.readdirSync(scopeDir)) {
         if (name.endsWith(suffix)) fs.rmSync(path.join(scopeDir, name), { recursive: true, force: true });
+    }
+}
+
+// Same idea as removeNativePkgFor, but for @firecrawl/anydoc and minipdf (added 2026-09-16
+// for Convert's Document sub-view): their Linux builds append a libc tag after the arch
+// (e.g. "anydoc-linux-x64-gnu"/"-musl", "minipdf-linux-x64-gnu"/"-musl"), so a plain suffix
+// match would miss them entirely — this matches by prefix + substring instead. minipdf
+// additionally ships every platform (including win32-x64) as a bare top-level package, not
+// under its own npm scope like sharp/koffi/anydoc, despite what its own optionalDependencies
+// list's win32-x64 entry name would suggest — verified empirically via a clean `npm ci` +
+// `npm install --os=X --cpu=Y minipdf`, not assumed from the package.json alone. `scopeDir`
+// is NODE_MODULES_DIR itself for minipdf, @firecrawl for anydoc.
+function removeNativePkgByPrefix(scopeDir, pkgPrefix, platform, arch) {
+    if (!fs.existsSync(scopeDir)) return;
+    const marker = `${platform}-${arch}`;
+    for (const name of fs.readdirSync(scopeDir)) {
+        if (name.startsWith(pkgPrefix) && name.includes(marker)) {
+            fs.rmSync(path.join(scopeDir, name), { recursive: true, force: true });
+        }
     }
 }
 
@@ -209,6 +243,11 @@ function main() {
     // koffi's native addon isn't used on Linux (winSparkleUpdater.js is win32-only) — just
     // strip the mac one so it doesn't leak in; no Linux variant needs fetching.
     removeNativePkgFor(KOROMIX_DIR, DEV_PLATFORM, DEV_ARCH);
+    fetchNativePkgFor('@firecrawl/anydoc', 'linux', 'x64');
+    removeNativePkgByPrefix(FIRECRAWL_DIR, 'anydoc-', DEV_PLATFORM, DEV_ARCH);
+    fetchNativePkgFor('minipdf', 'linux', 'x64');
+    removeNativePkgByPrefix(NODE_MODULES_DIR, 'minipdf-', DEV_PLATFORM, DEV_ARCH);
+    removeNativePkgByPrefix(MINI_SOFTWARE_DIR, 'minipdf-', DEV_PLATFORM, DEV_ARCH);
 
     step('Linux — build + publish');
     run('npm run release:linux', env);
@@ -218,6 +257,11 @@ function main() {
     fetchNativePkgFor('sharp', 'win32', 'x64');
     removeNativePkgFor(IMG_DIR, 'linux', 'x64');
     fetchNativePkgFor('koffi', 'win32', 'x64');
+    fetchNativePkgFor('@firecrawl/anydoc', 'win32', 'x64');
+    removeNativePkgByPrefix(FIRECRAWL_DIR, 'anydoc-', 'linux', 'x64');
+    fetchNativePkgFor('minipdf', 'win32', 'x64');
+    removeNativePkgByPrefix(NODE_MODULES_DIR, 'minipdf-', 'linux', 'x64');
+    removeNativePkgByPrefix(MINI_SOFTWARE_DIR, 'minipdf-', 'linux', 'x64');
 
     step('Windows — build + publish');
     run('npm run release:win', env);
@@ -230,6 +274,11 @@ function main() {
     removeNativePkgFor(IMG_DIR, 'win32', 'x64');
     fetchNativePkgFor('koffi', DEV_PLATFORM, DEV_ARCH);
     removeNativePkgFor(KOROMIX_DIR, 'win32', 'x64');
+    fetchNativePkgFor('@firecrawl/anydoc', DEV_PLATFORM, DEV_ARCH);
+    removeNativePkgByPrefix(FIRECRAWL_DIR, 'anydoc-', 'win32', 'x64');
+    fetchNativePkgFor('minipdf', DEV_PLATFORM, DEV_ARCH);
+    removeNativePkgByPrefix(NODE_MODULES_DIR, 'minipdf-', 'win32', 'x64');
+    removeNativePkgByPrefix(MINI_SOFTWARE_DIR, 'minipdf-', 'win32', 'x64');
     run('rm -rf dist');
 
     step('Publishing release (undraft)');

@@ -3012,6 +3012,7 @@ html.platform-mac .update-banner {
 .file-type-badge.file-type-audio { background: oklch(0.58 0.15 320); }
 .file-type-badge.file-type-image { background: oklch(0.58 0.15 145); }
 .file-type-badge.file-type-pdf { background: oklch(0.55 0.18 15); }
+.file-type-badge.file-type-doc { background: oklch(0.58 0.13 220); }
 
 .convert-batch-item-info {
     flex: 1;
@@ -3179,6 +3180,46 @@ html.platform-mac .update-banner {
 }
 
 .convert-btn { margin-top: 4px; }
+
+/* Shown once a Convert/Compress batch is fully finished (every item done/error, none
+   pending) in place of the single primary action button — otherwise finishing just leaves
+   a dead-end "Convert"/"Compress" button with nothing left to do, and no way back to the
+   output folder if "Open folder after X" wasn't checked before the run. */
+.convert-done-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.convert-done-actions .btn-download {
+    flex: 1.4;
+    width: auto;
+    margin-top: 0;
+}
+
+.convert-open-folder-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 1;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.convert-open-folder-btn:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
 
 /* ── Convert player + trim ──────────────────────────────────────── */
 

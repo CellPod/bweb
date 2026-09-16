@@ -2831,6 +2831,26 @@ let convertRunning = false;
 let convertStopRequested = false;
 let convertTrimOpen = false;
 
+// Convert tab — Image sub-view (batch image format conversion via sharp/ffmpeg, no trim,
+// no percent-based progress — a single sharp/ffmpeg pass per file is fast enough that the
+// same indeterminate-per-item bar as Compress/Watermark fits better than a numeric one).
+let imageConvertItems = []; // [{ id, path, name, state: 'ready'|'converting'|'done'|'error' }]
+let imageConvertItemIdCounter = 0;
+let imageConvertRunning = false;
+let imageConvertRenderedIds = new Set();
+let imageConvertFormat = 'jpeg';
+
+// Convert tab — Document sub-view (Word/PowerPoint/Excel/OpenDocument/RTF/EPUB/CSV/PDF →
+// Markdown via anydoc, or Office-only → PDF via minipdf). Unlike Image/Video, not every
+// input can produce every output — "PDF" is only offered when the whole batch is
+// docx/pptx/xlsx (see DOC_CONVERT_PDF_EXTS), everything else can only go to Markdown.
+const DOC_CONVERT_PDF_EXTS = new Set(['docx', 'pptx', 'xlsx']);
+let docConvertItems = []; // [{ id, path, name, ext, state: 'ready'|'converting'|'done'|'error' }]
+let docConvertItemIdCounter = 0;
+let docConvertRunning = false;
+let docConvertRenderedIds = new Set();
+let docConvertFormat = 'markdown';
+
 // Compress tab — batch image compression via sharp (PDF/video to follow)
 let compressItems = []; // { id, path, name, type, size, estimates: {max,balanced,small}|null, state, compressedSize }
 let compressItemIdCounter = 0;
@@ -3101,7 +3121,7 @@ let compressRenderedIds = new Set();
 // entrance-animation tracking, and progress-bar-if-busy logic, differing only in which
 // items/state-check/status-label function backs them. Returns the new renderedIds set —
 // callers reassign it to their own module-level tracking variable.
-function renderBatchList({ listId, countId, items, renderedIds, isBusy, statusLabelFn }) {
+function renderBatchList({ listId, countId, items, renderedIds, isBusy, statusLabelFn, badgeCategoryFn }) {
     const list = document.getElementById(listId);
     const count = document.getElementById(countId);
     if (!list) return renderedIds;
@@ -3114,8 +3134,9 @@ function renderBatchList({ listId, countId, items, renderedIds, isBusy, statusLa
         const progressBar = isBusy(item)
             ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill indeterminate"></div></div>`
             : '';
+        const category = badgeCategoryFn ? badgeCategoryFn(item) : (item.type === 'pdf' ? 'pdf' : 'image');
         return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
-            fileTypeBadgeHtml(item.name, item.type === 'pdf' ? 'pdf' : 'image') +
+            fileTypeBadgeHtml(item.name, category) +
             `<div class="convert-batch-item-info">` +
                 `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
                 `<div class="convert-batch-item-meta">` +
@@ -3137,6 +3158,18 @@ function renderCompressList() {
         isBusy: (item) => COMPRESS_BUSY_STATES.has(item.state),
         statusLabelFn: compressStatusLabel,
     });
+
+    // Once every item is done/error/unsupported (nothing left pending or in flight), swap
+    // the single Compress button for an explicit "Open folder" + "Compress another file"
+    // pair — the batch no longer auto-clears itself, so there needs to be a clear way
+    // forward instead of a dead-end disabled button.
+    const finished = compressItems.length > 0 && !compressRunning && compressItems.every((i) =>
+        i.state === 'done' || i.state === 'error' || i.state === 'unsupported'
+    );
+    const btn = document.getElementById('compressBtn');
+    const doneActions = document.getElementById('compressDoneActions');
+    if (btn) btn.style.display = finished ? 'none' : '';
+    if (doneActions) doneActions.style.display = finished ? 'flex' : 'none';
 }
 
 function doCompressClear() {
@@ -3155,6 +3188,8 @@ function doCompressClear() {
     document.getElementById('compressTargetMb').value = '';
     document.getElementById('compressBtn').disabled = true;
     document.getElementById('compressBtn').textContent = t('compress.btn');
+    document.getElementById('compressBtn').style.display = '';
+    document.getElementById('compressDoneActions').style.display = 'none';
     document.querySelectorAll('.compress-preset-card').forEach((c) => c.classList.toggle('selected', c.dataset.preset === 'balanced'));
     document.querySelectorAll('#compressModeTabs .dl-mode-tab').forEach((b) => b.classList.toggle('active', b.dataset.mode === 'presets'));
     document.querySelector('.convert-center-wrapper')?.classList.remove('has-content');
@@ -3205,14 +3240,11 @@ async function doCompress() {
     }
 
     compressRunning = false;
-    btn.disabled = false;
-    btn.textContent = t('compress.done') || 'Done ✓';
+    renderCompressList();
 
     if (readyItems.some((i) => i.state === 'done') && document.getElementById('compressAutoOpenCheck').checked) {
         window.api.compressOpenDestFolder();
     }
-
-    setTimeout(() => { if (!compressRunning) doCompressClear(); }, 1800);
 }
 
 // Privacy / Watermark tab — batch, images + PDF (PDF rasterized, see watermark.js)
@@ -4181,9 +4213,18 @@ async function doRedact() {
     }
 }
 
+function setConvertMode(mode) {
+    document.querySelectorAll('#tab-convert > .dl-mode-tabs [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('convertVideoView').style.display = mode === 'video' ? '' : 'none';
+    document.getElementById('convertImageView').style.display = mode === 'image' ? '' : 'none';
+    document.getElementById('convertDocumentView').style.display = mode === 'document' ? '' : 'none';
+}
+
 function initConvertTab() {
     loadConvertDestPath();
     loadConvertAutoOpen();
+    wireDropZone('imgConvertDropZone', addFilesToImageConvertList);
+    wireDropZone('docConvertDropZone', addFilesToDocConvertList);
     if (!wireDropZone('convertDropZone', addFilesToConvertList)) return;
 
     window.api.onConvertProgress((p) => {
@@ -4274,7 +4315,9 @@ function doConvertClear() {
     if (dropZone) dropZone.style.display = 'flex';
     if (listWrap) listWrap.style.display = 'none';
     if (progressWrap) progressWrap.style.display = 'none';
-    if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; }
+    if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; btn.style.display = ''; }
+    const doneActions = document.getElementById('convertDoneActions');
+    if (doneActions) doneActions.style.display = 'none';
     if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
 
     closeConvertTrim();
@@ -4314,6 +4357,15 @@ function renderConvertList() {
         else if (convertItems.length > 1 && pending > 0) btn.textContent = t('convert.btn.n')(pending);
         else btn.textContent = t('convert.btn');
     }
+
+    // Once every item is done/error/cancelled (nothing left pending or converting), swap
+    // the single Convert button for an explicit "Open folder" + "Convert another file" pair.
+    const finished = convertItems.length > 0 && !convertRunning && convertItems.every((i) =>
+        i.state === 'done' || i.state === 'error' || i.state === 'cancelled'
+    );
+    const doneActions = document.getElementById('convertDoneActions');
+    if (btn) btn.style.display = finished ? 'none' : '';
+    if (doneActions) doneActions.style.display = finished ? 'flex' : 'none';
 
     const cancelBtn = document.getElementById('convertCancelBtn');
     if (cancelBtn) cancelBtn.style.display = convertRunning ? 'inline' : 'none';
@@ -4508,6 +4560,232 @@ async function doConvert() {
 async function doCancelConvert() {
     convertStopRequested = true;
     await window.api.convertCancel();
+}
+
+async function doImageConvertChooseFile() {
+    const filePaths = await window.api.imgConvertChooseFile();
+    addFilesToImageConvertList(filePaths);
+}
+
+function addFilesToImageConvertList(paths) {
+    if (!paths || paths.length === 0) return;
+    for (const p of paths) {
+        imageConvertItems.push({ id: ++imageConvertItemIdCounter, path: p, name: p.split('/').pop(), state: 'ready' });
+    }
+    document.getElementById('imgConvertDropZone').style.display = 'none';
+    document.getElementById('imgConvertListWrap').style.display = 'flex';
+    document.querySelector('#convertImageView .convert-center-wrapper')?.classList.add('has-content');
+    renderImageConvertList();
+}
+
+function doImageConvertClear() {
+    imageConvertItems = [];
+    imageConvertRunning = false;
+    const dropZone = document.getElementById('imgConvertDropZone');
+    const listWrap = document.getElementById('imgConvertListWrap');
+    const btn = document.getElementById('imgConvertBtn');
+    if (dropZone) dropZone.style.display = 'flex';
+    if (listWrap) listWrap.style.display = 'none';
+    if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; btn.style.display = ''; }
+    const doneActions = document.getElementById('imgConvertDoneActions');
+    if (doneActions) doneActions.style.display = 'none';
+    document.querySelector('#convertImageView .convert-center-wrapper')?.classList.remove('has-content');
+}
+
+function selectImageConvertFormat(value) {
+    imageConvertFormat = value;
+}
+
+const IMAGE_CONVERT_BUSY_STATES = new Set(['converting']);
+
+function imageConvertStatusLabel(item) {
+    return {
+        ready: t('convert.status.queued'),
+        converting: t('convert.status.converting'),
+        done: t('convert.status.done'),
+        error: t('convert.status.error'),
+    }[item.state];
+}
+
+function renderImageConvertList() {
+    imageConvertRenderedIds = renderBatchList({
+        listId: 'imgConvertList',
+        countId: 'imgConvertListCount',
+        items: imageConvertItems,
+        renderedIds: imageConvertRenderedIds,
+        isBusy: (item) => IMAGE_CONVERT_BUSY_STATES.has(item.state),
+        statusLabelFn: imageConvertStatusLabel,
+    });
+    const btn = document.getElementById('imgConvertBtn');
+    if (!btn) return;
+    const pending = imageConvertItems.filter((i) => i.state === 'ready').length;
+    btn.disabled = pending === 0 || imageConvertRunning;
+    if (imageConvertRunning) btn.textContent = t('convert.status.converting');
+    else if (imageConvertItems.length > 1 && pending > 0) btn.textContent = t('convert.btn.n') ? t('convert.btn.n')(pending) : `Convert ${pending}`;
+    else btn.textContent = t('convert.btn');
+
+    // Once every item is done/error (nothing left ready or converting), swap the single
+    // Convert button for an explicit "Open folder" + "Convert another file" pair.
+    const finished = imageConvertItems.length > 0 && !imageConvertRunning && imageConvertItems.every((i) =>
+        i.state === 'done' || i.state === 'error'
+    );
+    const doneActions = document.getElementById('imgConvertDoneActions');
+    btn.style.display = finished ? 'none' : '';
+    if (doneActions) doneActions.style.display = finished ? 'flex' : 'none';
+}
+
+async function doImageConvert() {
+    if (imageConvertRunning) return;
+    imageConvertRunning = true;
+
+    for (const item of imageConvertItems.filter((i) => i.state === 'ready')) {
+        item.state = 'converting';
+        renderImageConvertList();
+        addLog(`Converting: ${item.name} → ${imageConvertFormat.toUpperCase()}`, 'highlight');
+
+        try {
+            const result = await window.api.imgConvertFile(item.path, imageConvertFormat);
+            item.state = 'done';
+            addLog(`Saved: ${result.outputPath}`, 'success');
+        } catch (err) {
+            item.state = 'error';
+            addLog(`Image conversion failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderImageConvertList();
+    }
+
+    imageConvertRunning = false;
+    renderImageConvertList();
+
+    const failed = imageConvertItems.some((i) => i.state === 'error');
+    showToast(`Conversion ${failed ? 'finished with errors' : 'complete ✓'}`, failed ? 'error' : 'success');
+
+    if (imageConvertItems.some((i) => i.state === 'done') && document.getElementById('convertAutoOpenCheck')?.checked) {
+        window.api.convertOpenDestFolder();
+    }
+}
+
+async function doDocConvertChooseFile() {
+    const filePaths = await window.api.docConvertChooseFile();
+    addFilesToDocConvertList(filePaths);
+}
+
+function addFilesToDocConvertList(paths) {
+    if (!paths || paths.length === 0) return;
+    for (const p of paths) {
+        const ext = (p.split('.').pop() || '').toLowerCase();
+        docConvertItems.push({ id: ++docConvertItemIdCounter, path: p, name: p.split('/').pop(), ext, state: 'ready' });
+    }
+    document.getElementById('docConvertDropZone').style.display = 'none';
+    document.getElementById('docConvertListWrap').style.display = 'flex';
+    document.querySelector('#convertDocumentView .convert-center-wrapper')?.classList.add('has-content');
+    updateDocConvertFormatAvailability();
+    renderDocConvertList();
+}
+
+function doDocConvertClear() {
+    docConvertItems = [];
+    docConvertRunning = false;
+    docConvertFormat = 'markdown';
+    const dropZone = document.getElementById('docConvertDropZone');
+    const listWrap = document.getElementById('docConvertListWrap');
+    const btn = document.getElementById('docConvertBtn');
+    if (dropZone) dropZone.style.display = 'flex';
+    if (listWrap) listWrap.style.display = 'none';
+    if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; btn.style.display = ''; }
+    const doneActions = document.getElementById('docConvertDoneActions');
+    if (doneActions) doneActions.style.display = 'none';
+    document.getElementById('docConvertFormat').value = 'markdown';
+    updateDocConvertFormatAvailability();
+    document.querySelector('#convertDocumentView .convert-center-wrapper')?.classList.remove('has-content');
+}
+
+function selectDocConvertFormat(value) {
+    docConvertFormat = value;
+}
+
+// PDF output only works when every file in the batch is Office (docx/pptx/xlsx, per
+// minipdf) — everything else (odt/rtf/epub/csv/pdf/legacy .doc-.ppt-.xls) can only go to
+// Markdown. Disable the option rather than hide it, so it's clear it's conditional, not gone.
+function updateDocConvertFormatAvailability() {
+    const pdfOption = document.getElementById('docConvertFormatPdf');
+    const pdfHint = document.getElementById('docConvertPdfHint');
+    if (!pdfOption) return;
+    const allPdfEligible = docConvertItems.length > 0 && docConvertItems.every((i) => DOC_CONVERT_PDF_EXTS.has(i.ext));
+    pdfOption.disabled = !allPdfEligible;
+    if (pdfHint) pdfHint.style.display = (docConvertItems.length > 0 && !allPdfEligible) ? 'block' : 'none';
+    if (!allPdfEligible && docConvertFormat === 'pdf') {
+        docConvertFormat = 'markdown';
+        document.getElementById('docConvertFormat').value = 'markdown';
+    }
+}
+
+const DOC_CONVERT_BUSY_STATES = new Set(['converting']);
+
+function docConvertStatusLabel(item) {
+    return {
+        ready: t('convert.status.queued'),
+        converting: t('convert.status.converting'),
+        done: t('convert.status.done'),
+        error: t('convert.status.error'),
+    }[item.state];
+}
+
+function renderDocConvertList() {
+    docConvertRenderedIds = renderBatchList({
+        listId: 'docConvertList',
+        countId: 'docConvertListCount',
+        items: docConvertItems,
+        renderedIds: docConvertRenderedIds,
+        isBusy: (item) => DOC_CONVERT_BUSY_STATES.has(item.state),
+        statusLabelFn: docConvertStatusLabel,
+        badgeCategoryFn: (item) => (item.ext === 'pdf' ? 'pdf' : 'doc'),
+    });
+    const btn = document.getElementById('docConvertBtn');
+    if (!btn) return;
+    const pending = docConvertItems.filter((i) => i.state === 'ready').length;
+    btn.disabled = pending === 0 || docConvertRunning;
+    if (docConvertRunning) btn.textContent = t('convert.status.converting');
+    else if (docConvertItems.length > 1 && pending > 0) btn.textContent = t('convert.btn.n') ? t('convert.btn.n')(pending) : `Convert ${pending}`;
+    else btn.textContent = t('convert.btn');
+
+    const finished = docConvertItems.length > 0 && !docConvertRunning && docConvertItems.every((i) =>
+        i.state === 'done' || i.state === 'error'
+    );
+    const doneActions = document.getElementById('docConvertDoneActions');
+    btn.style.display = finished ? 'none' : '';
+    if (doneActions) doneActions.style.display = finished ? 'flex' : 'none';
+}
+
+async function doDocConvert() {
+    if (docConvertRunning) return;
+    docConvertRunning = true;
+
+    for (const item of docConvertItems.filter((i) => i.state === 'ready')) {
+        item.state = 'converting';
+        renderDocConvertList();
+        addLog(`Converting: ${item.name} → ${docConvertFormat.toUpperCase()}`, 'highlight');
+
+        try {
+            const result = await window.api.docConvertFile(item.path, docConvertFormat);
+            item.state = 'done';
+            addLog(`Saved: ${result.outputPath}`, 'success');
+        } catch (err) {
+            item.state = 'error';
+            addLog(`Document conversion failed for ${item.name}: ${err.message}`, 'error');
+        }
+        renderDocConvertList();
+    }
+
+    docConvertRunning = false;
+    renderDocConvertList();
+
+    const failed = docConvertItems.some((i) => i.state === 'error');
+    showToast(`Conversion ${failed ? 'finished with errors' : 'complete ✓'}`, failed ? 'error' : 'success');
+
+    if (docConvertItems.some((i) => i.state === 'done') && document.getElementById('convertAutoOpenCheck')?.checked) {
+        window.api.convertOpenDestFolder();
+    }
 }
 
 // --- QR Generator ---

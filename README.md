@@ -93,16 +93,18 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 - A download that stalls for 5 minutes with no progress is auto-cancelled instead of blocking the rest of the queue
 
 ### Convert
-- Drop any local video or audio file to convert or trim it
-- Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more
-- Trim with a visual timeline before converting
-- Cancel mid-conversion — no partial output file left behind
+Three sub-views for three different jobs — same tab, same "Saving to" destination.
+- **Video & Audio** — drop any local video or audio file to convert or trim it. Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more. Trim with a visual timeline before converting. Cancel mid-conversion — no partial output file left behind
+- **Image** — convert between JPEG, PNG, WebP, AVIF, TIFF, and GIF, including HEIC (iPhone photos) as an input format, no extra install required
+- **Document** — turn Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, or PDF into clean Markdown, or Word/PowerPoint/Excel straight into a PDF, without needing Microsoft Office or LibreOffice installed
+- Once a batch finishes, "Open folder" and "Convert another file" replace the single action button — nothing auto-clears itself
 
 ### Compress
 - Drop an image (JPG/PNG/WebP/AVIF/TIFF) or PDF, batch multiple files at once
 - Three no-jargon presets — Maximum quality / Balanced / Smallest — ranked by actual measured output size, not a fixed setting
 - Target-size mode for images: enter a size in MB and bWeb finds the closest match
 - Never overwrites the original — always writes a new `_compressed` file
+- Once a batch finishes, "Open folder" and "Compress another file" replace the single action button — nothing auto-clears itself
 
 ### Privacy (Watermark & Redact)
 - **Watermark** — Tile a text or logo watermark diagonally across images or PDFs, batch mode. PDF watermarking rasterizes each page so the mark can't be stripped in a couple of clicks in Acrobat/Illustrator
@@ -269,6 +271,8 @@ bweb/
 - [withoutBG](https://github.com/withoutbg/withoutbg-python) — Background Remover model (built with [DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license/))
 - [Iconoir](https://iconoir.com) — icon set (MIT)
 - [PDF.js](https://mozilla.github.io/pdf.js/) — client-side PDF rendering for the Redact editor (Apache-2.0)
+- [anydoc](https://github.com/firecrawl/anydoc) by Firecrawl — Document → Markdown conversion (MIT)
+- [MiniPdf](https://github.com/mini-software/MiniPdf) — Word/PowerPoint/Excel → PDF conversion (Apache-2.0)
 
 ---
 

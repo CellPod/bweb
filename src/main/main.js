@@ -3,6 +3,8 @@
 
 const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, protocol } = require('electron');
 const converter = require('./converter');
+const imageConverter = require('./imageConverter');
+const docConverter = require('./docConverter');
 const compressor = require('./compressor');
 const watermark = require('./watermark');
 const redact = require('./redact');
@@ -39,6 +41,16 @@ const IMAGE_AND_PDF_FILTERS = [
     { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
     { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
     { name: 'PDF', extensions: ['pdf'] },
+    { name: 'All files', extensions: ['*'] },
+];
+
+// Every input format anydoc can turn into Markdown (see docConverter.js) — Convert's
+// Document sub-view file picker.
+const DOCUMENT_FILTERS = [
+    {
+        name: 'Documents',
+        extensions: ['doc', 'docx', 'docm', 'ppt', 'pps', 'pot', 'pptx', 'pptm', 'ppsx', 'ppsm', 'xls', 'xlsx', 'xlsm', 'xlsb', 'odt', 'ods', 'odp', 'rtf', 'epub', 'csv', 'pdf'],
+    },
     { name: 'All files', extensions: ['*'] },
 ];
 
@@ -753,6 +765,69 @@ ipcMain.handle('convert:cancel', () => {
         return true;
     }
     return false;
+});
+
+// Image conversion — a sub-view of Convert, not a separate tool: shares the same "Saving
+// to" destination/auto-open (registerDestPathHandlers('convert', ...) below) as the video
+// side, since it's one output folder per Convert session either way.
+ipcMain.handle('imgconvert:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select image file(s)',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'heic', 'heif'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
+});
+
+ipcMain.handle('imgconvert:file', async (_e, { inputPath, format }) => {
+    log('Image convert requested:', inputPath, '->', format);
+    const ffmpegBin = ytdlp.getFfmpegPath();
+    const destDir = store.get('convertDestPath');
+    if (destDir) fs.mkdirSync(destDir, { recursive: true });
+    const outputPath = imageConverter.getImageOutputPath(inputPath, format, destDir);
+    if (!outputPath) throw new Error(`Unknown image format: ${format}`);
+
+    try {
+        const result = await imageConverter.convertImage(ffmpegBin, inputPath, outputPath, format);
+        send('log', `Image conversion complete ✓ → ${outputPath}`);
+        return result;
+    } catch (err) {
+        send('log', `Image conversion failed: ${err.message}`);
+        throw err;
+    }
+});
+
+// Document conversion — the third Convert sub-view, same shared destination as Video/Image.
+ipcMain.handle('docconvert:chooseFile', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select document file(s)',
+        properties: ['openFile', 'multiSelections'],
+        filters: DOCUMENT_FILTERS,
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
+});
+
+ipcMain.handle('docconvert:file', async (_e, { inputPath, format }) => {
+    log('Document convert requested:', inputPath, '->', format);
+    const destDir = store.get('convertDestPath');
+    if (destDir) fs.mkdirSync(destDir, { recursive: true });
+    const outputPath = docConverter.getDocOutputPath(inputPath, format, destDir);
+
+    try {
+        const result = await docConverter.convertDocument(inputPath, format, outputPath);
+        send('log', `Document conversion complete ✓ → ${outputPath}`);
+        return result;
+    } catch (err) {
+        send('log', `Document conversion failed: ${err.message}`);
+        throw err;
+    }
 });
 
 registerDestPathHandlers('convert', 'convertDestPath', 'converted files');

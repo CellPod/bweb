@@ -153,19 +153,37 @@ function runFfmpegPass(ffmpegBin, inputPath, outputPath, vcodec, acodec, startTi
 // Some source files carry a codec — e.g. PCM audio variants in .mov screen recordings, or
 // a video codec the target container's muxer just doesn't support (HEVC variants, ProRes,
 // etc.) — that a stream copy can't hold, even though the other stream's remux is perfectly
-// fine. ffmpeg reports this as "Error initializing output stream", tagged with "vost" for
-// the video output stream or "aost" for the audio one. This used to assume it was always
-// the audio side (the common case), but a video-side failure hit the exact same generic
-// message and retried with the same incompatible vcodec, just failing again the same way.
+// fine. This surfaces as two different ffmpeg error families depending on ffmpeg version/
+// code path: "Error initializing output stream" (tagged "vost"/"aost" for which stream),
+// or — e.g. ProRes/DNxHD copied straight into an .mp4 — "Could not find tag for codec X in
+// stream #N, codec not currently supported in container" followed by "Could not write
+// header", raised earlier during muxer header validation with no vost/aost tag at all.
 function isOutputStreamInitError(err) {
-    return /Error initializing output stream/i.test(err.stderrTail || err.message || '');
+    const text = err.stderrTail || err.message || '';
+    return /Error initializing output stream/i.test(text)
+        || /Could not find tag for codec/i.test(text)
+        || /Could not write header/i.test(text);
 }
 
-function failingStreamKind(err) {
+// Well-known video-only intermediate/professional codecs that commonly hit the "Could not
+// find tag for codec" mux error above — recognizing these directly avoids wasting a first
+// retry "fixing" the audio side when the problem was never audio. Anything not in this list
+// still resolves correctly via the fallback below (audio tried first, video tried next if
+// that didn't help), so this list only needs to cover the common cases, not be exhaustive.
+const VIDEO_ONLY_CODEC_NAMES = /\b(prores|dnxhd|dnxhr|cineform|hap|rawvideo|v210|huffyuv|ffv1|utvideo|magicyuv)\b/i;
+
+function failingStreamKind(err, vcodec, acodec) {
     const text = err.stderrTail || err.message || '';
     if (/\[vost#/i.test(text)) return 'video';
     if (/\[aost#/i.test(text)) return 'audio';
-    return null; // older/other ffmpeg build that doesn't tag the stream — don't guess which
+    if (VIDEO_ONLY_CODEC_NAMES.test(text)) return 'video';
+    // No explicit tag or recognized codec name — but if only one side is still a stream
+    // copy (the other already re-encoded by an earlier attempt), it's the only side that
+    // CAN still be at fault, so this resolves correctly on a later attempt even when the
+    // first attempt has to guess.
+    if (vcodec === 'copy' && acodec !== 'copy') return 'video';
+    if (acodec === 'copy' && vcodec !== 'copy') return 'audio';
+    return null;
 }
 
 async function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime, handle) {
@@ -183,7 +201,7 @@ async function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress,
         } catch (err) {
             if (attempt >= 2 || !isOutputStreamInitError(err)) throw err;
 
-            const failing = failingStreamKind(err);
+            const failing = failingStreamKind(err, vcodec, acodec);
             if ((failing === 'audio' || !failing) && acodec === 'copy') {
                 acodec = 'aac';
                 log('Copy remux failed on the audio stream — retrying with audio re-encoded to AAC:', inputPath);

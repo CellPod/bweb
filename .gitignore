@@ -37,6 +37,7 @@ next-env.d.ts
 
 .npm
 TODO.md
+HISTORY.md
 graphify-out/
 
 # playwright-cli session artifacts (snapshots/screenshots from manual testing)

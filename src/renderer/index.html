@@ -72,6 +72,18 @@
   <symbol id="ic-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M2 11V4.6C2 4.26863 2.26863 4 2.6 4H8.77805C8.92127 4 9.05977 4.05124 9.16852 4.14445L12.3315 6.85555C12.4402 6.94876 12.5787 7 12.722 7H21.4C21.7314 7 22 7.26863 22 7.6V11M2 11V19.4C2 19.7314 2.26863 20 2.6 20H21.4C21.7314 20 22 19.7314 22 19.4V11M2 11H22"/>
   </symbol>
+  <symbol id="ic-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 3.6V20.4C21 20.7314 20.7314 21 20.4 21H3.6C3.26863 21 3 20.7314 3 20.4V3.6C3 3.26863 3.26863 3 3.6 3H20.4C20.7314 3 21 3.26863 21 3.6Z"/>
+    <path d="M3 16L10 13L21 18"/>
+    <path d="M16 10C14.8954 10 14 9.10457 14 8C14 6.89543 14.8954 6 16 6C17.1046 6 18 6.89543 18 8C18 9.10457 17.1046 10 16 10Z"/>
+  </symbol>
+  <symbol id="ic-page" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 21.4V2.6C4 2.26863 4.26863 2 4.6 2H16.2515C16.4106 2 16.5632 2.06321 16.6757 2.17574L19.8243 5.32426C19.9368 5.43679 20 5.5894 20 5.74853V21.4C20 21.7314 19.7314 22 19.4 22H4.6C4.26863 22 4 21.7314 4 21.4Z"/>
+    <path d="M8 10L16 10"/>
+    <path d="M8 18L16 18"/>
+    <path d="M8 14L12 14"/>
+    <path d="M16 2V5.4C16 5.73137 16.2686 6 16.6 6H20"/>
+  </symbol>
   <symbol id="ic-qrcode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M15 12L15 15"/><path d="M12 3V6"/><path d="M18 12L18 15"/><path d="M12 18L21 18"/><path d="M18 21H21"/><path d="M6 12H9"/><path d="M6 6.01111L6.01 6"/><path d="M12 12.0111L12.01 12"/><path d="M3 12.0111L3.01 12"/><path d="M12 9.01111L12.01 9"/><path d="M12 15.0111L12.01 15"/><path d="M15 21.0111L15.01 21"/><path d="M12 21.0111L12.01 21"/><path d="M21 12.0111L21.01 12"/><path d="M21 15.0111L21.01 15"/><path d="M18 6.01111L18.01 6"/><path d="M9 3.6V8.4C9 8.73137 8.73137 9 8.4 9H3.6C3.26863 9 3 8.73137 3 8.4V3.6C3 3.26863 3.26863 3 3.6 3H8.4C8.73137 3 9 3.26863 9 3.6Z"/><path d="M21 3.6V8.4C21 8.73137 20.7314 9 20.4 9H15.6C15.2686 9 15 8.73137 15 8.4V3.6C15 3.26863 15.2686 3 15.6 3H20.4C20.7314 3 21 3.26863 21 3.6Z"/><path d="M6 18.0111L6.01 18"/><path d="M9 15.6V20.4C9 20.7314 8.73137 21 8.4 21H3.6C3.26863 21 3 20.7314 3 20.4V15.6C3 15.2686 3.26863 15 3.6 15H8.4C8.73137 15 9 15.2686 9 15.6Z"/>
   </symbol>
@@ -439,6 +451,23 @@
                     </div>
                 </div>
 
+                <div class="dl-mode-tabs">
+                    <button class="dl-mode-tab active" data-mode="video" onclick="setConvertMode('video')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-film"/></svg>
+                        <span data-i18n="convert.mode.video">Video &amp; Audio</span>
+                    </button>
+                    <button class="dl-mode-tab" data-mode="image" onclick="setConvertMode('image')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-image"/></svg>
+                        <span data-i18n="convert.mode.image">Image</span>
+                    </button>
+                    <button class="dl-mode-tab" data-mode="document" onclick="setConvertMode('document')">
+                        <svg class="icon-svg" width="13" height="13"><use href="#ic-page"/></svg>
+                        <span data-i18n="convert.mode.document">Document</span>
+                    </button>
+                </div>
+
+                <!-- Video & Audio sub-view -->
+                <div id="convertVideoView">
                 <div class="convert-center-wrapper">
                 <div class="convert-container">
                     <div class="convert-drop-zone" id="convertDropZone" onclick="doConvertChooseFile()">
@@ -561,8 +590,109 @@
                     </div>
 
                     <button id="convertBtn" class="btn-download convert-btn" data-i18n="convert.btn" onclick="doConvert()" disabled>Convert</button>
+                    <div id="convertDoneActions" class="convert-done-actions" style="display:none">
+                        <button class="convert-open-folder-btn" onclick="window.api.convertOpenDestFolder()">
+                            <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
+                            <span data-i18n="queue.openFolder">Open folder</span>
+                        </button>
+                        <button class="btn-download" data-i18n="convert.btn.another" onclick="doConvertClear()">Convert another file</button>
+                    </div>
                 </div>
                 </div><!-- /convert-center-wrapper -->
+                </div><!-- /convertVideoView -->
+
+                <!-- Image sub-view -->
+                <div id="convertImageView" style="display:none">
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="imgConvertDropZone" onclick="doImageConvertChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="convert.image.drop.title">Drop one or more images, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="convert.image.drop.sub">JPG, PNG, WebP, AVIF, TIFF, GIF, HEIC…</div>
+                    </div>
+
+                    <div id="imgConvertListWrap" class="convert-batch-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" data-i18n="convert.image.list.title">Images to convert</span>
+                            <span id="imgConvertListCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.addMore" onclick="doImageConvertChooseFile()">+ Add</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doImageConvertClear()">Reset</button>
+                        </div>
+                        <div id="imgConvertList" class="convert-batch-list"></div>
+                    </div>
+
+                    <div class="convert-options">
+                        <div class="convert-option-group">
+                            <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
+                            <select id="imgConvertFormat" class="convert-select" onchange="selectImageConvertFormat(this.value)">
+                                <option value="jpeg" selected>JPEG</option>
+                                <option value="png">PNG</option>
+                                <option value="webp">WebP</option>
+                                <option value="avif">AVIF</option>
+                                <option value="tiff">TIFF</option>
+                                <option value="gif">GIF</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="imgConvertBtn" class="btn-download convert-btn" data-i18n="convert.btn" onclick="doImageConvert()" disabled>Convert</button>
+                    <div id="imgConvertDoneActions" class="convert-done-actions" style="display:none">
+                        <button class="convert-open-folder-btn" onclick="window.api.convertOpenDestFolder()">
+                            <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
+                            <span data-i18n="queue.openFolder">Open folder</span>
+                        </button>
+                        <button class="btn-download" data-i18n="convert.btn.another" onclick="doImageConvertClear()">Convert another file</button>
+                    </div>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+                </div><!-- /convertImageView -->
+
+                <!-- Document sub-view -->
+                <div id="convertDocumentView" style="display:none">
+                <div class="convert-center-wrapper">
+                <div class="convert-container">
+                    <div class="convert-drop-zone" id="docConvertDropZone" onclick="doDocConvertChooseFile()">
+                        <div class="convert-drop-icon">
+                            <svg class="icon-svg" width="36" height="36"><use href="#ic-upload"/></svg>
+                        </div>
+                        <div class="convert-drop-title" data-i18n="convert.doc.drop.title">Drop one or more documents, or click to browse</div>
+                        <div class="convert-drop-sub" data-i18n="convert.doc.drop.sub">Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, PDF…</div>
+                    </div>
+
+                    <div id="docConvertListWrap" class="convert-batch-wrap" style="display:none">
+                        <div class="convert-batch-header">
+                            <span class="convert-batch-title" data-i18n="convert.doc.list.title">Documents to convert</span>
+                            <span id="docConvertListCount" class="convert-batch-count"></span>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.addMore" onclick="doDocConvertChooseFile()">+ Add</button>
+                            <button class="btn-ghost convert-clear-btn" data-i18n="convert.reset" onclick="doDocConvertClear()">Reset</button>
+                        </div>
+                        <div id="docConvertList" class="convert-batch-list"></div>
+                    </div>
+
+                    <div class="convert-options">
+                        <div class="convert-option-group">
+                            <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
+                            <select id="docConvertFormat" class="convert-select" onchange="selectDocConvertFormat(this.value)">
+                                <option value="markdown" selected>Markdown</option>
+                                <option value="pdf" id="docConvertFormatPdf" disabled>PDF</option>
+                            </select>
+                        </div>
+                        <div id="docConvertPdfHint" class="convert-lossy-warn" style="display:none" data-i18n="convert.doc.pdfHint">PDF output needs every file in this batch to be Word, PowerPoint, or Excel (.docx/.pptx/.xlsx).</div>
+                    </div>
+
+                    <button id="docConvertBtn" class="btn-download convert-btn" data-i18n="convert.btn" onclick="doDocConvert()" disabled>Convert</button>
+                    <div id="docConvertDoneActions" class="convert-done-actions" style="display:none">
+                        <button class="convert-open-folder-btn" onclick="window.api.convertOpenDestFolder()">
+                            <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
+                            <span data-i18n="queue.openFolder">Open folder</span>
+                        </button>
+                        <button class="btn-download" data-i18n="convert.btn.another" onclick="doDocConvertClear()">Convert another file</button>
+                    </div>
+                </div>
+                </div><!-- /convert-center-wrapper -->
+                </div><!-- /convertDocumentView -->
             </div>
 
             <!-- Compress view -->
@@ -651,6 +781,13 @@
                     </div>
 
                     <button id="compressBtn" class="btn-download convert-btn" data-i18n="compress.btn" onclick="doCompress()" disabled>Compress</button>
+                    <div id="compressDoneActions" class="convert-done-actions" style="display:none">
+                        <button class="convert-open-folder-btn" onclick="window.api.compressOpenDestFolder()">
+                            <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
+                            <span data-i18n="queue.openFolder">Open folder</span>
+                        </button>
+                        <button class="btn-download" data-i18n="compress.btn.another" onclick="doCompressClear()">Compress another file</button>
+                    </div>
                 </div>
                 </div><!-- /convert-center-wrapper -->
             </div>

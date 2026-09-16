@@ -116,6 +116,10 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('convert:progress', handler);
         return () => ipcRenderer.removeListener('convert:progress', handler);
     },
+    imgConvertChooseFile: () => ipcRenderer.invoke('imgconvert:chooseFile'),
+    imgConvertFile: (inputPath, format) => ipcRenderer.invoke('imgconvert:file', { inputPath, format }),
+    docConvertChooseFile: () => ipcRenderer.invoke('docconvert:chooseFile'),
+    docConvertFile: (inputPath, format) => ipcRenderer.invoke('docconvert:file', { inputPath, format }),
     convertGetDestPath: () => ipcRenderer.invoke('convert:getDestPath'),
     convertChooseDestPath: () => ipcRenderer.invoke('convert:chooseDestPath'),
     convertOpenDestFolder: () => ipcRenderer.invoke('convert:openDestFolder'),
