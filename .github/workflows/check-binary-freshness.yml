@@ -1,0 +1,49 @@
+name: Check binary dependency freshness
+
+# yt-dlp/deno/WinSparkle already fetch "latest" fresh at every build (see
+# scripts/postinstall.js) — no drift is possible there by construction. ffmpeg-static is
+# the exception: it bundles a binary tied to its own release cadence, which was found
+# 2026-09-16 to be 3 major FFmpeg versions behind (and GPL/nonfree-licensed on top of that).
+# `npm outdated`/Dependabot never catch this since the npm package itself is current — the
+# staleness is one level down, in what it bundles. This runs the same check on a schedule
+# so it doesn't silently drift again unnoticed between manual audits.
+on:
+  schedule:
+    - cron: "0 9 * * 1" # weekly, Monday 09:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  check-ffmpeg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install ffmpeg-static (metadata only, no binary download needed for this check)
+        run: npm install --no-save --ignore-scripts ffmpeg-static
+      - name: Run freshness check
+        id: check
+        run: node scripts/check-ffmpeg-freshness.js
+        continue-on-error: true
+      - name: Open or update tracking issue if behind
+        if: steps.check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'ffmpeg-static binary is significantly behind upstream FFmpeg';
+            const body = 'Weekly freshness check failed — see the "check-ffmpeg" job log in this run for the exact version gap. See TODO.md "Dépendances binaires" for background (also a GPL/nonfree licensing concern, not just staleness).';
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'dependency-freshness',
+            });
+            if (existing.data.some((i) => i.title === title)) return;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['dependency-freshness'],
+            });

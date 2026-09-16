@@ -110,4 +110,4 @@ function fetchJSON(url) {
     });
 }
 
-module.exports = { checkForUpdates };
+module.exports = { checkForUpdates, isNewer };

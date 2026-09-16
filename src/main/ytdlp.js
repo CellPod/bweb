@@ -1,6 +1,7 @@
 // yt-dlp Engine
 // Handles: binary resolution, video info fetching, downloading with structured progress output.
 
+const { app } = require('electron');
 const { spawn, execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -78,6 +79,21 @@ function getYtdlpPath() {
     // packaging-side naming mismatch (this bit us once already: v1.1.0's Windows build
     // shipped the binary as plain "yt-dlp" instead of "yt-dlp.exe").
     const names = ext ? ['yt-dlp' + ext, 'yt-dlp'] : ['yt-dlp'];
+
+    // depUpdater.js drops a fresher binary here when it finds one — always prefer it over
+    // whatever shipped with this build, since it's never older.
+    try {
+        const userBase = path.join(app.getPath('userData'), 'bin');
+        for (const name of names) {
+            const userPath = path.join(userBase, name);
+            if (fs.existsSync(userPath)) {
+                log('Using auto-updated yt-dlp:', userPath);
+                return userPath;
+            }
+        }
+    } catch {
+        //
+    }
 
     try {
         const resBase = path.join(process.resourcesPath || '', 'bin');

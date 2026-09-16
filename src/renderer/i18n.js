@@ -343,6 +343,8 @@ const TRANSLATIONS = {
         'update.availableAbout':    (v) => `v${v} is available`,
         'update.viewRelease':       'View release',
         'update.upToDate':          "You're on the latest version",
+        'update.install':           'Install Update',
+        'update.installing':        'Installing…',
     },
 
     fr: {
@@ -683,6 +685,8 @@ const TRANSLATIONS = {
         'update.availableAbout':    (v) => `v${v} est disponible`,
         'update.viewRelease':       'Voir la version',
         'update.upToDate':          'Vous avez la dernière version',
+        'update.install':           'Installer la mise à jour',
+        'update.installing':        'Installation…',
     },
 };
 

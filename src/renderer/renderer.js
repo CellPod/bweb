@@ -395,6 +395,11 @@ window.api.onUpdateAvailable((data) => {
     showUpdateBanner();
 });
 
+// macOS only (no-op elsewhere, see sparkleUpdater.js) — Sparkle drives this asynchronously
+// (checking/available/downloaded/error) instead of the single request/response
+// updater.checkForUpdates() call above.
+window.api.onSparkleEvent(handleSparkleEvent);
+
 $url.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doFetch();
 });
@@ -2368,9 +2373,10 @@ async function loadAbout() {
     renderAboutUpdate();
 }
 
-// Updates are check-and-redirect only — no silent in-place install. A background
-// auto-installer was tried and failed unrecoverably on an ad-hoc-signed mac build;
-// pointing people at the GitHub release page for a manual download always works.
+// Windows/Linux (and macOS if the Sparkle bridge failed to load): check-and-redirect only,
+// no silent in-place install. A background auto-installer was tried on Squirrel.Mac/NSIS
+// and failed unrecoverably for a real user; pointing people at the GitHub release page for
+// a manual download always works. macOS's real path is showSparkleBanner() below instead.
 function showUpdateBanner() {
     const banner = $('updateBanner');
     if (!banner) return;
@@ -2381,6 +2387,49 @@ function showUpdateBanner() {
         `<button class="btn-sm" onclick="openExternal('${escapeHtml(updateInfo.url)}')">${escapeHtml(t('update.download'))}</button>` +
         `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}" aria-label="${escapeHtml(t('update.dismiss'))}">×</button>`;
     banner.classList.add('visible');
+}
+
+// macOS only. Sparkle's own native dialogs are suppressed by the bridge (see
+// sparkleUpdater.js) so this reuses the same #updateBanner element instead, but the button
+// actually triggers the download+install (Sparkle handles both), not an external link.
+let sparkleReadyToInstall = null; // { version } once Sparkle has finished downloading
+
+function handleSparkleEvent(event) {
+    switch (event.type) {
+        case 'update-available':
+            addLog(`Update available: v${event.version || ''}`, 'highlight');
+            break;
+        case 'update-downloaded':
+            sparkleReadyToInstall = { version: event.version || '' };
+            showSparkleBanner();
+            break;
+        case 'update-not-available':
+            sparkleReadyToInstall = null;
+            break;
+        case 'error':
+            addLog(`Update check failed: ${event.message || ''}`, 'error');
+            break;
+    }
+}
+
+function showSparkleBanner() {
+    const banner = $('updateBanner');
+    if (!banner || !sparkleReadyToInstall) return;
+
+    banner.innerHTML =
+        `<span>${escapeHtml(t('update.newVersion'))} <strong>v${escapeHtml(sparkleReadyToInstall.version)}</strong></span>` +
+        `<button class="btn-sm" onclick="installSparkleUpdate(event)">${escapeHtml(t('update.install'))}</button>` +
+        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}" aria-label="${escapeHtml(t('update.dismiss'))}">×</button>`;
+    banner.classList.add('visible');
+}
+
+async function installSparkleUpdate(e) {
+    const btn = e && e.target;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = t('update.installing');
+    }
+    await window.api.installSparkleUpdate();
 }
 
 function dismissUpdateBanner() {
@@ -2416,6 +2465,11 @@ async function doCheckForUpdates() {
 
     try {
         const result = await window.api.checkForUpdates();
+
+        // macOS: the real answer streams in later via handleSparkleEvent (Sparkle's check
+        // is async) — nothing to render from this immediate reply.
+        if (result.sparkle) return;
+
         updateInfo = result;
         renderAboutUpdate();
 

@@ -150,30 +150,52 @@ function runFfmpegPass(ffmpegBin, inputPath, outputPath, vcodec, acodec, startTi
     });
 }
 
-// Some source files (very commonly .mov screen recordings) carry an audio codec — e.g. PCM
-// variants — that the target container's muxer refuses to hold via a stream copy, even
-// though the video-only side of the remux is perfectly fine. ffmpeg reports this as
-// "Error initializing output stream" for the audio stream specifically. Rather than
-// surfacing a cryptic ffmpeg error to a non-technical user for something that has an easy,
-// lossless-for-video fix, retry once with the audio re-encoded to AAC (universally
-// supported) while keeping the video stream copy untouched.
+// Some source files carry a codec — e.g. PCM audio variants in .mov screen recordings, or
+// a video codec the target container's muxer just doesn't support (HEVC variants, ProRes,
+// etc.) — that a stream copy can't hold, even though the other stream's remux is perfectly
+// fine. ffmpeg reports this as "Error initializing output stream", tagged with "vost" for
+// the video output stream or "aost" for the audio one. This used to assume it was always
+// the audio side (the common case), but a video-side failure hit the exact same generic
+// message and retried with the same incompatible vcodec, just failing again the same way.
 function isOutputStreamInitError(err) {
     return /Error initializing output stream/i.test(err.stderrTail || err.message || '');
+}
+
+function failingStreamKind(err) {
+    const text = err.stderrTail || err.message || '';
+    if (/\[vost#/i.test(text)) return 'video';
+    if (/\[aost#/i.test(text)) return 'audio';
+    return null; // older/other ffmpeg build that doesn't tag the stream — don't guess which
 }
 
 async function convertFile(ffmpegBin, inputPath, outputPath, format, onProgress, onLog, startTime, endTime, handle) {
     const preset = FORMAT_PRESETS[format];
     if (!preset) throw new Error(`Unknown format: ${format}`);
 
-    try {
-        return await runFfmpegPass(ffmpegBin, inputPath, outputPath, preset.vcodec, preset.acodec, startTime, endTime, onProgress, onLog, handle);
-    } catch (err) {
-        const canRetryWithAac = preset.acodec === 'copy' && preset.vcodec !== null && isOutputStreamInitError(err);
-        if (!canRetryWithAac) throw err;
+    let vcodec = preset.vcodec;
+    let acodec = preset.acodec;
 
-        log('Copy remux failed on the audio stream — retrying with audio re-encoded to AAC (video stays a lossless copy):', inputPath);
-        if (onLog) onLog('Audio codec incompatible with this container — re-encoding audio to AAC, video stays lossless…');
-        return runFfmpegPass(ffmpegBin, inputPath, outputPath, preset.vcodec, 'aac', startTime, endTime, onProgress, onLog, handle);
+    // Up to 2 retries: one to fix the audio side, one to fix the video side, in whichever
+    // order ffmpeg actually reports them failing (a file can need both).
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await runFfmpegPass(ffmpegBin, inputPath, outputPath, vcodec, acodec, startTime, endTime, onProgress, onLog, handle);
+        } catch (err) {
+            if (attempt >= 2 || !isOutputStreamInitError(err)) throw err;
+
+            const failing = failingStreamKind(err);
+            if ((failing === 'audio' || !failing) && acodec === 'copy') {
+                acodec = 'aac';
+                log('Copy remux failed on the audio stream — retrying with audio re-encoded to AAC:', inputPath);
+                if (onLog) onLog('Codec audio incompatible avec ce conteneur — réencodage en AAC…');
+            } else if (vcodec === 'copy') {
+                vcodec = 'libx264';
+                log('Copy remux failed on the video stream — retrying with video re-encoded to H.264:', inputPath);
+                if (onLog) onLog('Codec vidéo incompatible avec ce conteneur — réencodage en H.264…');
+            } else {
+                throw err;
+            }
+        }
     }
 }
 

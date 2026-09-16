@@ -97,6 +97,12 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('update-available', handler);
         return () => ipcRenderer.removeListener('update-available', handler);
     },
+    onSparkleEvent: (cb) => {
+        const handler = (_e, data) => cb(data);
+        ipcRenderer.on('sparkle:event', handler);
+        return () => ipcRenderer.removeListener('sparkle:event', handler);
+    },
+    installSparkleUpdate: () => ipcRenderer.invoke('sparkle:installUpdateNow'),
 
     // Converter
     convertChooseFile: () => ipcRenderer.invoke('convert:chooseFile'),

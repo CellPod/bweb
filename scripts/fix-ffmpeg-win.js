@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { adHocSignAfterPack } = require('electron-sparkle-updater/builder');
 
 exports.default = async function (context) {
     const platform = context.electronPlatformName;
@@ -35,4 +36,12 @@ exports.default = async function (context) {
             }
         }
     }
+
+    // Must run last: this deep-signs the whole bundle ad-hoc (free, no Developer ID —
+    // already proven sufficient for Squirrel.Mac's own signature check, see the removed
+    // scripts/adhoc-sign-mac.js) and then verifies it with `codesign --verify --deep
+    // --strict`, which Sparkle's own `generate_appcast` tool refuses to process an archive
+    // without passing. Doing the sign here (afterPack, once staging is done) rather than
+    // afterSign avoids a second, redundant signing pass.
+    await adHocSignAfterPack(context);
 };

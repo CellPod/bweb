@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+    # Major bumps for these need deliberate, manual testing (native modules to rebuild,
+    # packaging/asarUnpack implications) — see TODO.md's dependency table. Dependabot still
+    # opens PRs for their minor/patch updates automatically; majors stay a conscious choice,
+    # same way Electron 33→43 and 43→44 were each handled as their own dedicated pass.
+    ignore:
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "electron-builder"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sharp"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "onnxruntime-node"
+        update-types: ["version-update:semver-major"]

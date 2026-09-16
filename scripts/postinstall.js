@@ -210,16 +210,67 @@ async function downloadWithoutbgModel() {
     }
 }
 
+const WINSPARKLE_LATEST_URL = 'https://api.github.com/repos/vslavik/winsparkle/releases/latest';
+
+// WinSparkle is the Windows port of Sparkle (same maintainer format: appcast + EdDSA
+// signatures) — used by src/main/winSparkleUpdater.js. Only needed for the win32 target;
+// unlike yt-dlp/deno this doesn't vary by CPU arch since bWeb only ships win32-x64.
+async function downloadWinSparkle() {
+    const platform = process.env.npm_config_platform || process.platform;
+    if (platform !== 'win32') return;
+
+    const outputPath = path.join(BIN_DIR, 'WinSparkle.dll');
+    if (fs.existsSync(outputPath)) {
+        console.log('  ✓ WinSparkle.dll already exists at bin/WinSparkle.dll');
+        return;
+    }
+
+    console.log('  Downloading WinSparkle...');
+
+    try {
+        const tag = await getLatestTag(WINSPARKLE_LATEST_URL);
+        const version = tag.replace(/^v/, '');
+        const downloadUrl = `https://github.com/vslavik/winsparkle/releases/download/${tag}/WinSparkle-${version}.zip`;
+        console.log(`  Version: ${tag}`);
+
+        const zipPath = path.join(BIN_DIR, 'winsparkle.zip');
+        await downloadFile(downloadUrl, zipPath, 'WinSparkle');
+
+        console.log('  Extracting...');
+        const extractDir = path.join(BIN_DIR, '_winsparkle_extract');
+        if (process.platform === 'win32') {
+            execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`, {
+                stdio: 'ignore',
+            });
+        } else {
+            execSync(`unzip -o "${zipPath}" -d "${extractDir}"`, { stdio: 'ignore' });
+        }
+
+        const dllSrc = path.join(extractDir, `WinSparkle-${version}`, 'x64', 'Release', 'WinSparkle.dll');
+        fs.copyFileSync(dllSrc, outputPath);
+        fs.rmSync(extractDir, { recursive: true, force: true });
+        fs.unlinkSync(zipPath);
+
+        console.log('  ✓ WinSparkle.dll installed to bin/WinSparkle.dll');
+    } catch (err) {
+        console.error(`  ✗ Failed to download WinSparkle: ${err.message}`);
+        console.error('    You can manually download it from: https://github.com/vslavik/winsparkle/releases');
+        console.error('    Extract x64/Release/WinSparkle.dll to bin/WinSparkle.dll');
+    }
+}
+
 // Cross-platform builds (see README) reuse this same bin/ folder across platform
 // switches. Without this, a leftover binary from a previous platform's install just
 // sits there — and since electron-builder's per-platform extraResources filter only
 // looks at what's physically in bin/, a stale foreign binary would get bundled into
 // every subsequent build regardless of target OS.
 function removeForeignPlatformBinaries() {
+    const platform = process.env.npm_config_platform || process.platform;
     const outputName = getYtdlpOutputName();
     const denoInfo = getDenoBinaryInfo();
     const keep = new Set([outputName, denoInfo?.exe].filter(Boolean));
-    const ALL_KNOWN_BINARIES = ['yt-dlp', 'yt-dlp.exe', 'deno', 'deno.exe'];
+    if (platform === 'win32') keep.add('WinSparkle.dll');
+    const ALL_KNOWN_BINARIES = ['yt-dlp', 'yt-dlp.exe', 'deno', 'deno.exe', 'WinSparkle.dll'];
 
     for (const name of ALL_KNOWN_BINARIES) {
         if (keep.has(name)) continue;
@@ -239,6 +290,7 @@ async function main() {
     removeForeignPlatformBinaries();
     await downloadYtdlp();
     await downloadDeno();
+    await downloadWinSparkle();
     await downloadWithoutbgModel();
 }
 

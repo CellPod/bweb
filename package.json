@@ -38,7 +38,6 @@
             "package.json"
         ],
         "afterPack": "./scripts/fix-ffmpeg-win.js",
-        "afterSign": "./scripts/adhoc-sign-mac.js",
         "mac": {
             "category": "public.app-category.utilities",
             "icon": "build/icon.icns",
@@ -73,7 +72,64 @@
                     "from": "licenses/",
                     "to": "licenses/"
                 }
-            ]
+            ],
+            "extraFiles": [
+                {
+                    "from": "node_modules/electron-sparkle-updater/native/vendor/Sparkle.framework",
+                    "to": "Frameworks/Sparkle.framework"
+                }
+            ],
+            "files": [
+                "!**/node_modules/electron-sparkle-updater/native/vendor/**",
+                "!**/node_modules/electron-sparkle-updater/native/sparkle-chain.tar.xz"
+            ],
+            "asarUnpack": [
+                "**/node_modules/electron-sparkle-updater/native/build/Release/*.node"
+            ],
+            "extendInfo": {
+                "SUFeedURL": "https://github.com/CellPod/bweb/releases/latest/download/appcast.xml",
+                "SUPublicEDKey": "6CtElULhDYjuHj8gWulXU31KQBJvdXzHutM3l970ohs=",
+                "SUEnableInstallerLauncherService": false,
+                "SUScheduledCheckInterval": 3600,
+                "SUDeltaChainHistory": 6,
+                "CFBundleLocalizations": [
+                    "ar",
+                    "ca",
+                    "cs",
+                    "da",
+                    "de",
+                    "el",
+                    "es",
+                    "fa",
+                    "fi",
+                    "fr",
+                    "he",
+                    "hr",
+                    "hu",
+                    "is",
+                    "it",
+                    "ja",
+                    "ko",
+                    "nb",
+                    "nl",
+                    "nn",
+                    "pl",
+                    "pt-BR",
+                    "pt-PT",
+                    "ro",
+                    "ru",
+                    "sk",
+                    "sl",
+                    "sv",
+                    "th",
+                    "tr",
+                    "uk",
+                    "vi",
+                    "zh_CN",
+                    "zh_HK",
+                    "zh_TW"
+                ]
+            }
         },
         "win": {
             "icon": "build/icon.ico",
@@ -91,7 +147,8 @@
                     "to": "bin/",
                     "filter": [
                         "yt-dlp.exe",
-                        "deno.exe"
+                        "deno.exe",
+                        "WinSparkle.dll"
                     ]
                 },
                 {
@@ -147,27 +204,39 @@
             "allowToChangeInstallationDirectory": false,
             "deleteAppDataOnUninstall": true
         },
+        "dmg": {
+            "writeUpdateInfo": false
+        },
+        "zip": {
+            "writeUpdateInfo": false
+        },
         "asar": true,
         "asarUnpack": [
             "node_modules/ffmpeg-static/**",
             "node_modules/@jspawn/ghostscript-wasm/**",
             "node_modules/onnxruntime-node/**",
+            "node_modules/sharp/**",
+            "node_modules/@img/**",
+            "node_modules/koffi/**",
+            "node_modules/@koromix/**",
             "src/main/ghostscriptWorker.js"
         ]
     },
     "dependencies": {
         "@fontsource/inter": "^5.3.0",
         "@jspawn/ghostscript-wasm": "^0.0.2",
+        "electron-sparkle-updater": "^0.5.0",
         "electron-store": "^11.0.2",
         "ffmpeg-static": "^5.3.0",
-        "onnxruntime-node": "^1.27.0",
+        "koffi": "^3.3.0",
+        "onnxruntime-node": "^1.30.0",
         "pdf-lib": "^1.17.1",
         "qr-code-styling": "^1.9.2",
-        "sharp": "^0.35.3"
+        "sharp": "^0.35.4"
     },
     "devDependencies": {
-        "electron": "^43.3.0",
+        "electron": "^43.7.1",
         "electron-builder": "^26.15.3",
-        "playwright-core": "^1.62.1"
+        "playwright-core": "^1.63.0"
     }
 }

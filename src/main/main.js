@@ -16,6 +16,9 @@ const ytdlp = require('./ytdlp');
 const cookies = require('./cookies');
 const { queue } = require('./queue');
 const updater = require('./updater');
+const depUpdater = require('./depUpdater');
+const sparkleUpdater = require('./sparkleUpdater');
+const winSparkleUpdater = require('./winSparkleUpdater');
 const scraper = require('./scraper');
 const vimeoApi = require('./vimeoApi');
 const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
@@ -85,6 +88,14 @@ function send(channel, data) {
     }
 }
 
+// Forwards Sparkle's update lifecycle straight to the renderer, which owns the actual
+// banner UI (see showSparkleBanner() in renderer.js) — Sparkle's own native dialogs are
+// suppressed by the bridge specifically so bWeb can show something consistent with the
+// rest of the app instead.
+function handleSparkleEvent(event) {
+    send('sparkle:event', event);
+}
+
 async function createWindow() {
     const isMac = process.platform === 'darwin';
 
@@ -114,8 +125,24 @@ async function createWindow() {
         if (DEV_MODE) mainWindow.webContents.openDevTools({ mode: 'detach' });
         log('Window ready');
 
-        // Check for updates after a 3 sec
+        // Check for updates after a 3 sec delay. On macOS this hands off entirely to
+        // Sparkle (sparkleUpdater.js) — its own events drive the renderer banner instead,
+        // see handleSparkleEvent below. On Windows it hands off to WinSparkle
+        // (winSparkleUpdater.js), which shows its own native dialogs — nothing further
+        // for main.js to wire up there. Falls back to the manual GitHub-release check
+        // (updater.js) on Linux, or on macOS/Windows if the native bridge failed to load
+        // (both bridges must never block startup on failure — see their own init()).
         setTimeout(async () => {
+            const sparkleReady = await sparkleUpdater.init(handleSparkleEvent);
+            if (sparkleReady) {
+                sparkleUpdater.checkForUpdates();
+                return;
+            }
+
+            if (winSparkleUpdater.init()) {
+                return; // WinSparkle checks automatically on its own timer once initialized
+            }
+
             try {
                 const result = await updater.checkForUpdates(app.getVersion());
                 if (result.hasUpdate) {
@@ -216,12 +243,27 @@ app.whenReady().then(() => {
 
     createWindow();
 
-    // Fetch dependency versions in the background
+    // Fetch dependency versions in the background, then check whether yt-dlp itself is
+    // stale — YouTube's anti-bot changes move faster than bWeb releases do, so this is
+    // what actually keeps downloads working between app updates (see depUpdater.js).
     ytdlp
         .getVersions()
-        .then((v) => {
+        .then(async (v) => {
             cachedVersions = v;
             log('Versions cached:', JSON.stringify(v));
+
+            const updated = await depUpdater.maybeUpdateYtdlp(v.ytdlp);
+            if (updated) {
+                send('log', `yt-dlp mis à jour automatiquement : ${updated.previous} → ${updated.latest}`);
+                ytdlp
+                    .getVersions()
+                    .then((v2) => {
+                        cachedVersions = v2;
+                    })
+                    .catch(() => {
+                        //
+                    });
+            }
         })
         .catch((err) => {
             logError('Version fetch failed:', err.message);
@@ -272,6 +314,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     // Kill any running yt-dlp process to prevent orphans
     queue.cancelCurrent();
+    winSparkleUpdater.cleanup();
 });
 
 // Max 50 history entries, deduped by video id + extractor
@@ -386,9 +429,21 @@ ipcMain.handle('app:info', () => ({
 }));
 
 ipcMain.handle('app:checkForUpdates', async () => {
+    if (sparkleUpdater.isAvailable()) {
+        sparkleUpdater.checkForUpdates(); // answer arrives async via 'sparkle:event'
+        return { sparkle: true, hasUpdate: false };
+    }
+    if (winSparkleUpdater.isAvailable()) {
+        winSparkleUpdater.checkForUpdates(); // shows WinSparkle's own native dialog
+        return { sparkle: true, hasUpdate: false };
+    }
     const result = await updater.checkForUpdates(app.getVersion());
     if (result.hasUpdate) send('update-available', result);
     return result;
+});
+
+ipcMain.handle('sparkle:installUpdateNow', () => {
+    sparkleUpdater.installUpdateNow();
 });
 
 // Auth
