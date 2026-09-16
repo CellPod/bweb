@@ -2478,20 +2478,31 @@ function hideUpdateModal() {
 
 function updateModalInstallButton(progressEvent) {
     const btn = $('updateModalInstallBtn');
+    const progress = $('updateModalProgress');
     if (!btn || !pendingUpdate) return;
+
     if (pendingUpdate.downloaded) {
         btn.disabled = false;
         btn.textContent = t('update.install');
+        if (progress) progress.style.display = 'none';
         return;
     }
+
     if (pendingUpdate.installQueued) {
         btn.disabled = true;
+        btn.textContent = t('update.downloadingButton');
+        if (progress) progress.style.display = 'flex';
         if (progressEvent && progressEvent.type === 'download-progress' && typeof progressEvent.percent === 'number') {
-            btn.textContent = t('update.downloading')(Math.round(progressEvent.percent));
+            const pct = Math.round(progressEvent.percent);
+            const fill = $('updateModalProgressFill');
+            const label = $('updateModalProgressLabel');
+            if (fill) fill.style.width = `${pct}%`;
+            if (label) label.textContent = t('update.downloadingPct')(pct);
         }
     } else {
         btn.disabled = false;
         btn.textContent = t('update.install');
+        if (progress) progress.style.display = 'none';
     }
 }
 

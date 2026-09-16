@@ -352,7 +352,8 @@ const TRANSLATIONS = {
         'update.skip':              'Skip This Version',
         'update.remindLater':       'Remind Me Later',
         'update.autoInstall':       'Automatically download and install updates in the future',
-        'update.downloading':       (pct) => `Downloading… ${pct}%`,
+        'update.downloadingButton': 'Downloading…',
+        'update.downloadingPct':    (pct) => `${pct}%`,
         'update.noReleaseNotes':    'No release notes available.',
     },
 
@@ -703,7 +704,8 @@ const TRANSLATIONS = {
         'update.skip':              'Ignorer cette version',
         'update.remindLater':       'Me le rappeler plus tard',
         'update.autoInstall':       'Télécharger et installer les mises à jour automatiquement',
-        'update.downloading':       (pct) => `Téléchargement… ${pct}%`,
+        'update.downloadingButton': 'Téléchargement…',
+        'update.downloadingPct':    (pct) => `${pct}%`,
         'update.noReleaseNotes':    'Aucune note de version disponible.',
     },
 };
