@@ -7,351 +7,22 @@ const path = require('path');
 const fs = require('fs');
 const { log, logError } = require('./utils');
 
-// Youtube
-
-const YT_PARTITION = 'persist:youtube-login';
-const YT_LOGIN_URL = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/';
-
-let ytCookiePath = null;
-
-function getYtCookiePath() {
-    if (!ytCookiePath) {
-        ytCookiePath = path.join(app.getPath('userData'), 'arcdlp-cookies.txt');
-    }
-    return ytCookiePath;
-}
-
-async function hasCookies() {
-    const ses = session.fromPartition(YT_PARTITION);
-    const cookies = await ses.cookies.get({ domain: '.youtube.com' });
-    return cookies.length > 0;
-}
-
-async function getCookieFile() {
-    const has = await hasCookies();
-    if (!has) return null;
-
-    await writeYtCookieFile();
-    const p = getYtCookiePath();
-    return fs.existsSync(p) ? p : null;
-}
-
-function openLoginWindow(parentWindow) {
-    return new Promise((resolve) => {
-        const win = new BrowserWindow({
-            width: 500,
-            height: 700,
-            parent: parentWindow || undefined,
-            title: 'Sign in to YouTube',
-            webPreferences: {
-                partition: YT_PARTITION,
-                nodeIntegration: false,
-                contextIsolation: true,
-            },
-            autoHideMenuBar: true,
-        });
-
-        let resolved = false;
-
-        function done(result) {
-            if (resolved) return;
-            resolved = true;
-            if (!win.isDestroyed()) win.close();
-            resolve(result);
+// Renamed from the arcdlp-* prefix (this project's name before the ArcDLP fork was
+// rebranded to bWeb) — migrate an existing cookie file in place on first access so an
+// already-signed-in user isn't silently signed out by the rename.
+function migrateLegacyCookieFile(oldName, newPath) {
+    const oldPath = path.join(app.getPath('userData'), oldName);
+    if (!fs.existsSync(newPath) && fs.existsSync(oldPath)) {
+        try {
+            fs.renameSync(oldPath, newPath);
+        } catch (err) {
+            logError('Cookie file migration failed:', err.message);
         }
-
-        win.webContents.on('did-navigate', (_e, url) => {
-            log('Login nav:', url);
-            if (isYouTubeHome(url)) {
-                log('Login detected, landed on YouTube');
-                setTimeout(() => done(true), 1000);
-            }
-        });
-
-        win.webContents.on('did-navigate-in-page', (_e, url) => {
-            if (isYouTubeHome(url)) {
-                setTimeout(() => done(true), 1000);
-            }
-        });
-
-        win.on('closed', () => done(false));
-
-        win.loadURL(YT_LOGIN_URL);
-    });
-}
-
-async function clearCookies() {
-    const ses = session.fromPartition(YT_PARTITION);
-    await ses.clearStorageData();
-    const p = getYtCookiePath();
-    try {
-        fs.unlinkSync(p);
-    } catch {
-        //
-    }
-    log('YouTube cookies cleared');
-}
-
-function isYouTubeHome(url) {
-    try {
-        const u = new URL(url);
-        return u.hostname === 'www.youtube.com' && (u.pathname === '/' || u.pathname.startsWith('/feed'));
-    } catch {
-        return false;
     }
 }
-
-async function writeYtCookieFile() {
-    const ses = session.fromPartition(YT_PARTITION);
-    const cookies = await ses.cookies.get({});
-
-    // Scoped to youtube.com only. Google's login sets the session cookies yt-dlp needs
-    // (SID/SAPISID/LOGIN_INFO-class) directly on .youtube.com once the login window lands
-    // there — no need to also capture the broader google.com/googleapis.com account-wide
-    // session cookies, which would expose more than this feature needs if the file ever leaks.
-    const relevant = cookies.filter((c) => (c.domain || '').includes('youtube.com'));
-
-    if (relevant.length === 0) {
-        log('No YouTube cookies found');
-        return;
-    }
-
-    const filePath = getYtCookiePath();
-    writeCookieLines(relevant, filePath);
-    log('Wrote', relevant.length, 'YouTube cookies to', filePath);
-}
-
-// Instagram
-
-const INSTA_PARTITION = 'persist:instagram-login';
-const INSTA_LOGIN_URL = 'https://www.instagram.com/accounts/login/';
-
-let instaCookiePath = null;
-
-function getInstaCookiePath() {
-    if (!instaCookiePath) {
-        instaCookiePath = path.join(app.getPath('userData'), 'arcdlp-insta-cookies.txt');
-    }
-    return instaCookiePath;
-}
-
-async function hasInstaCookies() {
-    const ses = session.fromPartition(INSTA_PARTITION);
-    const cookies = await ses.cookies.get({ domain: '.instagram.com' });
-    // Need the sessionid cookie to be authenticated
-    return cookies.some((c) => c.name === 'sessionid');
-}
-
-async function getInstaCookieFile() {
-    const has = await hasInstaCookies();
-    if (!has) return null;
-
-    await writeInstaCookieFile();
-    const p = getInstaCookiePath();
-    return fs.existsSync(p) ? p : null;
-}
-
-function openInstaLoginWindow(parentWindow) {
-    return new Promise((resolve) => {
-        const win = new BrowserWindow({
-            width: 500,
-            height: 700,
-            parent: parentWindow || undefined,
-            title: 'Sign in to Instagram',
-            webPreferences: {
-                partition: INSTA_PARTITION,
-                nodeIntegration: false,
-                contextIsolation: true,
-            },
-            autoHideMenuBar: true,
-        });
-
-        let resolved = false;
-
-        function done(result) {
-            if (resolved) return;
-            resolved = true;
-            if (!win.isDestroyed()) win.close();
-            resolve(result);
-        }
-
-        win.webContents.on('did-navigate', (_e, url) => {
-            log('Instagram login nav:', url);
-            if (isInstagramHome(url)) {
-                log('Instagram login detected');
-                setTimeout(() => done(true), 1500);
-            }
-        });
-
-        win.webContents.on('did-navigate-in-page', (_e, url) => {
-            if (isInstagramHome(url)) {
-                setTimeout(() => done(true), 1500);
-            }
-        });
-
-        win.on('closed', () => done(false));
-
-        win.loadURL(INSTA_LOGIN_URL);
-    });
-}
-
-async function clearInstaCookies() {
-    const ses = session.fromPartition(INSTA_PARTITION);
-    await ses.clearStorageData();
-    const p = getInstaCookiePath();
-    try {
-        fs.unlinkSync(p);
-    } catch {
-        //
-    }
-    log('Instagram cookies cleared');
-}
-
-function isInstagramHome(url) {
-    try {
-        const u = new URL(url);
-        return (
-            u.hostname === 'www.instagram.com' && (u.pathname === '/' || u.pathname.startsWith('/feed') || u.pathname.startsWith('/direct'))
-        );
-    } catch {
-        return false;
-    }
-}
-
-async function writeInstaCookieFile() {
-    const ses = session.fromPartition(INSTA_PARTITION);
-    const cookies = await ses.cookies.get({});
-
-    const relevant = cookies.filter((c) => {
-        const d = c.domain || '';
-        return d.includes('instagram.com') || d.includes('facebook.com') || d.includes('fbcdn.net');
-    });
-
-    if (relevant.length === 0) {
-        log('No Instagram cookies found');
-        return;
-    }
-
-    const filePath = getInstaCookiePath();
-    writeCookieLines(relevant, filePath);
-    log('Wrote', relevant.length, 'Instagram cookies to', filePath);
-}
-
-// Vimeo
-
-const VIMEO_PARTITION = 'persist:vimeo-login';
-const VIMEO_LOGIN_URL = 'https://vimeo.com/log_in';
-
-let vimeoCookiePath = null;
-
-function getVimeoCookiePath() {
-    if (!vimeoCookiePath) {
-        vimeoCookiePath = path.join(app.getPath('userData'), 'arcdlp-vimeo-cookies.txt');
-    }
-    return vimeoCookiePath;
-}
-
-async function hasVimeoCookies() {
-    const ses = session.fromPartition(VIMEO_PARTITION);
-    const cookies = await ses.cookies.get({ domain: '.vimeo.com' });
-    // Need the vimeo session cookie to be authenticated
-    return cookies.some((c) => c.name === 'vimeo');
-}
-
-async function getVimeoCookieFile() {
-    const has = await hasVimeoCookies();
-    if (!has) return null;
-
-    await writeVimeoCookieFile();
-    const p = getVimeoCookiePath();
-    return fs.existsSync(p) ? p : null;
-}
-
-function openVimeoLoginWindow(parentWindow) {
-    return new Promise((resolve) => {
-        const win = new BrowserWindow({
-            width: 500,
-            height: 700,
-            parent: parentWindow || undefined,
-            title: 'Sign in to Vimeo',
-            webPreferences: {
-                partition: VIMEO_PARTITION,
-                nodeIntegration: false,
-                contextIsolation: true,
-            },
-            autoHideMenuBar: true,
-        });
-
-        let resolved = false;
-
-        function done(result) {
-            if (resolved) return;
-            resolved = true;
-            if (!win.isDestroyed()) win.close();
-            resolve(result);
-        }
-
-        win.webContents.on('did-navigate', (_e, url) => {
-            log('Vimeo login nav:', url);
-            if (isVimeoHome(url)) {
-                log('Vimeo login detected');
-                setTimeout(() => done(true), 1500);
-            }
-        });
-
-        win.webContents.on('did-navigate-in-page', (_e, url) => {
-            if (isVimeoHome(url)) {
-                setTimeout(() => done(true), 1500);
-            }
-        });
-
-        win.on('closed', () => done(false));
-
-        win.loadURL(VIMEO_LOGIN_URL);
-    });
-}
-
-async function clearVimeoCookies() {
-    const ses = session.fromPartition(VIMEO_PARTITION);
-    await ses.clearStorageData();
-    const p = getVimeoCookiePath();
-    try {
-        fs.unlinkSync(p);
-    } catch {
-        //
-    }
-    log('Vimeo cookies cleared');
-}
-
-function isVimeoHome(url) {
-    try {
-        const u = new URL(url);
-        return u.hostname === 'vimeo.com' && (u.pathname === '/' || u.pathname.startsWith('/home'));
-    } catch {
-        return false;
-    }
-}
-
-async function writeVimeoCookieFile() {
-    const ses = session.fromPartition(VIMEO_PARTITION);
-    const cookies = await ses.cookies.get({});
-
-    const relevant = cookies.filter((c) => (c.domain || '').includes('vimeo.com'));
-
-    if (relevant.length === 0) {
-        log('No Vimeo cookies found');
-        return;
-    }
-
-    const filePath = getVimeoCookiePath();
-    writeCookieLines(relevant, filePath);
-    log('Wrote', relevant.length, 'Vimeo cookies to', filePath);
-}
-
-// Shared
 
 function writeCookieLines(cookies, filePath) {
-    const lines = ['# Netscape HTTP Cookie File', '# Generated by ArcDLP', ''];
+    const lines = ['# Netscape HTTP Cookie File', '# Generated by bWeb', ''];
 
     for (const c of cookies) {
         const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain;
@@ -365,22 +36,225 @@ function writeCookieLines(cookies, filePath) {
     fs.writeFileSync(filePath, lines.join('\n'), { encoding: 'utf8', mode: 0o600 });
 }
 
+// Shared shape behind YouTube/Instagram/Vimeo's cookie-based auth: a BrowserWindow-based
+// login flow (loaded against its own persistent session partition, detected as "logged in"
+// once navigation lands back on the site's own home/feed page) plus a Netscape cookie-file
+// export so yt-dlp can authenticate via --cookies. Each site differs only in its partition/
+// URL, how "authenticated" is decided from the raw cookie list, which cookies are relevant
+// to export, and the exact log wording below (kept as explicit strings per site rather than
+// derived from `label`, since YouTube's wording predates Instagram/Vimeo's and doesn't
+// follow the same "<Site> ..." pattern they do).
+function createCookieProvider({
+    partition,
+    loginUrl,
+    loginTitle,
+    cookieFileName,
+    legacyCookieFileName,
+    checkDomain,
+    isAuthenticated,
+    isHomePage,
+    loginDelayMs,
+    navLogMsg,
+    loginDetectedMsg,
+    cookieDomainFilter,
+    label,
+}) {
+    let cookiePath = null;
+
+    function getCookiePath() {
+        if (!cookiePath) {
+            cookiePath = path.join(app.getPath('userData'), cookieFileName);
+            migrateLegacyCookieFile(legacyCookieFileName, cookiePath);
+        }
+        return cookiePath;
+    }
+
+    async function hasCookies() {
+        const ses = session.fromPartition(partition);
+        const cookies = await ses.cookies.get({ domain: checkDomain });
+        return isAuthenticated(cookies);
+    }
+
+    async function writeCookieFile() {
+        const ses = session.fromPartition(partition);
+        const cookies = await ses.cookies.get({});
+        const relevant = cookies.filter(cookieDomainFilter);
+
+        if (relevant.length === 0) {
+            log(`No ${label} cookies found`);
+            return;
+        }
+
+        const filePath = getCookiePath();
+        writeCookieLines(relevant, filePath);
+        log('Wrote', relevant.length, `${label} cookies to`, filePath);
+    }
+
+    async function getCookieFile() {
+        const has = await hasCookies();
+        if (!has) return null;
+
+        await writeCookieFile();
+        const p = getCookiePath();
+        return fs.existsSync(p) ? p : null;
+    }
+
+    function openLoginWindow(parentWindow) {
+        return new Promise((resolve) => {
+            const win = new BrowserWindow({
+                width: 500,
+                height: 700,
+                parent: parentWindow || undefined,
+                title: loginTitle,
+                webPreferences: {
+                    partition,
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                },
+                autoHideMenuBar: true,
+            });
+
+            let resolved = false;
+
+            function done(result) {
+                if (resolved) return;
+                resolved = true;
+                if (!win.isDestroyed()) win.close();
+                resolve(result);
+            }
+
+            win.webContents.on('did-navigate', (_e, url) => {
+                log(navLogMsg, url);
+                if (isHomePage(url)) {
+                    log(loginDetectedMsg);
+                    setTimeout(() => done(true), loginDelayMs);
+                }
+            });
+
+            win.webContents.on('did-navigate-in-page', (_e, url) => {
+                if (isHomePage(url)) {
+                    setTimeout(() => done(true), loginDelayMs);
+                }
+            });
+
+            win.on('closed', () => done(false));
+
+            win.loadURL(loginUrl);
+        });
+    }
+
+    async function clearCookies() {
+        const ses = session.fromPartition(partition);
+        await ses.clearStorageData();
+        const p = getCookiePath();
+        try {
+            fs.unlinkSync(p);
+        } catch {
+            //
+        }
+        log(`${label} cookies cleared`);
+    }
+
+    return { hasCookies, getCookieFile, openLoginWindow, clearCookies };
+}
+
+const youtube = createCookieProvider({
+    partition: 'persist:youtube-login',
+    loginUrl: 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/',
+    loginTitle: 'Sign in to YouTube',
+    cookieFileName: 'bweb-cookies.txt',
+    legacyCookieFileName: 'arcdlp-cookies.txt',
+    checkDomain: '.youtube.com',
+    isAuthenticated: (cookies) => cookies.length > 0,
+    isHomePage: (url) => {
+        try {
+            const u = new URL(url);
+            return u.hostname === 'www.youtube.com' && (u.pathname === '/' || u.pathname.startsWith('/feed'));
+        } catch {
+            return false;
+        }
+    },
+    loginDelayMs: 1000,
+    navLogMsg: 'Login nav:',
+    loginDetectedMsg: 'Login detected, landed on YouTube',
+    // Scoped to youtube.com only. Google's login sets the session cookies yt-dlp needs
+    // (SID/SAPISID/LOGIN_INFO-class) directly on .youtube.com once the login window lands
+    // there — no need to also capture the broader google.com/googleapis.com account-wide
+    // session cookies, which would expose more than this feature needs if the file ever leaks.
+    cookieDomainFilter: (c) => (c.domain || '').includes('youtube.com'),
+    label: 'YouTube',
+});
+
+const instagram = createCookieProvider({
+    partition: 'persist:instagram-login',
+    loginUrl: 'https://www.instagram.com/accounts/login/',
+    loginTitle: 'Sign in to Instagram',
+    cookieFileName: 'bweb-insta-cookies.txt',
+    legacyCookieFileName: 'arcdlp-insta-cookies.txt',
+    checkDomain: '.instagram.com',
+    // Need the sessionid cookie to be authenticated.
+    isAuthenticated: (cookies) => cookies.some((c) => c.name === 'sessionid'),
+    isHomePage: (url) => {
+        try {
+            const u = new URL(url);
+            return (
+                u.hostname === 'www.instagram.com' &&
+                (u.pathname === '/' || u.pathname.startsWith('/feed') || u.pathname.startsWith('/direct'))
+            );
+        } catch {
+            return false;
+        }
+    },
+    loginDelayMs: 1500,
+    navLogMsg: 'Instagram login nav:',
+    loginDetectedMsg: 'Instagram login detected',
+    cookieDomainFilter: (c) => {
+        const d = c.domain || '';
+        return d.includes('instagram.com') || d.includes('facebook.com') || d.includes('fbcdn.net');
+    },
+    label: 'Instagram',
+});
+
+const vimeo = createCookieProvider({
+    partition: 'persist:vimeo-login',
+    loginUrl: 'https://vimeo.com/log_in',
+    loginTitle: 'Sign in to Vimeo',
+    cookieFileName: 'bweb-vimeo-cookies.txt',
+    legacyCookieFileName: 'arcdlp-vimeo-cookies.txt',
+    checkDomain: '.vimeo.com',
+    // Need the vimeo session cookie to be authenticated.
+    isAuthenticated: (cookies) => cookies.some((c) => c.name === 'vimeo'),
+    isHomePage: (url) => {
+        try {
+            const u = new URL(url);
+            return u.hostname === 'vimeo.com' && (u.pathname === '/' || u.pathname.startsWith('/home'));
+        } catch {
+            return false;
+        }
+    },
+    loginDelayMs: 1500,
+    navLogMsg: 'Vimeo login nav:',
+    loginDetectedMsg: 'Vimeo login detected',
+    cookieDomainFilter: (c) => (c.domain || '').includes('vimeo.com'),
+    label: 'Vimeo',
+});
+
 module.exports = {
     // YouTube
-    hasCookies,
-    getCookieFile,
-    openLoginWindow,
-    clearCookies,
+    hasCookies: youtube.hasCookies,
+    getCookieFile: youtube.getCookieFile,
+    openLoginWindow: youtube.openLoginWindow,
+    clearCookies: youtube.clearCookies,
 
     // Instagram
-    hasInstaCookies,
-    getInstaCookieFile,
-    openInstaLoginWindow,
-    clearInstaCookies,
+    hasInstaCookies: instagram.hasCookies,
+    getInstaCookieFile: instagram.getCookieFile,
+    openInstaLoginWindow: instagram.openLoginWindow,
+    clearInstaCookies: instagram.clearCookies,
 
     // Vimeo
-    hasVimeoCookies,
-    getVimeoCookieFile,
-    openVimeoLoginWindow,
-    clearVimeoCookies,
+    hasVimeoCookies: vimeo.hasCookies,
+    getVimeoCookieFile: vimeo.getCookieFile,
+    openVimeoLoginWindow: vimeo.openLoginWindow,
+    clearVimeoCookies: vimeo.clearCookies,
 };

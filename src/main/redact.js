@@ -15,9 +15,8 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
-const { log, logError } = require('./utils');
-const { rasterizePdf } = require('./ghostscriptClient');
+const { log, logError, getUniqueOutputPath } = require('./utils');
+const { rasterizePdf, buildPdfFromRasterPages } = require('./ghostscriptClient');
 
 const RASTERIZE_DPI = 200;
 
@@ -25,13 +24,7 @@ function getRedactedOutputPath(inputPath, destDir) {
     const dir = destDir || path.dirname(inputPath);
     const base = path.basename(inputPath, path.extname(inputPath));
     const ext = path.extname(inputPath);
-    let outputPath = path.join(dir, `${base}_redacted${ext}`);
-    let n = 1;
-    while (fs.existsSync(outputPath)) {
-        outputPath = path.join(dir, `${base}_redacted_${n}${ext}`);
-        n++;
-    }
-    return outputPath;
+    return getUniqueOutputPath(dir, base, '_redacted', ext);
 }
 
 // Parses "#rrggbb" (what a color <input> gives us) into {r,g,b}. Defaults to black on anything
@@ -160,22 +153,16 @@ async function redactPdf(inputPath, pageZones, destDir) {
 
     try {
         const pageBuffers = await rasterizePdf(inputPath, RASTERIZE_DPI);
-        const pdfDoc = await PDFDocument.create();
 
-        for (let i = 0; i < pageBuffers.length; i++) {
-            const pageNum = i + 1;
-            const zonesForPage = pageZones.filter((z) => z.page === pageNum);
-            const redacted = await applyRedactionToBuffer(pageBuffers[i], zonesForPage);
-            const jpegBuffer = await sharp(redacted).jpeg({ quality: 90 }).toBuffer();
-            const meta = await sharp(jpegBuffer).metadata();
-            const jpegImage = await pdfDoc.embedJpg(jpegBuffer);
-            const pageWidth = (meta.width / RASTERIZE_DPI) * 72;
-            const pageHeight = (meta.height / RASTERIZE_DPI) * 72;
-            const page = pdfDoc.addPage([pageWidth, pageHeight]);
-            page.drawImage(jpegImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-        }
-
-        const finalBytes = await pdfDoc.save();
+        const finalBytes = await buildPdfFromRasterPages(
+            pageBuffers,
+            (pageBuffer, i) => {
+                const pageNum = i + 1;
+                const zonesForPage = pageZones.filter((z) => z.page === pageNum);
+                return applyRedactionToBuffer(pageBuffer, zonesForPage);
+            },
+            { dpi: RASTERIZE_DPI, jpegQuality: 90 },
+        );
         fs.writeFileSync(outputPath, finalBytes);
         log('Redaction complete:', outputPath);
         return { ok: true, outputPath };

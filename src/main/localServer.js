@@ -134,4 +134,4 @@ function startLocalServer(rootDir) {
     });
 }
 
-module.exports = { startLocalServer };
+module.exports = { startLocalServer, MEDIA_MIME_TYPES };

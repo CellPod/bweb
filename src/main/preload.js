@@ -56,8 +56,6 @@ contextBridge.exposeInMainWorld('api', {
 
     // Queue
     queueAdd: (items) => ipcRenderer.invoke('queue:add', items),
-    queueGetAll: () => ipcRenderer.invoke('queue:getAll'),
-    queueGetCounts: () => ipcRenderer.invoke('queue:getCounts'),
     queueCancelCurrent: () => ipcRenderer.invoke('queue:cancelCurrent'),
     queueCancelAll: () => ipcRenderer.invoke('queue:cancelAll'),
     queueRetry: (itemId) => ipcRenderer.invoke('queue:retry', itemId),

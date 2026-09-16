@@ -23,7 +23,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const yauzl = require('yauzl');
 const { log, logError } = require('./utils');
-const { isNewer } = require('./updater');
+const { isNewer, fetchJSON: fetchJSONShared } = require('./updater');
 
 const DAY_MS = 24 * 60 * 60 * 1000; // none of these ship more than a few times a month — daily is plenty
 
@@ -34,33 +34,7 @@ function userBinDir() {
 }
 
 function fetchJSON(url) {
-    return new Promise((resolve, reject) => {
-        const request = net.request({ url, method: 'GET' });
-        request.setHeader('User-Agent', 'bWeb-DepUpdater');
-        request.setHeader('Accept', 'application/vnd.github.v3+json');
-        let body = '';
-        request.on('response', (res) => {
-            if (res.statusCode !== 200) {
-                reject(new Error(`HTTP ${res.statusCode}`));
-                return;
-            }
-            res.on('data', (chunk) => (body += chunk));
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(body));
-                } catch (err) {
-                    reject(err);
-                }
-            });
-            res.on('error', reject);
-        });
-        request.on('error', reject);
-        setTimeout(() => {
-            request.abort();
-            reject(new Error('GitHub API request timed out'));
-        }, 15000);
-        request.end();
-    });
+    return fetchJSONShared(url, { userAgent: 'bWeb-DepUpdater', timeoutMs: 15000, timeoutMessage: 'GitHub API request timed out' });
 }
 
 function downloadTo(url, destPath) {
@@ -196,6 +170,42 @@ function cleanupTmp(dir, prefix) {
 }
 
 // ---------------------------------------------------------------------------------------
+// Shared "download a newer binary, verify it, then atomically replace the old one" shape
+// behind all four dependency checks below. Each dependency differs only in how it decides
+// whether an update exists (resolveLatest — returns null if not, having already logged why:
+// "up to date", a missing asset, an unreadable version, etc.) and how the download becomes
+// a binary ready to verify at `${finalPath}.tmp` (prepareBinary) — the logging, verify,
+// atomic-install, and cleanup-on-failure mechanics are otherwise identical.
+// ---------------------------------------------------------------------------------------
+
+async function performBinaryUpdate({ label, currentVersion, tmpPrefix, versionFlag, resolveLatest, prepareBinary }) {
+    const dir = userBinDir();
+    let finalPath = null;
+    try {
+        const resolved = await resolveLatest();
+        if (!resolved) return null;
+        const { latest } = resolved;
+
+        log(`${label} update available: ${currentVersion} -> ${latest}, downloading...`);
+        finalPath = await prepareBinary(resolved, dir);
+
+        const verified = await verifyBinary(`${finalPath}.tmp`, versionFlag);
+        if (!verified.includes(latest)) {
+            throw new Error(`downloaded binary reports "${verified}", expected ${latest}`);
+        }
+
+        fs.renameSync(`${finalPath}.tmp`, finalPath); // same filesystem (userData/bin) — atomic
+        log(`${label} auto-updated to ${latest}:`, finalPath);
+        return { previous: currentVersion, latest, path: finalPath };
+    } catch (err) {
+        logError(`${label} auto-update failed, keeping current binary:`, err.message);
+        cleanupTmp(dir, tmpPrefix);
+        if (finalPath) fs.rmSync(`${finalPath}.tmp`, { force: true });
+        return null;
+    }
+}
+
+// ---------------------------------------------------------------------------------------
 // yt-dlp — plain per-platform executable asset, no archive to unpack.
 // ---------------------------------------------------------------------------------------
 
@@ -213,45 +223,41 @@ function ytdlpOutputName() {
     return process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
 }
 
-async function checkAndUpdateYtdlp(currentVersion) {
-    try {
-        const assetName = ytdlpAssetName();
-        if (!assetName) return null; // unsupported platform/arch combo — leave bundled binary alone
+async function resolveYtdlpLatest(currentVersion) {
+    const assetName = ytdlpAssetName();
+    if (!assetName) return null; // unsupported platform/arch combo — leave bundled binary alone
 
-        const release = await fetchJSON(YTDLP_API_URL);
-        const latest = release.tag_name;
-        if (!latest || !isNewer(latest, currentVersion || '0')) {
-            log(`yt-dlp up to date (${currentVersion})`);
-            return null;
-        }
-
-        const asset = (release.assets || []).find((a) => a.name === assetName);
-        if (!asset) {
-            logError('yt-dlp auto-update: no release asset named', assetName);
-            return null;
-        }
-
-        log(`yt-dlp update available: ${currentVersion} -> ${latest}, downloading...`);
-        const dir = userBinDir();
-        const tmpPath = path.join(dir, `.yt-dlp-${latest}.tmp`);
-        const finalPath = path.join(dir, ytdlpOutputName());
-
-        await downloadTo(asset.browser_download_url, tmpPath);
-        if (process.platform !== 'win32') fs.chmodSync(tmpPath, 0o755);
-
-        const verified = await verifyBinary(tmpPath, '--version');
-        if (!verified.includes(latest)) {
-            throw new Error(`downloaded binary reports "${verified}", expected ${latest}`);
-        }
-
-        fs.renameSync(tmpPath, finalPath); // same filesystem (userData/bin) — atomic
-        log(`yt-dlp auto-updated to ${latest}:`, finalPath);
-        return { previous: currentVersion, latest, path: finalPath };
-    } catch (err) {
-        logError('yt-dlp auto-update failed, keeping current binary:', err.message);
-        cleanupTmp(userBinDir(), '.yt-dlp-');
+    const release = await fetchJSON(YTDLP_API_URL);
+    const latest = release.tag_name;
+    if (!latest || !isNewer(latest, currentVersion || '0')) {
+        log(`yt-dlp up to date (${currentVersion})`);
         return null;
     }
+
+    const asset = (release.assets || []).find((a) => a.name === assetName);
+    if (!asset) {
+        logError('yt-dlp auto-update: no release asset named', assetName);
+        return null;
+    }
+    return { latest, asset };
+}
+
+async function prepareYtdlpBinary({ asset }, dir) {
+    const finalPath = path.join(dir, ytdlpOutputName());
+    await downloadTo(asset.browser_download_url, `${finalPath}.tmp`);
+    if (process.platform !== 'win32') fs.chmodSync(`${finalPath}.tmp`, 0o755);
+    return finalPath;
+}
+
+function checkAndUpdateYtdlp(currentVersion) {
+    return performBinaryUpdate({
+        label: 'yt-dlp',
+        currentVersion,
+        tmpPrefix: '.yt-dlp-',
+        versionFlag: '--version',
+        resolveLatest: () => resolveYtdlpLatest(currentVersion),
+        prepareBinary: prepareYtdlpBinary,
+    });
 }
 
 // ---------------------------------------------------------------------------------------
@@ -266,43 +272,41 @@ async function checkAndUpdateYtdlp(currentVersion) {
 const BTBN_API_URL = 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest';
 const FFMPEG_MAC_REDIRECT_URL = 'https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip';
 
-async function checkAndUpdateFfmpegMac(currentVersion) {
-    try {
-        const finalUrl = await resolveRedirect(FFMPEG_MAC_REDIRECT_URL);
-        const match = finalUrl.match(/_(\d+(?:\.\d+)*)\/ffmpeg\.zip$/);
-        const latest = match && match[1];
-        if (!latest) {
-            logError('ffmpeg auto-update: could not read version from', finalUrl);
-            return null;
-        }
-        if (!isNewer(latest, currentVersion || '0')) {
-            log(`ffmpeg up to date (${currentVersion})`);
-            return null;
-        }
-
-        log(`ffmpeg update available: ${currentVersion} -> ${latest}, downloading...`);
-        const dir = userBinDir();
-        const zipPath = path.join(dir, `.ffmpeg-${latest}.zip.tmp`);
-        const finalPath = path.join(dir, 'ffmpeg');
-
-        await downloadTo(finalUrl, zipPath);
-        await extractZipEntry(zipPath, (name) => name === 'ffmpeg', finalPath + '.tmp');
-        fs.chmodSync(finalPath + '.tmp', 0o755);
-
-        const verified = await verifyBinary(finalPath + '.tmp', '-version');
-        if (!verified.includes(latest)) {
-            throw new Error(`downloaded binary reports "${verified}", expected ${latest}`);
-        }
-
-        fs.renameSync(finalPath + '.tmp', finalPath);
-        fs.rmSync(zipPath, { force: true });
-        log(`ffmpeg auto-updated to ${latest}:`, finalPath);
-        return { previous: currentVersion, latest, path: finalPath };
-    } catch (err) {
-        logError('ffmpeg auto-update failed, keeping current binary:', err.message);
-        cleanupTmp(userBinDir(), '.ffmpeg-');
+async function resolveFfmpegMacLatest(currentVersion) {
+    const finalUrl = await resolveRedirect(FFMPEG_MAC_REDIRECT_URL);
+    const match = finalUrl.match(/_(\d+(?:\.\d+)*)\/ffmpeg\.zip$/);
+    const latest = match && match[1];
+    if (!latest) {
+        logError('ffmpeg auto-update: could not read version from', finalUrl);
         return null;
     }
+    if (!isNewer(latest, currentVersion || '0')) {
+        log(`ffmpeg up to date (${currentVersion})`);
+        return null;
+    }
+    return { latest, finalUrl };
+}
+
+async function prepareFfmpegMacBinary({ latest, finalUrl }, dir) {
+    const finalPath = path.join(dir, 'ffmpeg');
+    const zipPath = path.join(dir, `.ffmpeg-${latest}.zip.tmp`);
+
+    await downloadTo(finalUrl, zipPath);
+    await extractZipEntry(zipPath, (name) => name === 'ffmpeg', `${finalPath}.tmp`);
+    fs.chmodSync(`${finalPath}.tmp`, 0o755);
+    fs.rmSync(zipPath, { force: true });
+    return finalPath;
+}
+
+function checkAndUpdateFfmpegMac(currentVersion) {
+    return performBinaryUpdate({
+        label: 'ffmpeg',
+        currentVersion,
+        tmpPrefix: '.ffmpeg-',
+        versionFlag: '-version',
+        resolveLatest: () => resolveFfmpegMacLatest(currentVersion),
+        prepareBinary: prepareFfmpegMacBinary,
+    });
 }
 
 function btbnTarget() {
@@ -311,71 +315,69 @@ function btbnTarget() {
     return null; // linux/arm64 isn't a target this project builds/ships today
 }
 
-async function checkAndUpdateFfmpegBtbn(currentVersion) {
-    try {
-        const target = btbnTarget();
-        if (!target) return null;
+async function resolveFfmpegBtbnLatest(currentVersion) {
+    const target = btbnTarget();
+    if (!target) return null;
 
-        const release = await fetchJSON(BTBN_API_URL);
-        const extRe = target.ext.replace('.', '\\.');
-        const nameRe = new RegExp(`^ffmpeg-n([\\d.]+)-latest-${target.arch}-lgpl-[\\d.]+\\.${extRe}$`);
-        // BtbN keeps assets from more than one ffmpeg release branch (e.g. both n8.1 and
-        // n9.0) under the same rolling "latest" release — the newest match isn't
-        // necessarily first in the array, so every match must be compared.
-        let latest = null;
-        let asset = null;
-        for (const a of release.assets || []) {
-            const m = a.name.match(nameRe);
-            if (m && (!latest || isNewer(m[1], latest))) {
-                latest = m[1];
-                asset = a;
-            }
+    const release = await fetchJSON(BTBN_API_URL);
+    const extRe = target.ext.replace('.', '\\.');
+    const nameRe = new RegExp(`^ffmpeg-n([\\d.]+)-latest-${target.arch}-lgpl-[\\d.]+\\.${extRe}$`);
+    // BtbN keeps assets from more than one ffmpeg release branch (e.g. both n8.1 and
+    // n9.0) under the same rolling "latest" release — the newest match isn't
+    // necessarily first in the array, so every match must be compared.
+    let latest = null;
+    let asset = null;
+    for (const a of release.assets || []) {
+        const m = a.name.match(nameRe);
+        if (m && (!latest || isNewer(m[1], latest))) {
+            latest = m[1];
+            asset = a;
         }
-        if (!asset) {
-            logError('ffmpeg auto-update: no matching BtbN asset found for', target.arch);
-            return null;
-        }
-        if (!isNewer(latest, currentVersion || '0')) {
-            log(`ffmpeg up to date (${currentVersion})`);
-            return null;
-        }
-
-        log(`ffmpeg update available: ${currentVersion} -> ${latest}, downloading...`);
-        const dir = userBinDir();
-        const archivePath = path.join(dir, `.ffmpeg-${latest}.${target.ext}.tmp`);
-        const finalPath = path.join(dir, target.binName);
-
-        await downloadTo(asset.browser_download_url, archivePath);
-
-        if (target.ext === 'zip') {
-            await extractZipEntry(archivePath, (name) => name.endsWith(`/bin/${target.binName}`), finalPath + '.tmp');
-        } else {
-            // No pure-JS xz/tar decoder worth adding for this one case — every desktop
-            // Linux distro ships `tar` (it's coreutils, not an optional package), unlike
-            // `unzip` which sometimes isn't preinstalled. Extract just the one file.
-            const extractDir = path.join(dir, `.ffmpeg-${latest}-extract`);
-            fs.mkdirSync(extractDir, { recursive: true });
-            await execFilePromise('tar', ['-xJf', archivePath, '-C', extractDir]);
-            const topFolder = fs.readdirSync(extractDir)[0];
-            fs.renameSync(path.join(extractDir, topFolder, 'bin', target.binName), finalPath + '.tmp');
-            fs.rmSync(extractDir, { recursive: true, force: true });
-        }
-        if (process.platform !== 'win32') fs.chmodSync(finalPath + '.tmp', 0o755);
-
-        const verified = await verifyBinary(finalPath + '.tmp', '-version');
-        if (!verified.includes(latest)) {
-            throw new Error(`downloaded binary reports "${verified}", expected ${latest}`);
-        }
-
-        fs.renameSync(finalPath + '.tmp', finalPath);
-        fs.rmSync(archivePath, { force: true });
-        log(`ffmpeg auto-updated to ${latest}:`, finalPath);
-        return { previous: currentVersion, latest, path: finalPath };
-    } catch (err) {
-        logError('ffmpeg auto-update failed, keeping current binary:', err.message);
-        cleanupTmp(userBinDir(), '.ffmpeg-');
+    }
+    if (!asset) {
+        logError('ffmpeg auto-update: no matching BtbN asset found for', target.arch);
         return null;
     }
+    if (!isNewer(latest, currentVersion || '0')) {
+        log(`ffmpeg up to date (${currentVersion})`);
+        return null;
+    }
+    return { latest, asset, target };
+}
+
+async function prepareFfmpegBtbnBinary({ latest, asset, target }, dir) {
+    const finalPath = path.join(dir, target.binName);
+    const archivePath = path.join(dir, `.ffmpeg-${latest}.${target.ext}.tmp`);
+
+    await downloadTo(asset.browser_download_url, archivePath);
+
+    if (target.ext === 'zip') {
+        await extractZipEntry(archivePath, (name) => name.endsWith(`/bin/${target.binName}`), `${finalPath}.tmp`);
+    } else {
+        // No pure-JS xz/tar decoder worth adding for this one case — every desktop
+        // Linux distro ships `tar` (it's coreutils, not an optional package), unlike
+        // `unzip` which sometimes isn't preinstalled. Extract just the one file.
+        const extractDir = path.join(dir, `.ffmpeg-${latest}-extract`);
+        fs.mkdirSync(extractDir, { recursive: true });
+        await execFilePromise('tar', ['-xJf', archivePath, '-C', extractDir]);
+        const topFolder = fs.readdirSync(extractDir)[0];
+        fs.renameSync(path.join(extractDir, topFolder, 'bin', target.binName), `${finalPath}.tmp`);
+        fs.rmSync(extractDir, { recursive: true, force: true });
+    }
+    if (process.platform !== 'win32') fs.chmodSync(`${finalPath}.tmp`, 0o755);
+    fs.rmSync(archivePath, { force: true });
+    return finalPath;
+}
+
+function checkAndUpdateFfmpegBtbn(currentVersion) {
+    return performBinaryUpdate({
+        label: 'ffmpeg',
+        currentVersion,
+        tmpPrefix: '.ffmpeg-',
+        versionFlag: '-version',
+        resolveLatest: () => resolveFfmpegBtbnLatest(currentVersion),
+        prepareBinary: prepareFfmpegBtbnBinary,
+    });
 }
 
 async function checkAndUpdateFfmpeg(currentVersion) {
@@ -404,71 +406,65 @@ function denoOutputName() {
     return process.platform === 'win32' ? 'deno.exe' : 'deno';
 }
 
-async function checkAndUpdateDeno(currentVersion) {
-    try {
-        const assetName = denoAssetName();
-        if (!assetName) return null;
+async function resolveDenoLatest(currentVersion) {
+    const assetName = denoAssetName();
+    if (!assetName) return null;
 
-        const release = await fetchJSON(DENO_API_URL);
-        const latest = (release.tag_name || '').replace(/^v/, '');
-        if (!latest || !isNewer(latest, currentVersion || '0')) {
-            log(`deno up to date (${currentVersion})`);
-            return null;
-        }
-
-        const asset = (release.assets || []).find((a) => a.name === assetName);
-        if (!asset) {
-            logError('deno auto-update: no release asset named', assetName);
-            return null;
-        }
-
-        log(`deno update available: ${currentVersion} -> ${latest}, downloading...`);
-        const dir = userBinDir();
-        const zipPath = path.join(dir, `.deno-${latest}.zip.tmp`);
-        const outputName = denoOutputName();
-        const finalPath = path.join(dir, outputName);
-
-        await downloadTo(asset.browser_download_url, zipPath);
-        await extractZipEntry(zipPath, (name) => name === outputName, finalPath + '.tmp');
-        if (process.platform !== 'win32') fs.chmodSync(finalPath + '.tmp', 0o755);
-
-        const verified = await verifyBinary(finalPath + '.tmp', '--version');
-        if (!verified.includes(latest)) {
-            throw new Error(`downloaded binary reports "${verified}", expected ${latest}`);
-        }
-
-        fs.renameSync(finalPath + '.tmp', finalPath);
-        fs.rmSync(zipPath, { force: true });
-        log(`deno auto-updated to ${latest}:`, finalPath);
-        return { previous: currentVersion, latest, path: finalPath };
-    } catch (err) {
-        logError('deno auto-update failed, keeping current binary:', err.message);
-        cleanupTmp(userBinDir(), '.deno-');
+    const release = await fetchJSON(DENO_API_URL);
+    const latest = (release.tag_name || '').replace(/^v/, '');
+    if (!latest || !isNewer(latest, currentVersion || '0')) {
+        log(`deno up to date (${currentVersion})`);
         return null;
     }
+
+    const asset = (release.assets || []).find((a) => a.name === assetName);
+    if (!asset) {
+        logError('deno auto-update: no release asset named', assetName);
+        return null;
+    }
+    return { latest, asset };
+}
+
+async function prepareDenoBinary({ latest, asset }, dir) {
+    const outputName = denoOutputName();
+    const finalPath = path.join(dir, outputName);
+    const zipPath = path.join(dir, `.deno-${latest}.zip.tmp`);
+
+    await downloadTo(asset.browser_download_url, zipPath);
+    await extractZipEntry(zipPath, (name) => name === outputName, `${finalPath}.tmp`);
+    if (process.platform !== 'win32') fs.chmodSync(`${finalPath}.tmp`, 0o755);
+    fs.rmSync(zipPath, { force: true });
+    return finalPath;
+}
+
+function checkAndUpdateDeno(currentVersion) {
+    return performBinaryUpdate({
+        label: 'deno',
+        currentVersion,
+        tmpPrefix: '.deno-',
+        versionFlag: '--version',
+        resolveLatest: () => resolveDenoLatest(currentVersion),
+        prepareBinary: prepareDenoBinary,
+    });
 }
 
 // ---------------------------------------------------------------------------------------
+// Same "don't check more than once a day unless forced" throttle around each dependency —
+// each needs its own independent last-checked timestamp, so this is a small factory rather
+// than one shared counter.
+// ---------------------------------------------------------------------------------------
 
-let lastYtdlpCheck = 0;
-async function maybeUpdateYtdlp(currentVersion, force = false) {
-    if (!force && Date.now() - lastYtdlpCheck < DAY_MS) return null;
-    lastYtdlpCheck = Date.now();
-    return checkAndUpdateYtdlp(currentVersion);
+function makeThrottledUpdater(checkFn) {
+    let lastCheck = 0;
+    return async function (currentVersion, force = false) {
+        if (!force && Date.now() - lastCheck < DAY_MS) return null;
+        lastCheck = Date.now();
+        return checkFn(currentVersion);
+    };
 }
 
-let lastFfmpegCheck = 0;
-async function maybeUpdateFfmpeg(currentVersion, force = false) {
-    if (!force && Date.now() - lastFfmpegCheck < DAY_MS) return null;
-    lastFfmpegCheck = Date.now();
-    return checkAndUpdateFfmpeg(currentVersion);
-}
-
-let lastDenoCheck = 0;
-async function maybeUpdateDeno(currentVersion, force = false) {
-    if (!force && Date.now() - lastDenoCheck < DAY_MS) return null;
-    lastDenoCheck = Date.now();
-    return checkAndUpdateDeno(currentVersion);
-}
+const maybeUpdateYtdlp = makeThrottledUpdater(checkAndUpdateYtdlp);
+const maybeUpdateFfmpeg = makeThrottledUpdater(checkAndUpdateFfmpeg);
+const maybeUpdateDeno = makeThrottledUpdater(checkAndUpdateDeno);
 
 module.exports = { maybeUpdateYtdlp, maybeUpdateFfmpeg, maybeUpdateDeno, userBinDir };

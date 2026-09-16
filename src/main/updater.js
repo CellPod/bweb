@@ -61,14 +61,16 @@ function isNewer(a, b) {
     return false;
 }
 
-function fetchJSON(url) {
+// Shared by depUpdater.js (yt-dlp/ffmpeg/deno freshness checks) — same GitHub-API-over-
+// Electron's-net pattern, just a different User-Agent/timeout per caller.
+function fetchJSON(url, { userAgent = 'bWeb-Updater', timeoutMs = 10000, timeoutMessage = 'Update check timed out' } = {}) {
     return new Promise((resolve, reject) => {
         const request = net.request({
             url,
             method: 'GET',
         });
 
-        request.setHeader('User-Agent', 'bWeb-Updater');
+        request.setHeader('User-Agent', userAgent);
         request.setHeader('Accept', 'application/vnd.github.v3+json');
 
         let body = '';
@@ -100,14 +102,13 @@ function fetchJSON(url) {
             reject(err);
         });
 
-        // 10s timeout
         setTimeout(() => {
             request.abort();
-            reject(new Error('Update check timed out'));
-        }, 10000);
+            reject(new Error(timeoutMessage));
+        }, timeoutMs);
 
         request.end();
     });
 }
 
-module.exports = { checkForUpdates, isNewer };
+module.exports = { checkForUpdates, isNewer, fetchJSON };

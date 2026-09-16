@@ -1260,62 +1260,86 @@ function seekPreviewVideo(seconds) {
     if (video) video.currentTime = seconds;
 }
 
-function onDlRangeStartInput() {
-    const rangeStart = document.getElementById('dlRangeStart');
-    const rangeEnd = document.getElementById('dlRangeEnd');
-    const start = document.getElementById('dlTrimStart');
-    if (!rangeStart || !rangeEnd || !dlTrimDuration) return;
+// Shared dual-range trim-slider logic for Download's live preview and Convert's local-file
+// trim — same percent<->seconds conversion, clamp-to-not-cross-the-other-handle, and
+// fill-bar sync, differing only in where the total duration comes from and what "seeking"
+// means for that tab's preview. Returns the four handlers; each tab's global entry points
+// (called from inline oninput= HTML attributes, so their names must stay stable) are thin
+// wrappers around one shared instance.
+function makeRangeTrimControls({ startId, endId, timeStartId, timeEndId, fillId, minGapPct, getDuration, onSeek }) {
+    function onRangeStartInput() {
+        const rangeStart = document.getElementById(startId);
+        const rangeEnd = document.getElementById(endId);
+        const start = document.getElementById(timeStartId);
+        const duration = getDuration();
+        if (!rangeStart || !rangeEnd || !duration) return;
 
-    let s = parseFloat(rangeStart.value);
-    const e = parseFloat(rangeEnd.value);
-    if (s >= e) { rangeStart.value = e - 0.5; s = parseFloat(rangeStart.value); }
+        let s = parseFloat(rangeStart.value);
+        const e = parseFloat(rangeEnd.value);
+        if (s >= e) { rangeStart.value = e - minGapPct; s = parseFloat(rangeStart.value); }
 
-    const seconds = (s / 100) * dlTrimDuration;
-    if (start) start.value = formatTime(seconds);
-    updateDlRangeFill();
-    seekPreviewVideo(seconds);
+        const seconds = (s / 100) * duration;
+        if (start) start.value = formatTime(seconds);
+        updateRangeFill();
+        onSeek(seconds);
+    }
+
+    function onRangeEndInput() {
+        const rangeStart = document.getElementById(startId);
+        const rangeEnd = document.getElementById(endId);
+        const end = document.getElementById(timeEndId);
+        const duration = getDuration();
+        if (!rangeStart || !rangeEnd || !duration) return;
+
+        let e = parseFloat(rangeEnd.value);
+        const s = parseFloat(rangeStart.value);
+        if (e <= s) { rangeEnd.value = s + minGapPct; e = parseFloat(rangeEnd.value); }
+
+        const seconds = (e / 100) * duration;
+        if (end) end.value = formatTime(seconds);
+        updateRangeFill();
+        onSeek(seconds);
+    }
+
+    function onTimeInput() {
+        const start = document.getElementById(timeStartId);
+        const end = document.getElementById(timeEndId);
+        const rangeStart = document.getElementById(startId);
+        const rangeEnd = document.getElementById(endId);
+        const duration = getDuration();
+        if (!duration) return;
+
+        const s = parseTimeSecs(start?.value);
+        const e = parseTimeSecs(end?.value);
+        if (s !== null && rangeStart) rangeStart.value = Math.min(100, (s / duration) * 100);
+        if (e !== null && rangeEnd) rangeEnd.value = Math.min(100, (e / duration) * 100);
+        updateRangeFill();
+    }
+
+    function updateRangeFill() {
+        const rangeStart = document.getElementById(startId);
+        const rangeEnd = document.getElementById(endId);
+        const fill = document.getElementById(fillId);
+        if (!rangeStart || !rangeEnd || !fill) return;
+        const s = parseFloat(rangeStart.value);
+        const e = parseFloat(rangeEnd.value);
+        fill.style.left = s + '%';
+        fill.style.width = (e - s) + '%';
+    }
+
+    return { onRangeStartInput, onRangeEndInput, onTimeInput, updateRangeFill };
 }
 
-function onDlRangeEndInput() {
-    const rangeStart = document.getElementById('dlRangeStart');
-    const rangeEnd = document.getElementById('dlRangeEnd');
-    const end = document.getElementById('dlTrimEnd');
-    if (!rangeStart || !rangeEnd || !dlTrimDuration) return;
-
-    let e = parseFloat(rangeEnd.value);
-    const s = parseFloat(rangeStart.value);
-    if (e <= s) { rangeEnd.value = s + 0.5; e = parseFloat(rangeEnd.value); }
-
-    const seconds = (e / 100) * dlTrimDuration;
-    if (end) end.value = formatTime(seconds);
-    updateDlRangeFill();
-    seekPreviewVideo(seconds);
-}
-
-function onDlTimeInput() {
-    const start = document.getElementById('dlTrimStart');
-    const end = document.getElementById('dlTrimEnd');
-    const rangeStart = document.getElementById('dlRangeStart');
-    const rangeEnd = document.getElementById('dlRangeEnd');
-    if (!dlTrimDuration) return;
-
-    const s = parseTimeSecs(start?.value);
-    const e = parseTimeSecs(end?.value);
-    if (s !== null && rangeStart) rangeStart.value = Math.min(100, (s / dlTrimDuration) * 100);
-    if (e !== null && rangeEnd) rangeEnd.value = Math.min(100, (e / dlTrimDuration) * 100);
-    updateDlRangeFill();
-}
-
-function updateDlRangeFill() {
-    const rangeStart = document.getElementById('dlRangeStart');
-    const rangeEnd = document.getElementById('dlRangeEnd');
-    const fill = document.getElementById('dlRangeFill');
-    if (!rangeStart || !rangeEnd || !fill) return;
-    const s = parseFloat(rangeStart.value);
-    const e = parseFloat(rangeEnd.value);
-    fill.style.left = s + '%';
-    fill.style.width = (e - s) + '%';
-}
+const dlTrimControls = makeRangeTrimControls({
+    startId: 'dlRangeStart', endId: 'dlRangeEnd', timeStartId: 'dlTrimStart', timeEndId: 'dlTrimEnd', fillId: 'dlRangeFill',
+    minGapPct: 0.5,
+    getDuration: () => dlTrimDuration,
+    onSeek: (seconds) => seekPreviewVideo(seconds),
+});
+function onDlRangeStartInput() { dlTrimControls.onRangeStartInput(); }
+function onDlRangeEndInput() { dlTrimControls.onRangeEndInput(); }
+function onDlTimeInput() { dlTrimControls.onTimeInput(); }
+function updateDlRangeFill() { dlTrimControls.updateRangeFill(); }
 
 function openSourceInBrowser() {
     if (videoInfo?.webpage_url) {
@@ -1327,65 +1351,19 @@ function openSourceInBrowser() {
 
 // Dragging either handle also seeks the preview so you can hear/see the trim point,
 // same as the Download tab's preview scrubbing.
-function onConvertRangeStartInput() {
-    const video = document.getElementById('convertVideo');
-    const rangeStart = document.getElementById('convertRangeStart');
-    const rangeEnd = document.getElementById('convertRangeEnd');
-    const start = document.getElementById('convertTrimStart');
-    if (!video || !rangeStart || !rangeEnd || !video.duration) return;
-
-    let s = parseFloat(rangeStart.value);
-    const e = parseFloat(rangeEnd.value);
-    if (s >= e) { rangeStart.value = e - 0.1; s = parseFloat(rangeStart.value); }
-
-    const seconds = (s / 100) * video.duration;
-    if (start) start.value = formatTime(seconds);
-    updateConvertRangeFill();
-    video.currentTime = seconds;
-}
-
-function onConvertRangeEndInput() {
-    const video = document.getElementById('convertVideo');
-    const rangeStart = document.getElementById('convertRangeStart');
-    const rangeEnd = document.getElementById('convertRangeEnd');
-    const end = document.getElementById('convertTrimEnd');
-    if (!video || !rangeStart || !rangeEnd || !video.duration) return;
-
-    let e = parseFloat(rangeEnd.value);
-    const s = parseFloat(rangeStart.value);
-    if (e <= s) { rangeEnd.value = s + 0.1; e = parseFloat(rangeEnd.value); }
-
-    const seconds = (e / 100) * video.duration;
-    if (end) end.value = formatTime(seconds);
-    updateConvertRangeFill();
-    video.currentTime = seconds;
-}
-
-function onConvertTimeInput() {
-    const video = document.getElementById('convertVideo');
-    const rangeStart = document.getElementById('convertRangeStart');
-    const rangeEnd = document.getElementById('convertRangeEnd');
-    const start = document.getElementById('convertTrimStart');
-    const end = document.getElementById('convertTrimEnd');
-    if (!video || !video.duration) return;
-
-    const s = parseTimeSecs(start?.value);
-    const e = parseTimeSecs(end?.value);
-    if (s !== null && rangeStart) rangeStart.value = Math.min(100, (s / video.duration) * 100);
-    if (e !== null && rangeEnd) rangeEnd.value = Math.min(100, (e / video.duration) * 100);
-    updateConvertRangeFill();
-}
-
-function updateConvertRangeFill() {
-    const rangeStart = document.getElementById('convertRangeStart');
-    const rangeEnd = document.getElementById('convertRangeEnd');
-    const fill = document.getElementById('convertRangeFill');
-    if (!rangeStart || !rangeEnd || !fill) return;
-    const s = parseFloat(rangeStart.value);
-    const e = parseFloat(rangeEnd.value);
-    fill.style.left = s + '%';
-    fill.style.width = (e - s) + '%';
-}
+const convertTrimControls = makeRangeTrimControls({
+    startId: 'convertRangeStart', endId: 'convertRangeEnd', timeStartId: 'convertTrimStart', timeEndId: 'convertTrimEnd', fillId: 'convertRangeFill',
+    minGapPct: 0.1,
+    getDuration: () => document.getElementById('convertVideo')?.duration,
+    onSeek: (seconds) => {
+        const video = document.getElementById('convertVideo');
+        if (video) video.currentTime = seconds;
+    },
+});
+function onConvertRangeStartInput() { convertTrimControls.onRangeStartInput(); }
+function onConvertRangeEndInput() { convertTrimControls.onRangeEndInput(); }
+function onConvertTimeInput() { convertTrimControls.onTimeInput(); }
+function updateConvertRangeFill() { convertTrimControls.updateRangeFill(); }
 
 function parseTimeSecs(str) {
     if (!str || !str.trim()) return null;
@@ -1827,48 +1805,72 @@ function isAuthError(msg) {
     );
 }
 
-async function doLogin() {
-    hideError();
-    addLog('Opening YouTube sign-in...', 'highlight');
-    try {
-        const success = await window.api.login();
-        isSignedIn = success;
-        updateAuthUI();
-        if (success) {
-            addLog('Signed in to YouTube ✓', 'success');
+// Shared login/logout/status-UI shape for YouTube/Instagram/Vimeo — same check/act/render
+// flow, differing only in which window.api methods back it, the DOM ids it updates, its
+// signed-in i18n key, and whether logging in also clears the Fetch error banner (Vimeo's
+// flow doesn't — it has no auth-error banner variant to clear, unlike YouTube/Instagram).
+function makeAuthController({ label, statusId, actionBtnId, api, signedInI18nKey, clearErrorOnLogin, loginFailedMsg, logoutFailedMsg, getSignedIn, setSignedIn }) {
+    async function login() {
+        if (clearErrorOnLogin) hideError();
+        addLog(`Opening ${label} sign-in...`, 'highlight');
+        try {
+            const success = await api.login();
+            setSignedIn(success);
+            updateUI();
+            if (success) {
+                addLog(`Signed in to ${label} ✓`, 'success');
+            }
+        } catch (e) {
+            addLog(loginFailedMsg + e.message, 'error');
         }
-    } catch (e) {
-        addLog('Sign-in failed: ' + e.message, 'error');
     }
+
+    async function logout() {
+        try {
+            await api.logout();
+            setSignedIn(false);
+            updateUI();
+            addLog(`Signed out of ${label}`);
+        } catch (e) {
+            addLog(logoutFailedMsg + e.message, 'error');
+        }
+    }
+
+    function updateUI() {
+        const el = $(statusId);
+        if (!el) return;
+        const btn = $(actionBtnId);
+        if (getSignedIn()) {
+            el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t(signedInI18nKey))}</span>`;
+            btn.textContent = t('settings.signOut');
+            btn.dataset.i18n = 'settings.signOut';
+            btn.onclick = logout;
+        } else {
+            el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
+            btn.textContent = t('settings.signIn');
+            btn.dataset.i18n = 'settings.signIn';
+            btn.onclick = login;
+        }
+    }
+
+    return { login, logout, updateUI };
 }
 
-async function doLogout() {
-    try {
-        await window.api.logout();
-        isSignedIn = false;
-        updateAuthUI();
-        addLog('Signed out of YouTube');
-    } catch (e) {
-        addLog('Sign-out failed: ' + e.message, 'error');
-    }
-}
-
-function updateAuthUI() {
-    const el = $('authStatus');
-    if (!el) return;
-    const btn = $('authActionBtn');
-    if (isSignedIn) {
-        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.yt.signedIn'))}</span>`;
-        btn.textContent = t('settings.signOut');
-        btn.dataset.i18n = 'settings.signOut';
-        btn.onclick = doLogout;
-    } else {
-        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
-        btn.textContent = t('settings.signIn');
-        btn.dataset.i18n = 'settings.signIn';
-        btn.onclick = doLogin;
-    }
-}
+const youtubeAuth = makeAuthController({
+    label: 'YouTube',
+    statusId: 'authStatus',
+    actionBtnId: 'authActionBtn',
+    api: { login: window.api.login, logout: window.api.logout },
+    signedInI18nKey: 'settings.yt.signedIn',
+    clearErrorOnLogin: true,
+    loginFailedMsg: 'Sign-in failed: ',
+    logoutFailedMsg: 'Sign-out failed: ',
+    getSignedIn: () => isSignedIn,
+    setSignedIn: (v) => { isSignedIn = v; },
+});
+async function doLogin() { return youtubeAuth.login(); }
+async function doLogout() { return youtubeAuth.logout(); }
+function updateAuthUI() { youtubeAuth.updateUI(); }
 
 // Instagram auth
 
@@ -1881,93 +1883,39 @@ function showInstaAuthError() {
     $error.classList.add('visible', 'auth-error');
 }
 
-async function doInstaLogin() {
-    hideError();
-    addLog('Opening Instagram sign-in...', 'highlight');
-    try {
-        const success = await window.api.instaLogin();
-        isInstaSignedIn = success;
-        updateInstaAuthUI();
-        if (success) {
-            addLog('Signed in to Instagram ✓', 'success');
-        }
-    } catch (e) {
-        addLog('Instagram sign-in failed: ' + e.message, 'error');
-    }
-}
-
-async function doInstaLogout() {
-    try {
-        await window.api.instaLogout();
-        isInstaSignedIn = false;
-        updateInstaAuthUI();
-        addLog('Signed out of Instagram');
-    } catch (e) {
-        addLog('Instagram sign-out failed: ' + e.message, 'error');
-    }
-}
-
-function updateInstaAuthUI() {
-    const el = $('instaAuthStatus');
-    if (!el) return;
-    const btn = $('instaAuthActionBtn');
-    if (isInstaSignedIn) {
-        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.insta.signedIn'))}</span>`;
-        btn.textContent = t('settings.signOut');
-        btn.dataset.i18n = 'settings.signOut';
-        btn.onclick = doInstaLogout;
-    } else {
-        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
-        btn.textContent = t('settings.signIn');
-        btn.dataset.i18n = 'settings.signIn';
-        btn.onclick = doInstaLogin;
-    }
-}
+const instaAuth = makeAuthController({
+    label: 'Instagram',
+    statusId: 'instaAuthStatus',
+    actionBtnId: 'instaAuthActionBtn',
+    api: { login: window.api.instaLogin, logout: window.api.instaLogout },
+    signedInI18nKey: 'settings.insta.signedIn',
+    clearErrorOnLogin: true,
+    loginFailedMsg: 'Instagram sign-in failed: ',
+    logoutFailedMsg: 'Instagram sign-out failed: ',
+    getSignedIn: () => isInstaSignedIn,
+    setSignedIn: (v) => { isInstaSignedIn = v; },
+});
+async function doInstaLogin() { return instaAuth.login(); }
+async function doInstaLogout() { return instaAuth.logout(); }
+function updateInstaAuthUI() { instaAuth.updateUI(); }
 
 // Vimeo auth
 
-async function doVimeoLogin() {
-    hideError();
-    addLog('Opening Vimeo sign-in...', 'highlight');
-    try {
-        const success = await window.api.vimeoLogin();
-        isVimeoSignedIn = success;
-        updateVimeoAuthUI();
-        if (success) {
-            addLog('Signed in to Vimeo ✓', 'success');
-        }
-    } catch (e) {
-        addLog('Vimeo sign-in failed: ' + e.message, 'error');
-    }
-}
-
-async function doVimeoLogout() {
-    try {
-        await window.api.vimeoLogout();
-        isVimeoSignedIn = false;
-        updateVimeoAuthUI();
-        addLog('Signed out of Vimeo');
-    } catch (e) {
-        addLog('Vimeo sign-out failed: ' + e.message, 'error');
-    }
-}
-
-function updateVimeoAuthUI() {
-    const el = $('vimeoAuthStatus');
-    if (!el) return;
-    const btn = $('vimeoAuthActionBtn');
-    if (isVimeoSignedIn) {
-        el.innerHTML = `<span class="auth-signed-in">${escapeHtml(t('settings.vimeo.signedIn'))}</span>`;
-        btn.textContent = t('settings.signOut');
-        btn.dataset.i18n = 'settings.signOut';
-        btn.onclick = doVimeoLogout;
-    } else {
-        el.innerHTML = `<span class="auth-signed-out">${escapeHtml(t('settings.notSignedIn'))}</span>`;
-        btn.textContent = t('settings.signIn');
-        btn.dataset.i18n = 'settings.signIn';
-        btn.onclick = doVimeoLogin;
-    }
-}
+const vimeoAuth = makeAuthController({
+    label: 'Vimeo',
+    statusId: 'vimeoAuthStatus',
+    actionBtnId: 'vimeoAuthActionBtn',
+    api: { login: window.api.vimeoLogin, logout: window.api.vimeoLogout },
+    signedInI18nKey: 'settings.vimeo.signedIn',
+    clearErrorOnLogin: false,
+    loginFailedMsg: 'Vimeo sign-in failed: ',
+    logoutFailedMsg: 'Vimeo sign-out failed: ',
+    getSignedIn: () => isVimeoSignedIn,
+    setSignedIn: (v) => { isVimeoSignedIn = v; },
+});
+async function doVimeoLogin() { return vimeoAuth.login(); }
+async function doVimeoLogout() { return vimeoAuth.logout(); }
+function updateVimeoAuthUI() { vimeoAuth.updateUI(); }
 
 // Vimeo library import (via API, not scraping — see vimeoApi.js)
 
@@ -2090,20 +2038,6 @@ async function doChooseFolder() {
         const newPath = await window.api.chooseDownloadPath();
         $('settingsPath').textContent = newPath;
         $('dlDestPath').textContent = newPath;
-        addLog('Download folder changed: ' + newPath, 'success');
-    } catch (e) {
-        addLog('Failed to change folder: ' + e.message, 'error');
-    }
-}
-
-// Same action as doChooseFolder(), triggered from the Download tab's persistent
-// destination indicator instead of Settings — lets a "project" session switch where
-// downloads land without leaving the main flow.
-async function doChooseFolderInline() {
-    try {
-        const newPath = await window.api.chooseDownloadPath();
-        $('dlDestPath').textContent = newPath;
-        $('settingsPath').textContent = newPath;
         addLog('Download folder changed: ' + newPath, 'success');
     } catch (e) {
         addLog('Failed to change folder: ' + e.message, 'error');
@@ -2697,13 +2631,6 @@ function toggleMoreFormats() {
     if (btn) btn.classList.toggle('open', opening);
 }
 
-// ── Batch ─────────────────────────────────────────────────────────────────────
-
-function toggleBatch() {
-    const section = document.getElementById('batchSection');
-    if (section) section.classList.toggle('open');
-}
-
 let _logOpenHeight = 180;
 
 function toggleLog() {
@@ -2929,11 +2856,15 @@ function formatBytes(bytes) {
     return val.toFixed(val < 10 ? 2 : 1) + ' ' + units[i];
 }
 
-function initCompressTab() {
-    const dropZone = document.getElementById('compressDropZone');
-    loadCompressDestPath();
-    loadCompressAutoOpen();
-    if (!dropZone || dropZone._initialized) return;
+// Shared drag-and-drop wiring for every tool's drop zone — same dragover/dragleave/drop
+// listener trio and drag-over class toggling, differing only in what happens with the
+// dropped file paths. Guards against double-wiring the same element (initXTab() reruns on
+// every tab switch) via an `_initialized` marker on the element itself.
+// Returns true the first time a given element is wired (false on every later call, once
+// already initialized) — some callers gate one-time-only setup of their own on this.
+function wireDropZone(elId, onFiles) {
+    const dropZone = document.getElementById(elId);
+    if (!dropZone || dropZone._initialized) return false;
     dropZone._initialized = true;
 
     dropZone.addEventListener('dragover', (e) => {
@@ -2945,30 +2876,54 @@ function initCompressTab() {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
         const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
-        addFilesToCompressList(paths);
+        onFiles(paths);
     });
+    return true;
 }
 
-async function loadCompressDestPath() {
-    const p = await window.api.compressGetDestPath();
-    document.getElementById('compressDestPath').textContent = p || '-';
-    setDestFolderLabel('compressDestFolderName', p);
+function initCompressTab() {
+    loadCompressDestPath();
+    loadCompressAutoOpen();
+    wireDropZone('compressDropZone', addFilesToCompressList);
 }
 
-async function doChooseCompressDestPath() {
-    const p = await window.api.compressChooseDestPath();
-    document.getElementById('compressDestPath').textContent = p || '-';
-    setDestFolderLabel('compressDestFolderName', p);
+// Shared "load/choose destination path + auto-open toggle" shape for every processing
+// tool's popover — same four functions, differing only in the window.api method prefix
+// and the DOM ids they update (which match 1:1 with the prefix for every tool here).
+function makeDestPathControls(prefix) {
+    const destPathId = `${prefix}DestPath`;
+    const folderNameId = `${prefix}DestFolderName`;
+    const autoOpenCheckId = `${prefix}AutoOpenCheck`;
+
+    async function loadDestPath() {
+        const p = await window.api[`${prefix}GetDestPath`]();
+        document.getElementById(destPathId).textContent = p || '-';
+        setDestFolderLabel(folderNameId, p);
+    }
+
+    async function chooseDestPath() {
+        const p = await window.api[`${prefix}ChooseDestPath`]();
+        document.getElementById(destPathId).textContent = p || '-';
+        setDestFolderLabel(folderNameId, p);
+    }
+
+    async function loadAutoOpen() {
+        const enabled = await window.api[`${prefix}GetAutoOpen`]();
+        document.getElementById(autoOpenCheckId).checked = !!enabled;
+    }
+
+    function onAutoOpenChange(checked) {
+        window.api[`${prefix}SetAutoOpen`](checked);
+    }
+
+    return { loadDestPath, chooseDestPath, loadAutoOpen, onAutoOpenChange };
 }
 
-async function loadCompressAutoOpen() {
-    const enabled = await window.api.compressGetAutoOpen();
-    document.getElementById('compressAutoOpenCheck').checked = !!enabled;
-}
-
-function onCompressAutoOpenChange(checked) {
-    window.api.compressSetAutoOpen(checked);
-}
+const compressDestControls = makeDestPathControls('compress');
+async function loadCompressDestPath() { return compressDestControls.loadDestPath(); }
+async function doChooseCompressDestPath() { return compressDestControls.chooseDestPath(); }
+async function loadCompressAutoOpen() { return compressDestControls.loadAutoOpen(); }
+function onCompressAutoOpenChange(checked) { return compressDestControls.onAutoOpenChange(checked); }
 
 async function doCompressChooseFile() {
     const filePaths = await window.api.compressChooseFile();
@@ -3136,45 +3091,52 @@ function compressStatusLabel(item) {
     }
 }
 
-// Image/PDF file-type badge — same visual language as Convert's video/audio badge, shared
-// helper since both just color-code `item.type` onto a small extension square.
-function mediaTypeBadgeHtml(name, type) {
-    const ext = (name.split('.').pop() || '').toLowerCase();
-    const category = type === 'pdf' ? 'pdf' : 'image';
-    return `<div class="file-type-badge file-type-${category}">${escapeHtml(ext.slice(0, 4).toUpperCase())}</div>`;
-}
-
 const COMPRESS_BUSY_STATES = new Set(['detecting', 'estimating', 'compressing']);
 
 // Tracks which item ids have already rendered once, so newly-added files get an entrance
 // animation without re-triggering it on every status re-render (mirrors convertRenderedIds).
 let compressRenderedIds = new Set();
 
-function renderCompressList() {
-    const list = document.getElementById('compressList');
-    const count = document.getElementById('compressListCount');
-    if (!list) return;
+// Shared list-rendering shape for Compress/Watermark's batch file lists — same markup,
+// entrance-animation tracking, and progress-bar-if-busy logic, differing only in which
+// items/state-check/status-label function backs them. Returns the new renderedIds set —
+// callers reassign it to their own module-level tracking variable.
+function renderBatchList({ listId, countId, items, renderedIds, isBusy, statusLabelFn }) {
+    const list = document.getElementById(listId);
+    const count = document.getElementById(countId);
+    if (!list) return renderedIds;
 
-    count.textContent = compressItems.length ? `${compressItems.length}` : '';
+    count.textContent = items.length ? `${items.length}` : '';
 
-    const currentIds = new Set(compressItems.map((i) => i.id));
-    list.innerHTML = compressItems.map((item) => {
-        const isNew = !compressRenderedIds.has(item.id);
-        const progressBar = COMPRESS_BUSY_STATES.has(item.state)
+    const currentIds = new Set(items.map((i) => i.id));
+    list.innerHTML = items.map((item) => {
+        const isNew = !renderedIds.has(item.id);
+        const progressBar = isBusy(item)
             ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill indeterminate"></div></div>`
             : '';
         return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
-            mediaTypeBadgeHtml(item.name, item.type) +
+            fileTypeBadgeHtml(item.name, item.type === 'pdf' ? 'pdf' : 'image') +
             `<div class="convert-batch-item-info">` +
                 `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
                 `<div class="convert-batch-item-meta">` +
-                    `<span class="convert-batch-item-status">${escapeHtml(compressStatusLabel(item))}</span>` +
+                    `<span class="convert-batch-item-status">${escapeHtml(statusLabelFn(item))}</span>` +
                     progressBar +
                 `</div>` +
             `</div>` +
         `</div>`;
     }).join('');
-    compressRenderedIds = currentIds;
+    return currentIds;
+}
+
+function renderCompressList() {
+    compressRenderedIds = renderBatchList({
+        listId: 'compressList',
+        countId: 'compressListCount',
+        items: compressItems,
+        renderedIds: compressRenderedIds,
+        isBusy: (item) => COMPRESS_BUSY_STATES.has(item.state),
+        statusLabelFn: compressStatusLabel,
+    });
 }
 
 function doCompressClear() {
@@ -3262,61 +3224,19 @@ let watermarkLogoPath = null;
 let watermarkRunning = false;
 
 function initPrivacyTab() {
-    const dropZone = document.getElementById('watermarkDropZone');
     loadWatermarkDestPath();
     loadWatermarkAutoOpen();
-    if (dropZone && !dropZone._initialized) {
-        dropZone._initialized = true;
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
-            addFilesToWatermarkList(paths);
-        });
-    }
-
-    const redactDropZone = document.getElementById('redactDropZone');
-    if (redactDropZone && !redactDropZone._initialized) {
-        redactDropZone._initialized = true;
-        redactDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            redactDropZone.classList.add('drag-over');
-        });
-        redactDropZone.addEventListener('dragleave', () => redactDropZone.classList.remove('drag-over'));
-        redactDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            redactDropZone.classList.remove('drag-over');
-            const first = e.dataTransfer.files[0];
-            if (first) loadRedactFile(window.api.getPathForFile(first));
-        });
-    }
+    wireDropZone('watermarkDropZone', addFilesToWatermarkList);
+    wireDropZone('redactDropZone', (paths) => {
+        if (paths[0]) loadRedactFile(paths[0]);
+    });
 }
 
-async function loadWatermarkDestPath() {
-    const p = await window.api.watermarkGetDestPath();
-    document.getElementById('watermarkDestPath').textContent = p || '-';
-    setDestFolderLabel('watermarkDestFolderName', p);
-}
-
-async function doChooseWatermarkDestPath() {
-    const p = await window.api.watermarkChooseDestPath();
-    document.getElementById('watermarkDestPath').textContent = p || '-';
-    setDestFolderLabel('watermarkDestFolderName', p);
-}
-
-async function loadWatermarkAutoOpen() {
-    const enabled = await window.api.watermarkGetAutoOpen();
-    document.getElementById('watermarkAutoOpenCheck').checked = !!enabled;
-}
-
-function onWatermarkAutoOpenChange(checked) {
-    window.api.watermarkSetAutoOpen(checked);
-}
+const watermarkDestControls = makeDestPathControls('watermark');
+async function loadWatermarkDestPath() { return watermarkDestControls.loadDestPath(); }
+async function doChooseWatermarkDestPath() { return watermarkDestControls.chooseDestPath(); }
+async function loadWatermarkAutoOpen() { return watermarkDestControls.loadAutoOpen(); }
+function onWatermarkAutoOpenChange(checked) { return watermarkDestControls.onAutoOpenChange(checked); }
 
 async function doWatermarkChooseFile() {
     const filePaths = await window.api.watermarkChooseFile();
@@ -3493,30 +3413,14 @@ function watermarkStatusLabel(item) {
 let watermarkRenderedIds = new Set();
 
 function renderWatermarkList() {
-    const list = document.getElementById('watermarkList');
-    const count = document.getElementById('watermarkListCount');
-    if (!list) return;
-
-    count.textContent = watermarkItems.length ? `${watermarkItems.length}` : '';
-
-    const currentIds = new Set(watermarkItems.map((i) => i.id));
-    list.innerHTML = watermarkItems.map((item) => {
-        const isNew = !watermarkRenderedIds.has(item.id);
-        const progressBar = item.state === 'watermarking'
-            ? `<div class="convert-batch-item-progress-track"><div class="convert-batch-item-progress-fill indeterminate"></div></div>`
-            : '';
-        return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
-            mediaTypeBadgeHtml(item.name, item.type) +
-            `<div class="convert-batch-item-info">` +
-                `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
-                `<div class="convert-batch-item-meta">` +
-                    `<span class="convert-batch-item-status">${escapeHtml(watermarkStatusLabel(item))}</span>` +
-                    progressBar +
-                `</div>` +
-            `</div>` +
-        `</div>`;
-    }).join('');
-    watermarkRenderedIds = currentIds;
+    watermarkRenderedIds = renderBatchList({
+        listId: 'watermarkList',
+        countId: 'watermarkListCount',
+        items: watermarkItems,
+        renderedIds: watermarkRenderedIds,
+        isBusy: (item) => item.state === 'watermarking',
+        statusLabelFn: watermarkStatusLabel,
+    });
 }
 
 function doWatermarkClear() {
@@ -3749,26 +3653,11 @@ function setPrivacyMode(mode) {
     }
 }
 
-async function loadRedactDestPath() {
-    const p = await window.api.redactGetDestPath();
-    document.getElementById('redactDestPath').textContent = p || '-';
-    setDestFolderLabel('redactDestFolderName', p);
-}
-
-async function doChooseRedactDestPath() {
-    const p = await window.api.redactChooseDestPath();
-    document.getElementById('redactDestPath').textContent = p || '-';
-    setDestFolderLabel('redactDestFolderName', p);
-}
-
-async function loadRedactAutoOpen() {
-    const enabled = await window.api.redactGetAutoOpen();
-    document.getElementById('redactAutoOpenCheck').checked = !!enabled;
-}
-
-function onRedactAutoOpenChange(checked) {
-    window.api.redactSetAutoOpen(checked);
-}
+const redactDestControls = makeDestPathControls('redact');
+async function loadRedactDestPath() { return redactDestControls.loadDestPath(); }
+async function doChooseRedactDestPath() { return redactDestControls.chooseDestPath(); }
+async function loadRedactAutoOpen() { return redactDestControls.loadAutoOpen(); }
+function onRedactAutoOpenChange(checked) { return redactDestControls.onAutoOpenChange(checked); }
 
 async function doRedactChooseFile() {
     const p = await window.api.redactChooseFile();
@@ -4293,23 +4182,9 @@ async function doRedact() {
 }
 
 function initConvertTab() {
-    const dropZone = document.getElementById('convertDropZone');
     loadConvertDestPath();
     loadConvertAutoOpen();
-    if (!dropZone || dropZone._initialized) return;
-    dropZone._initialized = true;
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drag-over');
-    });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f));
-        addFilesToConvertList(paths);
-    });
+    if (!wireDropZone('convertDropZone', addFilesToConvertList)) return;
 
     window.api.onConvertProgress((p) => {
         const current = convertItems.find((i) => i.state === 'converting');
@@ -4409,11 +4284,10 @@ function doConvertClear() {
 
 const CONVERT_AUDIO_EXTS = new Set(['mp3', 'wav', 'flac', 'm4a', 'aac', 'opus', 'ogg']);
 
-// File-type badge shown per row — prototype for Convert only, per user request, before
-// rolling the same treatment out to Compress/Watermark's file lists.
-function fileTypeBadgeHtml(name) {
+// File-type badge shown per row — a small colored square with the extension, color-coded
+// by category. Shared by Convert (video/audio) and Compress/Watermark (image/pdf).
+function fileTypeBadgeHtml(name, category) {
     const ext = (name.split('.').pop() || '').toLowerCase();
-    const category = CONVERT_AUDIO_EXTS.has(ext) ? 'audio' : 'video';
     return `<div class="file-type-badge file-type-${category}">${escapeHtml(ext.slice(0, 4).toUpperCase())}</div>`;
 }
 
@@ -4464,7 +4338,7 @@ function renderConvertList() {
             : '×';
         const isNew = !convertRenderedIds.has(item.id);
         return `<div class="convert-batch-item convert-batch-item-${item.state}${isNew ? ' convert-batch-item-entering' : ''}" data-item-id="${item.id}">` +
-            fileTypeBadgeHtml(item.name) +
+            fileTypeBadgeHtml(item.name, CONVERT_AUDIO_EXTS.has((item.name.split('.').pop() || '').toLowerCase()) ? 'audio' : 'video') +
             `<div class="convert-batch-item-info">` +
                 `<span class="convert-batch-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>` +
                 `<div class="convert-batch-item-meta">` +
@@ -4620,26 +4494,11 @@ async function runConvertQueue() {
     }
 }
 
-async function loadConvertDestPath() {
-    const p = await window.api.convertGetDestPath();
-    document.getElementById('convertDestPath').textContent = p || '-';
-    setDestFolderLabel('convertDestFolderName', p);
-}
-
-async function doChooseConvertDestPath() {
-    const p = await window.api.convertChooseDestPath();
-    document.getElementById('convertDestPath').textContent = p || '-';
-    setDestFolderLabel('convertDestFolderName', p);
-}
-
-async function loadConvertAutoOpen() {
-    const enabled = await window.api.convertGetAutoOpen();
-    document.getElementById('convertAutoOpenCheck').checked = !!enabled;
-}
-
-function onConvertAutoOpenChange(checked) {
-    window.api.convertSetAutoOpen(checked);
-}
+const convertDestControls = makeDestPathControls('convert');
+async function loadConvertDestPath() { return convertDestControls.loadDestPath(); }
+async function doChooseConvertDestPath() { return convertDestControls.chooseDestPath(); }
+async function loadConvertAutoOpen() { return convertDestControls.loadAutoOpen(); }
+function onConvertAutoOpenChange(checked) { return convertDestControls.onAutoOpenChange(checked); }
 
 async function doConvert() {
     if (convertRunning) return;
@@ -4669,26 +4528,11 @@ function initQrTab() {
     loadQrAutoOpen();
 }
 
-async function loadQrAutoOpen() {
-    const enabled = await window.api.qrGetAutoOpen();
-    document.getElementById('qrAutoOpenCheck').checked = !!enabled;
-}
-
-function onQrAutoOpenChange(checked) {
-    window.api.qrSetAutoOpen(checked);
-}
-
-async function loadQrDestPath() {
-    const p = await window.api.qrGetDestPath();
-    document.getElementById('qrDestPath').textContent = p || '-';
-    setDestFolderLabel('qrDestFolderName', p);
-}
-
-async function doChooseQrDestPath() {
-    const p = await window.api.qrChooseDestPath();
-    document.getElementById('qrDestPath').textContent = p || '-';
-    setDestFolderLabel('qrDestFolderName', p);
-}
+const qrDestControls = makeDestPathControls('qr');
+async function loadQrAutoOpen() { return qrDestControls.loadAutoOpen(); }
+function onQrAutoOpenChange(checked) { return qrDestControls.onAutoOpenChange(checked); }
+async function loadQrDestPath() { return qrDestControls.loadDestPath(); }
+async function doChooseQrDestPath() { return qrDestControls.chooseDestPath(); }
 
 function setQrFormat(format) {
     qrFormat = format;
@@ -4914,44 +4758,16 @@ let bgRemoveRunning = false;
 function initBgRemoveTab() {
     loadBgRemoveDestPath();
     loadBgRemoveAutoOpen();
-
-    const dropZone = document.getElementById('bgRemoveDropZone');
-    if (dropZone && !dropZone._initialized) {
-        dropZone._initialized = true;
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            const filePath = window.api.getPathForFile(e.dataTransfer.files[0]);
-            if (filePath) loadBgRemoveFile(filePath);
-        });
-    }
+    wireDropZone('bgRemoveDropZone', (paths) => {
+        if (paths[0]) loadBgRemoveFile(paths[0]);
+    });
 }
 
-async function loadBgRemoveDestPath() {
-    const p = await window.api.bgRemoveGetDestPath();
-    document.getElementById('bgRemoveDestPath').textContent = p || '-';
-    setDestFolderLabel('bgRemoveDestFolderName', p);
-}
-
-async function doChooseBgRemoveDestPath() {
-    const p = await window.api.bgRemoveChooseDestPath();
-    document.getElementById('bgRemoveDestPath').textContent = p || '-';
-    setDestFolderLabel('bgRemoveDestFolderName', p);
-}
-
-async function loadBgRemoveAutoOpen() {
-    const enabled = await window.api.bgRemoveGetAutoOpen();
-    document.getElementById('bgRemoveAutoOpenCheck').checked = !!enabled;
-}
-
-function onBgRemoveAutoOpenChange(checked) {
-    window.api.bgRemoveSetAutoOpen(checked);
-}
+const bgRemoveDestControls = makeDestPathControls('bgRemove');
+async function loadBgRemoveDestPath() { return bgRemoveDestControls.loadDestPath(); }
+async function doChooseBgRemoveDestPath() { return bgRemoveDestControls.chooseDestPath(); }
+async function loadBgRemoveAutoOpen() { return bgRemoveDestControls.loadAutoOpen(); }
+function onBgRemoveAutoOpenChange(checked) { return bgRemoveDestControls.onAutoOpenChange(checked); }
 
 async function doBgRemoveChooseFile() {
     const p = await window.api.bgRemoveChooseFile();

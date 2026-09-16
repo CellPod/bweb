@@ -197,17 +197,4 @@ function delay(ms) {
     return new Promise((r) => setTimeout(r, ms));
 }
 
-// Check if a URL is like an Instagram saved collection.
-function isInstagramCollection(url) {
-    if (!url) return false;
-    try {
-        const u = new URL(url);
-        if (!u.hostname.includes('instagram.com')) return false;
-        // /username/saved/ or /username/saved/collection_name/id/
-        return u.pathname.includes('/saved/');
-    } catch {
-        return false;
-    }
-}
-
-module.exports = { scrapeCollection, isInstagramCollection };
+module.exports = { scrapeCollection };

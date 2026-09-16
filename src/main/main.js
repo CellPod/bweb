@@ -23,22 +23,24 @@ const scraper = require('./scraper');
 const vimeoApi = require('./vimeoApi');
 const { DEV_MODE, log, logError, getLogFilePath } = require('./utils');
 const fs = require('fs');
-const { startLocalServer } = require('./localServer');
-
-const MEDIA_MIME_TYPES = {
-    '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime',
-    '.mkv': 'video/x-matroska', '.webm': 'video/webm', '.avi': 'video/x-msvideo',
-    '.flv': 'video/x-flv', '.ts': 'video/mp2t', '.mts': 'video/mp2t',
-    '.vob': 'video/dvd', '.3gp': 'video/3gpp', '.dav': 'video/mp2t',
-    '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
-    '.opus': 'audio/opus', '.ogg': 'audio/ogg', '.flac': 'audio/flac',
-    '.wav': 'audio/wav', '.wma': 'audio/x-ms-wma',
-};
+const { startLocalServer, MEDIA_MIME_TYPES } = require('./localServer');
 
 function mimeTypeFor(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     return MEDIA_MIME_TYPES[ext] || 'application/octet-stream';
 }
+
+// Shared by Compress/Watermark/Redact's file pickers, which all accept the same image+PDF
+// inputs. macOS/Windows dialogs restrict selection to whichever filter is active, and
+// default to the first one — with Images/PDF as separate groups, PDFs looked disabled/
+// unselectable until the user manually switched the filter dropdown. One combined group
+// first fixes that.
+const IMAGE_AND_PDF_FILTERS = [
+    { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
+    { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
+    { name: 'PDF', extensions: ['pdf'] },
+    { name: 'All files', extensions: ['*'] },
+];
 
 function readFileRange(filePath, start, end) {
     return new Promise((resolve, reject) => {
@@ -473,79 +475,49 @@ ipcMain.handle('sparkle:setAutoInstall', (_e, enabled) => {
     store.set('updateAutoInstall', !!enabled);
 });
 
-// Auth
+// Auth — YouTube/Instagram/Vimeo all share the same cookie-based check/login/logout shape,
+// differing only in which cookies.js methods back them and the label shown in log/toast text.
+function registerAuthHandlers(prefix, label, cancelMessage, api) {
+    ipcMain.handle(`${prefix}:check`, () => api.hasCookies());
 
-ipcMain.handle('auth:check', () => cookies.hasCookies());
+    ipcMain.handle(`${prefix}:login`, async () => {
+        log(`Opening ${label} login window`);
+        send('log', `Opening ${label} sign-in...`);
+        const success = await api.openLoginWindow(mainWindow);
+        if (success) {
+            send('log', `Signed in to ${label} ✓`);
+            log(`${label} login successful`);
+        } else {
+            send('log', cancelMessage);
+            log(`${label} login cancelled`);
+        }
+        return success;
+    });
 
-ipcMain.handle('auth:login', async () => {
-    log('Opening YouTube login window');
-    send('log', 'Opening YouTube sign-in...');
-    const success = await cookies.openLoginWindow(mainWindow);
-    if (success) {
-        send('log', 'Signed in to YouTube ✓');
-        log('YouTube login successful');
-    } else {
-        send('log', 'Sign-in cancelled');
-        log('YouTube login cancelled');
-    }
-    return success;
+    ipcMain.handle(`${prefix}:logout`, async () => {
+        await api.clearCookies();
+        send('log', `Signed out of ${label}`);
+        log(`${label} logout`);
+        return true;
+    });
+}
+
+registerAuthHandlers('auth', 'YouTube', 'Sign-in cancelled', {
+    hasCookies: cookies.hasCookies,
+    openLoginWindow: cookies.openLoginWindow,
+    clearCookies: cookies.clearCookies,
 });
 
-ipcMain.handle('auth:logout', async () => {
-    await cookies.clearCookies();
-    send('log', 'Signed out of YouTube');
-    log('YouTube logout');
-    return true;
+registerAuthHandlers('insta', 'Instagram', 'Instagram sign-in cancelled', {
+    hasCookies: cookies.hasInstaCookies,
+    openLoginWindow: cookies.openInstaLoginWindow,
+    clearCookies: cookies.clearInstaCookies,
 });
 
-// Instagram Auth
-
-ipcMain.handle('insta:check', () => cookies.hasInstaCookies());
-
-ipcMain.handle('insta:login', async () => {
-    log('Opening Instagram login window');
-    send('log', 'Opening Instagram sign-in...');
-    const success = await cookies.openInstaLoginWindow(mainWindow);
-    if (success) {
-        send('log', 'Signed in to Instagram ✓');
-        log('Instagram login successful');
-    } else {
-        send('log', 'Instagram sign-in cancelled');
-        log('Instagram login cancelled');
-    }
-    return success;
-});
-
-ipcMain.handle('insta:logout', async () => {
-    await cookies.clearInstaCookies();
-    send('log', 'Signed out of Instagram');
-    log('Instagram logout');
-    return true;
-});
-
-// Vimeo Auth
-
-ipcMain.handle('vimeo:check', () => cookies.hasVimeoCookies());
-
-ipcMain.handle('vimeo:login', async () => {
-    log('Opening Vimeo login window');
-    send('log', 'Opening Vimeo sign-in...');
-    const success = await cookies.openVimeoLoginWindow(mainWindow);
-    if (success) {
-        send('log', 'Signed in to Vimeo ✓');
-        log('Vimeo login successful');
-    } else {
-        send('log', 'Vimeo sign-in cancelled');
-        log('Vimeo login cancelled');
-    }
-    return success;
-});
-
-ipcMain.handle('vimeo:logout', async () => {
-    await cookies.clearVimeoCookies();
-    send('log', 'Signed out of Vimeo');
-    log('Vimeo logout');
-    return true;
+registerAuthHandlers('vimeo', 'Vimeo', 'Vimeo sign-in cancelled', {
+    hasCookies: cookies.hasVimeoCookies,
+    openLoginWindow: cookies.openVimeoLoginWindow,
+    clearCookies: cookies.clearVimeoCookies,
 });
 
 // Vimeo API (Personal Access Token) — lists the account's library (personal + team)
@@ -674,14 +646,6 @@ ipcMain.handle('video:batchMeta', async (_e, urls) => {
 ipcMain.handle('queue:add', (_e, items) => {
     log('Queue: adding', items.length, 'items');
     return queue.add(items);
-});
-
-ipcMain.handle('queue:getAll', () => {
-    return queue.getAll();
-});
-
-ipcMain.handle('queue:getCounts', () => {
-    return queue.counts;
 });
 
 ipcMain.handle('queue:cancelCurrent', () => {
@@ -837,15 +801,7 @@ ipcMain.handle('compress:chooseFile', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: 'Select file(s) to compress',
         properties: ['openFile', 'multiSelections'],
-        filters: [
-            // macOS/Windows dialogs restrict selection to whichever filter is active, and default
-            // to the first one — with Images/PDF as separate groups, PDFs looked disabled/unselectable
-            // until the user manually switched the filter dropdown. One combined group first fixes that.
-            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
-            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
-            { name: 'PDF', extensions: ['pdf'] },
-            { name: 'All files', extensions: ['*'] },
-        ],
+        filters: IMAGE_AND_PDF_FILTERS,
     });
     if (result.canceled) return [];
     return result.filePaths;
@@ -891,12 +847,7 @@ ipcMain.handle('watermark:chooseFile', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: 'Select file(s) to watermark',
         properties: ['openFile', 'multiSelections'],
-        filters: [
-            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
-            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
-            { name: 'PDF', extensions: ['pdf'] },
-            { name: 'All files', extensions: ['*'] },
-        ],
+        filters: IMAGE_AND_PDF_FILTERS,
     });
     if (result.canceled) return [];
     return result.filePaths;
@@ -935,12 +886,7 @@ ipcMain.handle('redact:chooseFile', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: 'Select a file to redact',
         properties: ['openFile'],
-        filters: [
-            { name: 'Images & PDF', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'pdf'] },
-            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif'] },
-            { name: 'PDF', extensions: ['pdf'] },
-            { name: 'All files', extensions: ['*'] },
-        ],
+        filters: IMAGE_AND_PDF_FILTERS,
     });
     if (result.canceled || !result.filePaths[0]) return null;
     return result.filePaths[0];

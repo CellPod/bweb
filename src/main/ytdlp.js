@@ -36,20 +36,23 @@ async function appendCookieArgs(args, url) {
     }
 }
 
-function getFfmpegPath() {
+// Resolves a bundled binary by name, checking (in order): depUpdater.js's auto-updated
+// copy in userData/bin (always preferred when present, since it's never older than what
+// shipped with this build), electron-builder's extraResources copy, then the dev-tree
+// bin/ folder. Checks both the expected name and its counterpart on Windows — cheap
+// insurance against a packaging-side naming mismatch (this bit us once already: v1.1.0's
+// Windows build shipped yt-dlp as plain "yt-dlp" instead of "yt-dlp.exe").
+function resolveBundledBinary(baseName, label) {
     const ext = process.platform === 'win32' ? '.exe' : '';
-    const names = ext ? ['ffmpeg' + ext, 'ffmpeg'] : ['ffmpeg'];
+    const names = ext ? [baseName + ext, baseName] : [baseName];
 
-    // depUpdater.js drops a fresher binary here when it finds one — always prefer it over
-    // whatever shipped with this build, since it's never older (same pattern as yt-dlp
-    // below).
     try {
         const userBase = path.join(app.getPath('userData'), 'bin');
         for (const name of names) {
-            const userPath = path.join(userBase, name);
-            if (fs.existsSync(userPath)) {
-                log('Using auto-updated ffmpeg:', userPath);
-                return userPath;
+            const p = path.join(userBase, name);
+            if (fs.existsSync(p)) {
+                log(`Using auto-updated ${label}:`, p);
+                return p;
             }
         }
     } catch {
@@ -59,10 +62,10 @@ function getFfmpegPath() {
     try {
         const resBase = path.join(process.resourcesPath || '', 'bin');
         for (const name of names) {
-            const resPath = path.join(resBase, name);
-            if (fs.existsSync(resPath)) {
-                log('Using extraResources ffmpeg:', resPath);
-                return resPath;
+            const p = path.join(resBase, name);
+            if (fs.existsSync(p)) {
+                log(`Using extraResources ${label}:`, p);
+                return p;
             }
         }
     } catch {
@@ -71,107 +74,33 @@ function getFfmpegPath() {
 
     const devBase = path.join(__dirname, '..', '..', 'bin');
     for (const name of names) {
-        const devPath = path.join(devBase, name);
-        if (fs.existsSync(devPath)) {
-            log('Using dev ffmpeg:', devPath);
-            return devPath;
+        const p = path.join(devBase, name);
+        if (fs.existsSync(p)) {
+            log(`Using dev ${label}:`, p);
+            return p;
         }
     }
 
+    return null;
+}
+
+function getFfmpegPath() {
+    const found = resolveBundledBinary('ffmpeg', 'ffmpeg');
+    if (found) return found;
     log('Falling back to system ffmpeg');
     return 'ffmpeg';
 }
 
 function getYtdlpPath() {
-    const ext = process.platform === 'win32' ? '.exe' : '';
-    // Check both the expected name and its counterpart — cheap insurance against a
-    // packaging-side naming mismatch (this bit us once already: v1.1.0's Windows build
-    // shipped the binary as plain "yt-dlp" instead of "yt-dlp.exe").
-    const names = ext ? ['yt-dlp' + ext, 'yt-dlp'] : ['yt-dlp'];
-
-    // depUpdater.js drops a fresher binary here when it finds one — always prefer it over
-    // whatever shipped with this build, since it's never older.
-    try {
-        const userBase = path.join(app.getPath('userData'), 'bin');
-        for (const name of names) {
-            const userPath = path.join(userBase, name);
-            if (fs.existsSync(userPath)) {
-                log('Using auto-updated yt-dlp:', userPath);
-                return userPath;
-            }
-        }
-    } catch {
-        //
-    }
-
-    try {
-        const resBase = path.join(process.resourcesPath || '', 'bin');
-        for (const name of names) {
-            const resPath = path.join(resBase, name);
-            if (fs.existsSync(resPath)) {
-                log('Using extraResources yt-dlp:', resPath);
-                return resPath;
-            }
-        }
-    } catch {
-        //
-    }
-
-    const devBase = path.join(__dirname, '..', '..', 'bin');
-    for (const name of names) {
-        const devPath = path.join(devBase, name);
-        if (fs.existsSync(devPath)) {
-            log('Using dev yt-dlp:', devPath);
-            return devPath;
-        }
-    }
-
+    const found = resolveBundledBinary('yt-dlp', 'yt-dlp');
+    if (found) return found;
     logError('yt-dlp binary not found!');
     return null;
 }
 
 function getDenoPath() {
-    const ext = process.platform === 'win32' ? '.exe' : '';
-    const names = ext ? ['deno' + ext, 'deno'] : ['deno'];
-
-    // depUpdater.js drops a fresher binary here when it finds one — always prefer it.
-    try {
-        const userBase = path.join(app.getPath('userData'), 'bin');
-        for (const name of names) {
-            const userPath = path.join(userBase, name);
-            if (fs.existsSync(userPath)) {
-                log('Using auto-updated deno:', userPath);
-                return userPath;
-            }
-        }
-    } catch {
-        //
-    }
-
-    // Check extraResources (production)
-    try {
-        const resBase = path.join(process.resourcesPath || '', 'bin');
-        for (const name of names) {
-            const resPath = path.join(resBase, name);
-            if (fs.existsSync(resPath)) {
-                log('Using extraResources deno:', resPath);
-                return resPath;
-            }
-        }
-    } catch {
-        //
-    }
-
-    // Check local bin/ (dev)
-    const devBase = path.join(__dirname, '..', '..', 'bin');
-    for (const name of names) {
-        const devPath = path.join(devBase, name);
-        if (fs.existsSync(devPath)) {
-            log('Using dev deno:', devPath);
-            return devPath;
-        }
-    }
-
+    const found = resolveBundledBinary('deno', 'deno');
+    if (found) return found;
     log('Bundled deno not found, hoping system PATH has it');
     return null;
 }

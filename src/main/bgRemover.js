@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const { app } = require('electron');
-const { log } = require('./utils');
+const { log, getUniqueOutputPath } = require('./utils');
 
 // The model expects a square canvas: the image is scaled to fit inside CANVAS_SIZE and centered
 // on a black square (letterboxed) rather than squashed, so aspect ratio is preserved going in —
@@ -136,13 +136,7 @@ function getOutputPath(inputPath, destDir, forceExt) {
     const base = path.basename(inputPath, path.extname(inputPath));
     const suffix = forceExt ? '_trimmed' : '_nobg';
     const ext = forceExt || '.png';
-    let outputPath = path.join(dir, `${base}${suffix}${ext}`);
-    let n = 1;
-    while (fs.existsSync(outputPath)) {
-        outputPath = path.join(dir, `${base}${suffix}_${n}${ext}`);
-        n++;
-    }
-    return outputPath;
+    return getUniqueOutputPath(dir, base, suffix, ext);
 }
 
 async function removeBackground(inputPath, destDir) {

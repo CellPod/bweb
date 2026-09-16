@@ -9,9 +9,8 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
-const { log, logError } = require('./utils');
-const { rasterizePdf } = require('./ghostscriptClient');
+const { log, logError, getUniqueOutputPath } = require('./utils');
+const { rasterizePdf, buildPdfFromRasterPages } = require('./ghostscriptClient');
 
 const DEFAULT_OPACITY = 0.16;
 const DEFAULT_ANGLE = -30;
@@ -146,13 +145,7 @@ function getWatermarkedOutputPath(inputPath, destDir) {
     const dir = destDir || path.dirname(inputPath);
     const base = path.basename(inputPath, path.extname(inputPath));
     const ext = path.extname(inputPath);
-    let outputPath = path.join(dir, `${base}_watermarked${ext}`);
-    let n = 1;
-    while (fs.existsSync(outputPath)) {
-        outputPath = path.join(dir, `${base}_watermarked_${n}${ext}`);
-        n++;
-    }
-    return outputPath;
+    return getUniqueOutputPath(dir, base, '_watermarked', ext);
 }
 
 async function watermarkImage(inputPath, options, destDir) {
@@ -193,21 +186,11 @@ async function watermarkPdf(inputPath, options, destDir) {
         const pageBuffers = await rasterizePdf(inputPath, RASTERIZE_DPI);
         const tile = await buildTile(options);
 
-        const pdfDoc = await PDFDocument.create();
-        for (const pageBuffer of pageBuffers) {
-            const watermarked = await applyWatermarkToBuffer(pageBuffer, tile);
-            const jpegBuffer = await sharp(watermarked).jpeg({ quality: 88 }).toBuffer();
-            const meta = await sharp(jpegBuffer).metadata();
-            const jpegImage = await pdfDoc.embedJpg(jpegBuffer);
-            // Convert pixel dimensions at RASTERIZE_DPI back to PDF points (72 per inch) so the
-            // output page is the same physical size as the original, not DPI-scaled huge.
-            const pageWidth = (meta.width / RASTERIZE_DPI) * 72;
-            const pageHeight = (meta.height / RASTERIZE_DPI) * 72;
-            const page = pdfDoc.addPage([pageWidth, pageHeight]);
-            page.drawImage(jpegImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-        }
-
-        const finalBytes = await pdfDoc.save();
+        const finalBytes = await buildPdfFromRasterPages(
+            pageBuffers,
+            (pageBuffer) => applyWatermarkToBuffer(pageBuffer, tile),
+            { dpi: RASTERIZE_DPI, jpegQuality: 88 },
+        );
         fs.writeFileSync(outputPath, finalBytes);
         log('Watermark complete:', outputPath);
         return { ok: true, outputPath };

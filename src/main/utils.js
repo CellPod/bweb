@@ -49,4 +49,18 @@ function logError(...args) {
     writeLine('[Error]', args);
 }
 
-module.exports = { DEV_MODE, log, logError, getLogFilePath };
+// Anti-collision output path: dir/base+suffix+ext, then dir/base+suffix_1+ext,
+// base+suffix_2+ext, etc. — shared by every local file-processing tool (Compress,
+// Watermark, Redact, Background Remover, QR) so a batch of same-named inputs, or running
+// the same tool twice, never silently overwrites a prior result.
+function getUniqueOutputPath(dir, base, suffix, ext) {
+    let outputPath = path.join(dir, `${base}${suffix}${ext}`);
+    let n = 1;
+    while (fs.existsSync(outputPath)) {
+        outputPath = path.join(dir, `${base}${suffix}_${n}${ext}`);
+        n++;
+    }
+    return outputPath;
+}
+
+module.exports = { DEV_MODE, log, logError, getLogFilePath, getUniqueOutputPath };

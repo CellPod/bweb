@@ -2,7 +2,8 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { log, logError } = require('./utils');
+const { log, logError, getUniqueOutputPath } = require('./utils');
+const { compressPdf: gsCompressPdf } = require('./ghostscriptClient');
 
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif']);
 
@@ -33,14 +34,7 @@ function getCompressedOutputPath(inputPath, destDir) {
     const dir = destDir || path.dirname(inputPath);
     const base = path.basename(inputPath, path.extname(inputPath));
     const ext = path.extname(inputPath);
-    let outputPath = path.join(dir, `${base}_compressed${ext}`);
-    // Avoid collisions when compressing several files with the same base name into one folder.
-    let n = 1;
-    while (fs.existsSync(outputPath)) {
-        outputPath = path.join(dir, `${base}_compressed_${n}${ext}`);
-        n++;
-    }
-    return outputPath;
+    return getUniqueOutputPath(dir, base, '_compressed', ext);
 }
 
 function buildPipeline(inputPath, quality) {
@@ -153,54 +147,12 @@ async function compressImageToTarget(inputPath, targetBytes, destDir) {
     }
 }
 
-const GHOSTSCRIPT_TIMEOUT_MS = 60_000;
-
-// Runs Ghostscript-WASM in an isolated Electron utilityProcess rather than in-process.
-// @jspawn/ghostscript-wasm installs its own `process.on('uncaughtException')` handler that
-// RE-THROWS any non-clean Ghostscript error — and re-throwing from inside an uncaughtException
-// handler is fatal in Node with no way to catch it in the same process. A malformed, encrypted,
-// or otherwise unusual PDF hitting that path took down the entire app (confirmed by the user
-// dragging in a real-world PDF). Spawning a fresh worker process per call means a crash there
-// only kills that worker — bWeb keeps running and just reports a failure for that file.
-function runGhostscript(inputPath, gsSetting) {
-    const { utilityProcess } = require('electron');
-
-    return new Promise((resolve, reject) => {
-        const workerPath = path.join(__dirname, 'ghostscriptWorker.js');
-        const child = utilityProcess.fork(workerPath, [], { stdio: 'pipe' });
-        let settled = false;
-
-        const finish = (fn, arg) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            try { child.kill(); } catch { /**/ }
-            fn(arg);
-        };
-
-        const timer = setTimeout(() => {
-            finish(reject, new Error('Ghostscript timed out'));
-        }, GHOSTSCRIPT_TIMEOUT_MS);
-
-        child.once('message', (msg) => {
-            if (msg.ok) finish(resolve, Buffer.from(msg.buffer));
-            else finish(reject, new Error(msg.error || 'Ghostscript failed'));
-        });
-
-        child.once('exit', (code) => {
-            finish(reject, new Error(`Ghostscript process crashed (exit code ${code}) — this PDF may be corrupted, encrypted, or use an unsupported feature`));
-        });
-
-        child.postMessage({ inputPath, gsSetting });
-    });
-}
-
 async function estimatePdfCompression(inputPath) {
     const originalSize = fs.statSync(inputPath).size;
     const results = {};
 
     for (const preset of Object.keys(PDF_PRESETS)) {
-        const buffer = await runGhostscript(inputPath, PDF_PRESETS[preset]);
+        const buffer = await gsCompressPdf(inputPath, PDF_PRESETS[preset]);
         results[preset] = buffer.length;
     }
 
@@ -213,7 +165,7 @@ async function compressPdf(inputPath, preset, destDir) {
     const outputPath = getCompressedOutputPath(inputPath, destDir);
     log('Compressing PDF:', inputPath, '->', outputPath, '(preset:', preset + ')');
     try {
-        const buffer = await runGhostscript(inputPath, PDF_PRESETS[preset]);
+        const buffer = await gsCompressPdf(inputPath, PDF_PRESETS[preset]);
         fs.writeFileSync(outputPath, buffer);
         const originalSize = fs.statSync(inputPath).size;
         const compressedSize = buffer.length;

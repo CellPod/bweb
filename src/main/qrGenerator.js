@@ -4,18 +4,12 @@
 // for this. The main process only writes the final bytes to disk.
 const fs = require('fs');
 const path = require('path');
-const { log } = require('./utils');
+const { log, getUniqueOutputPath } = require('./utils');
 
 function getOutputPath(destDir, format) {
     fs.mkdirSync(destDir, { recursive: true });
     const ext = format === 'svg' ? '.svg' : '.png';
-    let outputPath = path.join(destDir, `qrcode${ext}`);
-    let n = 1;
-    while (fs.existsSync(outputPath)) {
-        outputPath = path.join(destDir, `qrcode_${n}${ext}`);
-        n++;
-    }
-    return outputPath;
+    return getUniqueOutputPath(destDir, 'qrcode', '', ext);
 }
 
 function saveQrFile(bytes, destDir, format) {

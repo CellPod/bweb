@@ -143,7 +143,6 @@ const TRANSLATIONS = {
         'convert.reset':         'Reset',
         'convert.trim.toggle':   'Trim (optional)',
         'convert.trim.label':    'Trim clip',
-        'convert.trim.optional': '(optional)',
         'convert.trim.clear':    'Clear',
         'convert.trim.hint':     'Watch below and mark the part you want.',
         'convert.trim.now1':     '● Mark start',
@@ -186,11 +185,9 @@ const TRANSLATIONS = {
         'compress.preset.small.sub':  'Very light, visible loss possible',
         'compress.btn':               'Compress',
         'compress.btn.n':             (n) => `Compress ${n} file${n !== 1 ? 's' : ''}`,
-        'compress.running':           'Compressing…',
         'compress.done':              'Done ✓',
         'compress.status.pending':    'Pending',
         'compress.status.compressing': 'Compressing…',
-        'compress.status.done':       '✓ Done',
         'compress.status.error':      'Failed',
 
         // Privacy / Watermark view
@@ -198,7 +195,6 @@ const TRANSLATIONS = {
         'privacy.subtitle':       'Watermark or redact a file, right on your computer',
         'privacy.mode.watermark': 'Watermark',
         'privacy.mode.redact':    'Redact',
-        'privacy.soon':           'Soon',
         'privacy.dest.label':     'Saving to:',
         'watermark.dest.autoopen': 'Open folder after watermarking',
         'redact.dest.autoopen':   'Open folder after redacting',
@@ -217,7 +213,6 @@ const TRANSLATIONS = {
         'watermark.hint':         "Tiled diagonally across the whole file — survives cropping, and for PDF the file is rasterized so the watermark can't just be deleted with an editor.",
         'watermark.btn':          'Watermark',
         'watermark.btn.n':        (n) => `Watermark ${n} file${n !== 1 ? 's' : ''}`,
-        'watermark.running':     'Watermarking…',
         'watermark.done':        'Done ✓',
         'watermark.unsupported':  'Unsupported',
         'watermark.status.pending':     'Pending',
@@ -234,7 +229,6 @@ const TRANSLATIONS = {
         'redact.method.blackout': 'Black out',
         'redact.method.blur':     'Blur',
         'redact.method.pixelate': 'Pixelate',
-        'redact.page.label':      'Page',
         'redact.page.of':         (p, total) => `Page ${p} of ${total}`,
         'redact.addMore':         'Choose another file',
         'redact.reset':           'Reset',
@@ -243,7 +237,6 @@ const TRANSLATIONS = {
         'redact.running':        'Redacting…',
         'redact.done':           'Done ✓',
         'redact.error':          'Redaction failed',
-        'redact.noZones':        'Mark at least one zone before applying redaction.',
         'redact.color.label':     'Color',
         'redact.intensity.label': 'Intensity',
         'redact.preview.label':   'New zone preview',
@@ -254,13 +247,11 @@ const TRANSLATIONS = {
         'redact.editing.done':    'Done',
         'redact.preview.selected': 'Selected zone preview',
         'redact.hint':            'Destructive — nothing recoverable is left underneath.',
-        'redact.loadingPreview': 'Loading preview…',
 
         // Settings view
         'settings.appearance':     'Appearance',
         'settings.theme':          'Theme',
         'settings.theme.system':   'Follows system',
-        'settings.theme.dark':     'Dark',
         'settings.theme.light':    'Light',
         'settings.language':       'Language',
         'settings.storage':        'Storage',
@@ -304,7 +295,6 @@ const TRANSLATIONS = {
         'settings.vimeo.allImported':    'All imported',
         'settings.vimeo.resolving':      (i, total) => `Resolving… (${i}/${total})`,
         'settings.deps':           'Dependencies',
-        'settings.checking':       'Checking…',
 
         // About view
         'about.checkUpdates':      'Check for updates',
@@ -323,19 +313,6 @@ const TRANSLATIONS = {
         'about.bgRemove':          'Background removal by',
         'about.dinov3':            'Built with DINOv3',
         'about.icons':             'Icons by',
-
-        // Dynamic (renderer.js)
-        'status.pending':     'Pending',
-        'status.downloading': 'Downloading…',
-        'status.complete':    'Complete',
-        'status.failed':      'Failed',
-        'status.cancelled':   'Cancelled',
-        'status.paused':      'Paused',
-        'action.retry':       'Retry',
-        'action.cancel':      'Cancel',
-        'action.remove':      'Remove',
-        'action.download':    'Download again',
-        'msg.items':          (n) => `${n} item${n !== 1 ? 's' : ''}`,
 
         // Update banner / About update status (dynamic, renderer.js)
         'update.newVersion':        'A new version is available:',
@@ -494,7 +471,6 @@ const TRANSLATIONS = {
         'convert.reset':         'Réinitialiser',
         'convert.trim.toggle':   'Couper (optionnel)',
         'convert.trim.label':    'Couper le clip',
-        'convert.trim.optional': '(optionnel)',
         'convert.trim.clear':    'Effacer',
         'convert.trim.hint':     'Regarde ci-dessous et marque le passage voulu.',
         'convert.trim.now1':     '● Marquer le début',
@@ -537,11 +513,9 @@ const TRANSLATIONS = {
         'compress.preset.small.sub':  'Fichier très léger, perte visible possible',
         'compress.btn':               'Compresser',
         'compress.btn.n':             (n) => `Compresser ${n} fichier${n !== 1 ? 's' : ''}`,
-        'compress.running':           'Compression…',
         'compress.done':              'Terminé ✓',
         'compress.status.pending':    'En attente',
         'compress.status.compressing': 'Compression…',
-        'compress.status.done':       '✓ Terminé',
         'compress.status.error':      'Échec',
 
         // Privacy / Watermark view
@@ -549,7 +523,6 @@ const TRANSLATIONS = {
         'privacy.subtitle':       'Filigraner ou masquer un fichier, sur votre ordinateur',
         'privacy.mode.watermark': 'Filigrane',
         'privacy.mode.redact':    'Masquage',
-        'privacy.soon':           'Bientôt',
         'privacy.dest.label':     'Enregistrer dans :',
         'watermark.dest.autoopen': 'Ouvrir le dossier après filigrane',
         'redact.dest.autoopen':   'Ouvrir le dossier après masquage',
@@ -568,7 +541,6 @@ const TRANSLATIONS = {
         'watermark.hint':         'Tuilé en diagonale sur tout le fichier — résiste au recadrage, et pour un PDF le fichier est rasterisé pour que le filigrane ne puisse pas être simplement supprimé avec un éditeur.',
         'watermark.btn':          'Filigraner',
         'watermark.btn.n':        (n) => `Filigraner ${n} fichier${n !== 1 ? 's' : ''}`,
-        'watermark.running':     'Filigrane en cours…',
         'watermark.done':        'Terminé ✓',
         'watermark.unsupported':  'Non pris en charge',
         'watermark.status.pending':     'En attente',
@@ -585,7 +557,6 @@ const TRANSLATIONS = {
         'redact.method.blackout': 'Masquer en noir',
         'redact.method.blur':     'Flouter',
         'redact.method.pixelate': 'Pixeliser',
-        'redact.page.label':      'Page',
         'redact.page.of':         (p, total) => `Page ${p} sur ${total}`,
         'redact.addMore':         'Choisir un autre fichier',
         'redact.reset':           'Réinitialiser',
@@ -594,7 +565,6 @@ const TRANSLATIONS = {
         'redact.running':        'Masquage en cours…',
         'redact.done':           'Terminé ✓',
         'redact.error':          'Échec du masquage',
-        'redact.noZones':        'Marquez au moins une zone avant d\'appliquer le masquage.',
         'redact.color.label':     'Couleur',
         'redact.intensity.label': 'Intensité',
         'redact.preview.label':   'Aperçu nouvelle zone',
@@ -605,13 +575,11 @@ const TRANSLATIONS = {
         'redact.editing.done':    'Terminé',
         'redact.preview.selected': 'Aperçu de la zone sélectionnée',
         'redact.hint':            'Destructif — rien de récupérable ne reste en dessous.',
-        'redact.loadingPreview': 'Chargement de l\'aperçu…',
 
         // Settings view
         'settings.appearance':     'Apparence',
         'settings.theme':          'Thème',
         'settings.theme.system':   'Suit le système',
-        'settings.theme.dark':     'Sombre',
         'settings.theme.light':    'Clair',
         'settings.language':       'Langue',
         'settings.storage':        'Stockage',
@@ -655,7 +623,6 @@ const TRANSLATIONS = {
         'settings.vimeo.allImported':    'Tout est importé',
         'settings.vimeo.resolving':      (i, total) => `Résolution… (${i}/${total})`,
         'settings.deps':           'Dépendances',
-        'settings.checking':       'Vérification…',
 
         // About view
         'about.checkUpdates':      'Vérifier les mises à jour',
@@ -674,19 +641,6 @@ const TRANSLATIONS = {
         'about.bgRemove':          'Suppression d\'arrière-plan par',
         'about.dinov3':            'Construit avec DINOv3',
         'about.icons':             'Icônes par',
-
-        // Dynamic (renderer.js)
-        'status.pending':     'En attente',
-        'status.downloading': 'Téléchargement…',
-        'status.complete':    'Terminé',
-        'status.failed':      'Échec',
-        'status.cancelled':   'Annulé',
-        'status.paused':      'Pause',
-        'action.retry':       'Réessayer',
-        'action.cancel':      'Annuler',
-        'action.remove':      'Supprimer',
-        'action.download':    'Retélécharger',
-        'msg.items':          (n) => `${n} élément${n !== 1 ? 's' : ''}`,
 
         // Update banner / About update status (dynamic, renderer.js)
         'update.newVersion':        'Une nouvelle version est disponible :',
