@@ -67,8 +67,15 @@ function installUpdateNow() {
     if (bridge) bridge.installUpdateNow();
 }
 
+// Leaves the already-downloaded update staged so Sparkle installs it next time the app
+// quits on its own, instead of relaunching immediately — used for the "automatically
+// install updates" preference so it never interrupts the user's current session.
+function installUpdateOnQuit() {
+    if (bridge) bridge.installUpdateOnQuit();
+}
+
 function isAvailable() {
     return !!bridge;
 }
 
-module.exports = { init, checkForUpdates, installUpdateNow, isAvailable };
+module.exports = { init, checkForUpdates, installUpdateNow, installUpdateOnQuit, isAvailable };

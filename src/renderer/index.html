@@ -1379,6 +1379,31 @@
     </div>
 </div>
 
+<!-- macOS Sparkle update modal (see handleSparkleEvent() in renderer.js) -->
+<div id="updateModal" class="modal-overlay" style="display:none">
+    <div class="modal-box update-modal-box">
+        <div class="update-modal-header">
+            <div class="update-modal-icon"><svg class="icon-svg" width="22" height="22"><use href="#ic-download"/></svg></div>
+            <div class="update-modal-heading">
+                <div class="modal-title" id="updateModalTitle" data-i18n="update.modalTitle">A new version of bWeb is available!</div>
+                <div class="modal-body" id="updateModalSubtitle"></div>
+            </div>
+        </div>
+        <div id="updateModalNotes" class="update-modal-notes"></div>
+        <label class="update-modal-autoinstall">
+            <input type="checkbox" id="updateAutoInstallCheckbox" onchange="onAutoInstallToggle(this)" />
+            <span data-i18n="update.autoInstall">Automatically download and install updates in the future</span>
+        </label>
+        <div class="modal-actions update-modal-actions">
+            <button class="modal-btn" onclick="skipUpdateVersion()" data-i18n="update.skip">Skip This Version</button>
+            <div class="update-modal-actions-right">
+                <button class="modal-btn" onclick="remindUpdateLater()" data-i18n="update.remindLater">Remind Me Later</button>
+                <button class="modal-btn modal-btn-primary" id="updateModalInstallBtn" onclick="installFromModal()" data-i18n="update.install">Install Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="./vendor/qr-code-styling.js"></script>
 <script type="module" src="./vendor/pdfjs-loader.mjs"></script>
 <script src="./renderer.js"></script>

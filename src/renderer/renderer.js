@@ -2392,7 +2392,7 @@ async function loadAbout() {
 // Windows/Linux (and macOS if the Sparkle bridge failed to load): check-and-redirect only,
 // no silent in-place install. A background auto-installer was tried on Squirrel.Mac/NSIS
 // and failed unrecoverably for a real user; pointing people at the GitHub release page for
-// a manual download always works. macOS's real path is showSparkleBanner() below instead.
+// a manual download always works. macOS's real path is showUpdateModal() below instead.
 function showUpdateBanner() {
     const banner = $('updateBanner');
     if (!banner) return;
@@ -2406,21 +2406,49 @@ function showUpdateBanner() {
 }
 
 // macOS only. Sparkle's own native dialogs are suppressed by the bridge (see
-// sparkleUpdater.js) so this reuses the same #updateBanner element instead, but the button
-// actually triggers the download+install (Sparkle handles both), not an external link.
-let sparkleReadyToInstall = null; // { version } once Sparkle has finished downloading
+// sparkleUpdater.js) so this shows bWeb's own modal instead — changelog, Skip This
+// Version, Remind Me Later, and an "auto-install in the future" preference, closer to
+// Sparkle's own standard UI than a plain banner.
+//
+// Sparkle already starts downloading the moment it finds an update (see
+// showUpdateFoundWithAppcastItem's immediate SPUUserUpdateChoiceInstall reply in
+// sparkle_bridge.mm) — there's no separate "start download" step to gate on our side, so
+// "Install Update" either installs immediately (already downloaded) or just marks intent
+// and shows live progress until the in-flight download finishes.
+let pendingUpdate = null; // { version, releaseNotes, downloaded, installQueued }
+let skippedUpdateVersion = null;
+let autoInstallUpdates = false;
+let currentAppVersion = '';
+
+async function initUpdatePrefs() {
+    try { skippedUpdateVersion = await window.api.getSkippedUpdateVersion(); } catch {}
+    try { autoInstallUpdates = await window.api.getAutoInstallUpdates(); } catch {}
+}
 
 function handleSparkleEvent(event) {
     switch (event.type) {
         case 'update-available':
-            addLog(`Update available: v${event.version || ''}`, 'highlight');
+            if (!event.version || event.version === skippedUpdateVersion) return;
+            pendingUpdate = { version: event.version, releaseNotes: event.releaseNotes || '', downloaded: false, installQueued: false };
+            if (!autoInstallUpdates) showUpdateModal();
+            break;
+        case 'download-progress':
+            updateModalInstallButton(event);
             break;
         case 'update-downloaded':
-            sparkleReadyToInstall = { version: event.version || '' };
-            showSparkleBanner();
+            if (event.version && event.version === skippedUpdateVersion) { pendingUpdate = null; return; }
+            if (!pendingUpdate) pendingUpdate = { version: event.version || '', releaseNotes: '', downloaded: true, installQueued: false };
+            else pendingUpdate.downloaded = true;
+            if (autoInstallUpdates) {
+                window.api.installSparkleUpdateOnQuit();
+                return;
+            }
+            if (pendingUpdate.installQueued) installFromModal();
+            else showUpdateModal();
             break;
         case 'update-not-available':
-            sparkleReadyToInstall = null;
+            pendingUpdate = null;
+            hideUpdateModal();
             break;
         case 'error':
             addLog(`Update check failed: ${event.message || ''}`, 'error');
@@ -2428,24 +2456,99 @@ function handleSparkleEvent(event) {
     }
 }
 
-function showSparkleBanner() {
-    const banner = $('updateBanner');
-    if (!banner || !sparkleReadyToInstall) return;
+function showUpdateModal() {
+    if (!pendingUpdate) return;
 
-    banner.innerHTML =
-        `<span>${escapeHtml(t('update.newVersion'))} <strong>v${escapeHtml(sparkleReadyToInstall.version)}</strong></span>` +
-        `<button class="btn-sm" onclick="installSparkleUpdate(event)">${escapeHtml(t('update.install'))}</button>` +
-        `<button class="update-dismiss" onclick="dismissUpdateBanner()" title="${escapeHtml(t('update.dismiss'))}" aria-label="${escapeHtml(t('update.dismiss'))}">×</button>`;
-    banner.classList.add('visible');
+    const subtitle = $('updateModalSubtitle');
+    if (subtitle) subtitle.textContent = t('update.modalSubtitle')(pendingUpdate.version, currentAppVersion);
+    const notes = $('updateModalNotes');
+    if (notes) notes.innerHTML = formatReleaseNotes(pendingUpdate.releaseNotes);
+    const checkbox = $('updateAutoInstallCheckbox');
+    if (checkbox) checkbox.checked = autoInstallUpdates;
+    updateModalInstallButton();
+
+    const modal = $('updateModal');
+    if (modal) modal.style.display = 'flex';
 }
 
-async function installSparkleUpdate(e) {
-    const btn = e && e.target;
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = t('update.installing');
+function hideUpdateModal() {
+    const modal = $('updateModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function updateModalInstallButton(progressEvent) {
+    const btn = $('updateModalInstallBtn');
+    if (!btn || !pendingUpdate) return;
+    if (pendingUpdate.downloaded) {
+        btn.disabled = false;
+        btn.textContent = t('update.install');
+        return;
     }
-    await window.api.installSparkleUpdate();
+    if (pendingUpdate.installQueued) {
+        btn.disabled = true;
+        if (progressEvent && progressEvent.type === 'download-progress' && typeof progressEvent.percent === 'number') {
+            btn.textContent = t('update.downloading')(Math.round(progressEvent.percent));
+        }
+    } else {
+        btn.disabled = false;
+        btn.textContent = t('update.install');
+    }
+}
+
+// Minimal, dependency-free formatting for our own release notes ("- " bullets and
+// **bold** spans) — not a full markdown parser, our notes never need more than this.
+function formatReleaseNotes(raw) {
+    const text = (raw || '').trim();
+    if (!text) return `<p>${escapeHtml(t('update.noReleaseNotes'))}</p>`;
+
+    const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    let html = '';
+    let inList = false;
+    for (const line of lines) {
+        const isBullet = line.startsWith('- ');
+        const content = escapeHtml(isBullet ? line.slice(2) : line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (isBullet) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += `<li>${content}</li>`;
+        } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<p>${content}</p>`;
+        }
+    }
+    if (inList) html += '</ul>';
+    return html;
+}
+
+async function installFromModal() {
+    if (!pendingUpdate) return;
+    if (pendingUpdate.downloaded) {
+        const btn = $('updateModalInstallBtn');
+        if (btn) { btn.disabled = true; btn.textContent = t('update.installing'); }
+        await window.api.installSparkleUpdate();
+        return;
+    }
+    pendingUpdate.installQueued = true;
+    updateModalInstallButton();
+}
+
+function skipUpdateVersion() {
+    if (!pendingUpdate) return;
+    skippedUpdateVersion = pendingUpdate.version;
+    window.api.setSkippedUpdateVersion(skippedUpdateVersion);
+    pendingUpdate = null;
+    hideUpdateModal();
+}
+
+function remindUpdateLater() {
+    // pendingUpdate stays set on purpose — the next 'update-downloaded' (or the next
+    // hourly automatic check, since Sparkle already has this staged) reopens the modal
+    // instead of it vanishing for good.
+    hideUpdateModal();
+}
+
+function onAutoInstallToggle(checkbox) {
+    autoInstallUpdates = !!checkbox.checked;
+    window.api.setAutoInstallUpdates(autoInstallUpdates);
 }
 
 function dismissUpdateBanner() {
@@ -2517,8 +2620,11 @@ async function init() {
 
     try {
         const info = await window.api.getAppInfo();
+        currentAppVersion = info.version;
         addLog(`v${info.version} · ${info.platform}/${info.arch} · dev:${info.devMode}`);
     } catch {}
+
+    await initUpdatePrefs();
 
     try {
         const deps = await window.api.checkDeps();

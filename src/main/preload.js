@@ -103,6 +103,11 @@ contextBridge.exposeInMainWorld('api', {
         return () => ipcRenderer.removeListener('sparkle:event', handler);
     },
     installSparkleUpdate: () => ipcRenderer.invoke('sparkle:installUpdateNow'),
+    installSparkleUpdateOnQuit: () => ipcRenderer.invoke('sparkle:installUpdateOnQuit'),
+    getSkippedUpdateVersion: () => ipcRenderer.invoke('sparkle:getSkippedVersion'),
+    setSkippedUpdateVersion: (version) => ipcRenderer.invoke('sparkle:setSkippedVersion', version),
+    getAutoInstallUpdates: () => ipcRenderer.invoke('sparkle:getAutoInstall'),
+    setAutoInstallUpdates: (enabled) => ipcRenderer.invoke('sparkle:setAutoInstall', enabled),
 
     // Converter
     convertChooseFile: () => ipcRenderer.invoke('convert:chooseFile'),

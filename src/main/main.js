@@ -446,6 +446,23 @@ ipcMain.handle('sparkle:installUpdateNow', () => {
     sparkleUpdater.installUpdateNow();
 });
 
+ipcMain.handle('sparkle:installUpdateOnQuit', () => {
+    sparkleUpdater.installUpdateOnQuit();
+});
+
+// "Skip this version" / "automatically install" preferences for the update modal — plain
+// persisted values, no Sparkle-side equivalent (its permission-request API only covers the
+// one-time "may Sparkle check automatically at all" question, already answered in
+// sparkleUpdater.js's init()).
+ipcMain.handle('sparkle:getSkippedVersion', () => store.get('updateSkippedVersion') || null);
+ipcMain.handle('sparkle:setSkippedVersion', (_e, version) => {
+    store.set('updateSkippedVersion', version || null);
+});
+ipcMain.handle('sparkle:getAutoInstall', () => !!store.get('updateAutoInstall'));
+ipcMain.handle('sparkle:setAutoInstall', (_e, enabled) => {
+    store.set('updateAutoInstall', !!enabled);
+});
+
 // Auth
 
 ipcMain.handle('auth:check', () => cookies.hasCookies());

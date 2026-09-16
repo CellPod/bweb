@@ -347,6 +347,13 @@ const TRANSLATIONS = {
         'update.upToDate':          "You're on the latest version",
         'update.install':           'Install Update',
         'update.installing':        'Installing…',
+        'update.modalTitle':        'A new version of bWeb is available!',
+        'update.modalSubtitle':     (latest, current) => `bWeb ${latest} is now available — you have ${current}.`,
+        'update.skip':              'Skip This Version',
+        'update.remindLater':       'Remind Me Later',
+        'update.autoInstall':       'Automatically download and install updates in the future',
+        'update.downloading':       (pct) => `Downloading… ${pct}%`,
+        'update.noReleaseNotes':    'No release notes available.',
     },
 
     fr: {
@@ -691,6 +698,13 @@ const TRANSLATIONS = {
         'update.upToDate':          'Vous avez la dernière version',
         'update.install':           'Installer la mise à jour',
         'update.installing':        'Installation…',
+        'update.modalTitle':        'Une nouvelle version de bWeb est disponible !',
+        'update.modalSubtitle':     (latest, current) => `bWeb ${latest} est maintenant disponible — tu as la ${current}.`,
+        'update.skip':              'Ignorer cette version',
+        'update.remindLater':       'Me le rappeler plus tard',
+        'update.autoInstall':       'Télécharger et installer les mises à jour automatiquement',
+        'update.downloading':       (pct) => `Téléchargement… ${pct}%`,
+        'update.noReleaseNotes':    'Aucune note de version disponible.',
     },
 };
 
