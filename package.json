@@ -190,7 +190,8 @@
             "deleteAppDataOnUninstall": true
         },
         "dmg": {
-            "writeUpdateInfo": false
+            "writeUpdateInfo": false,
+            "artifactName": "${productName}-${version}.${ext}"
         },
         "asar": true,
         "asarUnpack": [

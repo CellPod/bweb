@@ -30,7 +30,7 @@ Go to the Releases page, scroll down to **Assets**, and pick the file for your s
 
 | Platform | File |
 |---|---|
-| macOS (Apple Silicon) | `bWeb-x.x.x-arm64.dmg` |
+| macOS (Apple Silicon) | `bWeb-x.x.x.dmg` |
 | Windows | `bWeb-Setup-x.x.x.exe` |
 | Linux | `bWeb-x.x.x.AppImage` |
 
