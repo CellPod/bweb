@@ -80,6 +80,9 @@
                 }
             ],
             "files": [
+                "src/**/*",
+                "node_modules/**/*",
+                "package.json",
                 "!**/node_modules/electron-sparkle-updater/native/vendor/**",
                 "!**/node_modules/electron-sparkle-updater/native/sparkle-chain.tar.xz"
             ],
@@ -205,9 +208,6 @@
             "deleteAppDataOnUninstall": true
         },
         "dmg": {
-            "writeUpdateInfo": false
-        },
-        "zip": {
             "writeUpdateInfo": false
         },
         "asar": true,
