@@ -38,6 +38,15 @@ const FFMPEG_DIR = path.join(ROOT, 'node_modules', 'ffmpeg-static');
 const IMG_DIR = path.join(ROOT, 'node_modules', '@img');
 const KOROMIX_DIR = path.join(ROOT, 'node_modules', '@koromix');
 
+// Sparkle (macOS auto-update) release toolchain — see the "Auto-update app" section of
+// TODO.md for how this was validated end to end (1.4.1 -> 1.4.2).
+const REPO = 'CellPod/bweb';
+const SPARKLE_ACCOUNT = 'ed25519'; // Keychain account holding the EdDSA private key; never exported to a file
+const SPARKLE_BIN_DIR = path.join(ROOT, 'node_modules', 'electron-sparkle-updater', 'native', 'vendor', 'bin');
+const SPARKLE_CLI = path.join(ROOT, 'node_modules', 'electron-sparkle-updater', 'bin', 'electron-sparkle-updater.js');
+const APPCAST_ARCHIVE_DIR = path.join(ROOT, 'dist', 'appcast-release');
+const DELTA_BASES = 2; // how many previous releases to fetch in as delta patch sources, bounded so this can't grow unbounded
+
 const MAC_FFMPEG_FILES = ['ffmpeg', 'ffmpeg.LICENSE', 'ffmpeg.README'];
 const WIN_FFMPEG_FILES = ['ffmpeg.exe', 'ffmpeg.exe.LICENSE', 'ffmpeg.exe.README'];
 
@@ -89,6 +98,89 @@ function removeNativePkgFor(scopeDir, platform, arch) {
     }
 }
 
+// Publishes the signed appcast.xml (with delta patches when possible) for this release.
+// Must run right after the macOS build/publish step, while dist/ still has this version's
+// zip — the "Restoring dev binaries" step at the end of main() wipes dist/ entirely.
+//
+// Deltas are optional best-effort: generate_appcast only produces a patch for a base
+// version whose zip we actually managed to fetch in below. A fetch failure (rate limit,
+// a release missing its mac zip, ...) just means that one base falls back to a full
+// download for its users — never a reason to fail the whole release.
+function generateAndPublishAppcast(version) {
+    step('macOS — signing appcast (with deltas where possible)');
+
+    fs.rmSync(APPCAST_ARCHIVE_DIR, { recursive: true, force: true });
+    fs.mkdirSync(APPCAST_ARCHIVE_DIR, { recursive: true });
+
+    const zipName = `bWeb-${version}-arm64-mac.zip`;
+    fs.copyFileSync(path.join(ROOT, 'dist', zipName), path.join(APPCAST_ARCHIVE_DIR, zipName));
+
+    // Whatever notes are already on the GitHub release (e.g. from `gh release create
+    // --notes` or `gh release edit`) become this version's in-app changelog too — same
+    // sidecar-markdown mechanism generate_appcast already supports for any archive.
+    // Nothing to embed if the release has no body yet; that's fine, not an error.
+    try {
+        const notes = execSync(`gh release view v${version} --repo ${REPO} --json body --jq .body`).toString();
+        if (notes.trim()) {
+            fs.writeFileSync(path.join(APPCAST_ARCHIVE_DIR, `bWeb-${version}-arm64-mac.md`), notes);
+        }
+    } catch (err) {
+        console.warn(`Could not fetch release notes to embed: ${err.message}`);
+    }
+
+    // Existing published feed, so generate_appcast updates it instead of starting fresh.
+    // Absent on the very first-ever appcast — that's fine, not an error.
+    try {
+        run(
+            `curl -sL -f -o "${path.join(APPCAST_ARCHIVE_DIR, 'appcast.xml')}" ` +
+                `"https://github.com/${REPO}/releases/latest/download/appcast.xml"`,
+        );
+    } catch {
+        console.warn('No existing appcast.xml found (first release?) — starting a fresh one.');
+    }
+
+    // Previous releases' own mac zips, fetched in purely so generate_appcast can compute
+    // binary deltas against them. Never re-uploaded themselves — only the new *.delta
+    // files and the updated appcast.xml are.
+    let previousTags = [];
+    try {
+        previousTags = execSync(`gh release list --repo ${REPO} --limit ${DELTA_BASES + 1} --json tagName --jq '.[].tagName'`)
+            .toString()
+            .trim()
+            .split('\n')
+            .filter((t) => t && t !== `v${version}`)
+            .slice(0, DELTA_BASES);
+    } catch (err) {
+        console.warn(`Could not list previous releases for delta bases: ${err.message}`);
+    }
+    for (const tag of previousTags) {
+        try {
+            run(`gh release download ${tag} --repo ${REPO} --pattern "*-arm64-mac.zip" --dir "${APPCAST_ARCHIVE_DIR}" --clobber`);
+        } catch (err) {
+            console.warn(`Could not fetch ${tag} as a delta base (falling back to full download for it): ${err.message}`);
+        }
+    }
+
+    run(
+        `"${path.join(SPARKLE_BIN_DIR, 'generate_appcast')}" "${APPCAST_ARCHIVE_DIR}" --account ${SPARKLE_ACCOUNT} ` +
+            `--download-url-prefix "https://github.com/${REPO}/releases/download/v${version}/" --embed-release-notes`,
+    );
+
+    // generate_appcast just stamped every archive it touched — including old zips that
+    // were only fetched in as delta bases — with this run's download URL. Those old zips
+    // were never uploaded under v${version}, so point their appcast entries back at the
+    // tag they actually live under (their own signatures are untouched, only the URL).
+    run(`node "${SPARKLE_CLI}" fix-appcast "${path.join(APPCAST_ARCHIVE_DIR, 'appcast.xml')}" --repo ${REPO} --tag-prefix v`);
+
+    const assets = fs
+        .readdirSync(APPCAST_ARCHIVE_DIR)
+        .filter((f) => f === 'appcast.xml' || f.endsWith('.delta'))
+        .map((f) => path.join(APPCAST_ARCHIVE_DIR, f));
+    run(`gh release upload v${version} ${assets.map((a) => `"${a}"`).join(' ')} --repo ${REPO} --clobber`);
+
+    fs.rmSync(APPCAST_ARCHIVE_DIR, { recursive: true, force: true });
+}
+
 function main() {
     const ghToken = execSync('gh auth token').toString().trim();
     const env = { GH_TOKEN: ghToken };
@@ -99,6 +191,8 @@ function main() {
 
     step('macOS');
     run('npm run release:mac', env);
+
+    generateAndPublishAppcast(version);
 
     step('Linux — fetching linux binaries');
     fetchBinariesFor('linux', 'x64'); // yt-dlp/deno + ffmpeg for linux (overwrites the mac ffmpeg file in place — same filename)
