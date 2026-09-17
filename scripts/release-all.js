@@ -230,11 +230,14 @@ function generateAndPublishWindowsAppcast(version) {
     fs.rmSync(WINDOWS_APPCAST_WORK_DIR, { recursive: true, force: true });
     fs.mkdirSync(WINDOWS_APPCAST_WORK_DIR, { recursive: true });
 
+    // electron-builder's local NSIS output keeps productName's space ("bWeb Setup X.exe") —
+    // only the *uploaded* GitHub asset gets the hyphenated, space-free name (artifactName
+    // applies to the publish step, not the local build path). Verified against a real build.
     const exeName = `bWeb-Setup-${version}.exe`;
-    const exePath = path.join(ROOT, 'dist', exeName);
-    const size = fs.statSync(exePath).size;
+    const localExePath = path.join(ROOT, 'dist', `bWeb Setup ${version}.exe`);
+    const size = fs.statSync(localExePath).size;
     const signature = execSync(
-        `"${path.join(SPARKLE_BIN_DIR, 'sign_update')}" --account ${SPARKLE_ACCOUNT} -p "${exePath}"`,
+        `"${path.join(SPARKLE_BIN_DIR, 'sign_update')}" --account ${SPARKLE_ACCOUNT} -p "${localExePath}"`,
     ).toString().trim();
 
     // Existing published feed, so this version's item gets prepended to real history instead
