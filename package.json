@@ -24,7 +24,8 @@
         "publish": {
             "provider": "github",
             "owner": "CellPod",
-            "repo": "bweb"
+            "repo": "bweb",
+            "timeout": 1800000
         },
         "appId": "com.bweb.app",
         "productName": "bWeb",
