@@ -139,14 +139,26 @@ async function createWindow() {
         if (DEV_MODE) mainWindow.webContents.openDevTools({ mode: 'detach' });
         log('Window ready');
 
-        // Check for updates after a 3 sec delay. On macOS this hands off entirely to
-        // Sparkle (sparkleUpdater.js) — its own events drive the renderer banner instead,
-        // see handleSparkleEvent below. On Windows it hands off to WinSparkle
-        // (winSparkleUpdater.js), which shows its own native dialogs — nothing further
-        // for main.js to wire up there. Falls back to the manual GitHub-release check
-        // (updater.js) on Linux, or on macOS/Windows if the native bridge failed to load
-        // (both bridges must never block startup on failure — see their own init()).
-        setTimeout(async () => {
+        // Check for updates as soon as the window is ready — no artificial delay tacked on
+        // top (this used to wait a flat extra 3s here, which is what made the update prompt
+        // feel like it showed up 5-10s after launch instead of right away). Safe to fire
+        // immediately at this exact point specifically: renderer.js is a plain synchronous,
+        // non-deferred <script> at the end of index.html's body, so Chromium cannot paint
+        // anything — meaning 'ready-to-show' cannot fire — until it has already finished
+        // running, which is what registers the onSparkleEvent/onUpdateAvailable listeners
+        // this depends on. Moving this any earlier (e.g. right at app.whenReady(), before
+        // the window/renderer exist at all) would race that registration and could silently
+        // drop the event for the macOS custom-banner and Linux-fallback paths.
+        //
+        // On macOS this hands off entirely to Sparkle (sparkleUpdater.js) — its own events
+        // drive the renderer banner instead, see handleSparkleEvent below. On Windows it
+        // hands off to WinSparkle (winSparkleUpdater.js), which shows its own native
+        // dialogs — nothing further for main.js to wire up there, and no renderer
+        // dependency either, so it doesn't need this timing guarantee at all. Falls back to
+        // the manual GitHub-release check (updater.js) on Linux, or on macOS/Windows if the
+        // native bridge failed to load (both bridges must never block startup on failure —
+        // see their own init()).
+        (async () => {
             const sparkleReady = await sparkleUpdater.init(handleSparkleEvent);
             if (sparkleReady) {
                 sparkleUpdater.checkForUpdates();
@@ -166,7 +178,7 @@ async function createWindow() {
             } catch (err) {
                 logError('Startup update check failed:', err.message);
             }
-        }, 3000);
+        })();
     });
 
     mainWindow.on('closed', () => {

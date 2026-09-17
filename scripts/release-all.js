@@ -57,6 +57,8 @@ const SPARKLE_BIN_DIR = path.join(ROOT, 'node_modules', 'electron-sparkle-update
 const SPARKLE_CLI = path.join(ROOT, 'node_modules', 'electron-sparkle-updater', 'bin', 'electron-sparkle-updater.js');
 const APPCAST_ARCHIVE_DIR = path.join(ROOT, 'dist', 'appcast-release');
 const DELTA_BASES = 2; // how many previous releases to fetch in as delta patch sources, bounded so this can't grow unbounded
+const WINDOWS_APPCAST_WORK_DIR = path.join(ROOT, 'dist', 'appcast-windows-release');
+const WINDOWS_APPCAST_MAX_ITEMS = 10; // oldest entries just get dropped, bounded so the feed can't grow unbounded
 
 // The dev machine this script runs on — restored at the very end regardless of what it is.
 const DEV_PLATFORM = process.platform;
@@ -200,6 +202,78 @@ function generateAndPublishAppcast(version) {
     fs.rmSync(APPCAST_ARCHIVE_DIR, { recursive: true, force: true });
 }
 
+// Windows — hand-builds and signs a separate appcast-windows.xml (the URL winSparkleUpdater.js
+// already points at). Can't reuse generate_appcast the way the macOS step above does: verified
+// empirically against a real published .exe — it only knows how to inspect a macOS app bundle
+// inside a .zip/.dmg (LSMinimumSystemVersion, architecture slices) and refuses anything else
+// ("No usable archives found"). sign_update, the other vendored Sparkle CLI, has no such
+// restriction — it signs arbitrary bytes with the exact same EdDSA keypair already used for
+// macOS, which is enough to hand-write a valid WinSparkle <item> ourselves.
+//
+// Kept as its own file rather than merged into the macOS appcast.xml: Sparkle/WinSparkle do
+// technically support mixing platforms in one feed (a `sparkle:os` attribute on the enclosure),
+// but the Sparkle project's own docs still recommend separate feeds regardless, and
+// generate_appcast rewrites/prunes appcast.xml on every macOS release — an item it can't parse
+// (this one) risks being silently dropped by that pruning logic. A second small file is a
+// strictly lower-risk trade than that, and GitHub Releases has no folder concept for assets
+// anyway (verified — it's a flat list), so there was never a way to tuck it out of sight.
+//
+// No delta patches — WinSparkle doesn't support Sparkle's binary delta format, so every update
+// is a full installer download; this matches how much simpler the whole WinSparkle bridge
+// already is (see winSparkleUpdater.js).
+//
+// Must run right after the Windows build/publish step, while dist/ still has this version's
+// .exe — the "Restoring dev binaries" step at the end of main() wipes dist/ entirely.
+function generateAndPublishWindowsAppcast(version) {
+    step('Windows — signing appcast');
+
+    fs.rmSync(WINDOWS_APPCAST_WORK_DIR, { recursive: true, force: true });
+    fs.mkdirSync(WINDOWS_APPCAST_WORK_DIR, { recursive: true });
+
+    const exeName = `bWeb-Setup-${version}.exe`;
+    const exePath = path.join(ROOT, 'dist', exeName);
+    const size = fs.statSync(exePath).size;
+    const signature = execSync(
+        `"${path.join(SPARKLE_BIN_DIR, 'sign_update')}" --account ${SPARKLE_ACCOUNT} -p "${exePath}"`,
+    ).toString().trim();
+
+    // Existing published feed, so this version's item gets prepended to real history instead
+    // of starting fresh each time. Absent on the very first Windows release — that's fine.
+    const appcastPath = path.join(WINDOWS_APPCAST_WORK_DIR, 'appcast-windows.xml');
+    try {
+        run(`curl -sL -f -o "${appcastPath}" "https://github.com/${REPO}/releases/latest/download/appcast-windows.xml"`);
+    } catch {
+        console.warn('No existing appcast-windows.xml found (first Windows release?) — starting a fresh one.');
+    }
+
+    const existingItems = fs.existsSync(appcastPath)
+        ? [...fs.readFileSync(appcastPath, 'utf8').matchAll(/ {8}<item>[\s\S]*?<\/item>/g)].map((m) => m[0])
+        : [];
+
+    const pubDate = new Date().toUTCString().replace('GMT', '+0000'); // RFC-822, as Sparkle/WinSparkle expect
+    const newItem = `        <item>
+            <title>${version}</title>
+            <pubDate>${pubDate}</pubDate>
+            <sparkle:version>${version}</sparkle:version>
+            <enclosure url="https://github.com/${REPO}/releases/download/v${version}/${exeName}" length="${size}" type="application/octet-stream" sparkle:edSignature="${signature}"/>
+        </item>`;
+
+    // Drop any stale entry for this same version (a re-run of this release) before prepending
+    // the fresh one, then cap total history so the feed can't grow unbounded release over release.
+    const items = [newItem, ...existingItems.filter((it) => !it.includes(`<sparkle:version>${version}</sparkle:version>`))]
+        .slice(0, WINDOWS_APPCAST_MAX_ITEMS);
+
+    fs.writeFileSync(
+        appcastPath,
+        '<?xml version="1.0" standalone="yes"?>\n' +
+            '<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">\n' +
+            `    <channel>\n        <title>bWeb</title>\n${items.join('\n')}\n    </channel>\n</rss>\n`,
+    );
+
+    run(`gh release upload v${version} "${appcastPath}" --repo ${REPO} --clobber`);
+    fs.rmSync(WINDOWS_APPCAST_WORK_DIR, { recursive: true, force: true });
+}
+
 // electron-builder always generates latest.yml/latest-mac.yml/latest-linux.yml plus a
 // .blockmap next to every zip/nsis artifact whenever --publish is used — but those all
 // feed electron-builder's own electron-updater/Squirrel.Mac auto-update mechanism, which
@@ -265,6 +339,8 @@ function main() {
 
     step('Windows — build + publish');
     run('npm run release:win', env);
+
+    generateAndPublishWindowsAppcast(version);
 
     removeUnwantedPublishArtifacts(version);
 

@@ -489,62 +489,56 @@
                         <div id="convertList" class="convert-batch-list"></div>
                     </div>
 
-                    <!-- Output format: the decision that matters most, right after the file list.
-                         Just the 5 formats that cover almost everyone (MP4/MOV, MP3/WAV/M4A) as a
-                         plain select; anything rarer (other containers, re-encode variants, lossless
-                         FLAC, legacy formats) lives behind "More formats" in its own select, so the
-                         common case is one simple, familiar dropdown instead of a wall of options. -->
+                    <!-- Output format: every format is one tile in a single grid (no dropdown, no
+                         hidden "more formats" state) so what's selected — and what's currently
+                         converting, via #convertProgressFormatLabel below — is always visible. -->
                     <div class="convert-options">
                         <div class="convert-option-group">
                             <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
-                            <select id="convertFormat" class="convert-select" onchange="selectConvertFormat(this.value)">
-                                <option value="mp4" selected>MP4</option>
-                                <option value="mov">MOV</option>
-                                <option value="mp3">MP3</option>
-                                <option value="wav">WAV</option>
-                                <option value="m4a">M4A</option>
-                            </select>
-                        </div>
-                        <div class="convert-toggle-row">
-                            <button id="convertMoreFormatsBtn" class="convert-toggle-btn" onclick="toggleMoreFormats()">
-                                <span data-i18n="convert.format.more">More formats</span>
-                                <svg class="convert-toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                            <!-- Trim: optional, collapsed by default, only makes sense for a single file -->
-                            <div id="convertTrimToggleWrap" class="convert-trim-toggle-wrap" style="display:none">
-                                <button id="convertTrimToggleBtn" class="convert-toggle-btn" onclick="toggleConvertTrim()">
-                                    <svg class="icon-svg" width="14" height="14"><use href="#ic-scissors"/></svg>
-                                    <span data-i18n="convert.trim.toggle">Trim (optional)</span>
-                                    <svg class="convert-toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            <div class="format-picker" id="convertFormatPicker">
+                                <button type="button" class="format-picker-trigger" id="convertFormatTrigger" onclick="toggleFormatMenu('convert')">
+                                    <span id="convertFormatTriggerLabel">MP4</span>
+                                    <svg class="format-picker-trigger-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
+                                <div class="format-picker-menu" id="convertFormatMenu">
+                                    <div id="convertFormatGrid" class="convert-format-grid">
+                                        <button type="button" class="convert-format-tile active" data-format="mp4" onclick="selectConvertFormat('mp4')">MP4</button>
+                                        <button type="button" class="convert-format-tile" data-format="mov" onclick="selectConvertFormat('mov')">MOV</button>
+                                        <button type="button" class="convert-format-tile" data-format="mp3" onclick="selectConvertFormat('mp3')">MP3</button>
+                                        <button type="button" class="convert-format-tile" data-format="wav" onclick="selectConvertFormat('wav')">WAV</button>
+                                        <button type="button" class="convert-format-tile" data-format="m4a" onclick="selectConvertFormat('m4a')">M4A</button>
+                                        <button type="button" class="convert-format-tile" data-format="mkv" onclick="selectConvertFormat('mkv')">MKV</button>
+                                        <button type="button" class="convert-format-tile" data-format="webm" onclick="selectConvertFormat('webm')">WebM</button>
+                                        <button type="button" class="convert-format-tile" data-format="mp4-h264" onclick="selectConvertFormat('mp4-h264')">MP4<br>H.264</button>
+                                        <button type="button" class="convert-format-tile" data-format="mp4-h265" onclick="selectConvertFormat('mp4-h265')">MP4<br>H.265</button>
+                                        <button type="button" class="convert-format-tile" data-format="flac" onclick="selectConvertFormat('flac')">FLAC</button>
+                                        <button type="button" class="convert-format-tile" data-format="opus" onclick="selectConvertFormat('opus')">Opus</button>
+                                        <button type="button" class="convert-format-tile" data-format="avi" onclick="selectConvertFormat('avi')">AVI</button>
+                                        <button type="button" class="convert-format-tile" data-format="ts" onclick="selectConvertFormat('ts')">TS</button>
+                                        <button type="button" class="convert-format-tile" data-format="mts" onclick="selectConvertFormat('mts')">MTS</button>
+                                        <button type="button" class="convert-format-tile" data-format="vob" onclick="selectConvertFormat('vob')">VOB</button>
+                                        <button type="button" class="convert-format-tile" data-format="flv" onclick="selectConvertFormat('flv')">FLV</button>
+                                        <button type="button" class="convert-format-tile" data-format="3gp" onclick="selectConvertFormat('3gp')">3GP</button>
+                                        <button type="button" class="convert-format-tile" data-format="dav" onclick="selectConvertFormat('dav')">DAV</button>
+                                        <button type="button" class="convert-format-tile" data-format="hap" onclick="selectConvertFormat('hap')">HAP</button>
+                                        <button type="button" class="convert-format-tile" data-format="dnxhr" onclick="selectConvertFormat('dnxhr')">DNxHR</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div id="convertMoreFormatsWrap" class="convert-more-formats-wrap" style="display:none">
-                            <select id="convertFormatAdvanced" class="convert-select" onchange="selectConvertFormat(this.value)">
-                                <option value="" disabled selected data-i18n="convert.format.choose">Choose a format…</option>
-                                <optgroup label="Video">
-                                    <option value="mkv">MKV</option>
-                                    <option value="webm">WebM</option>
-                                    <option value="mp4-h264">MP4 · H.264</option>
-                                    <option value="mp4-h265">MP4 · H.265</option>
-                                </optgroup>
-                                <optgroup label="Lossless audio — only useful if source is uncompressed">
-                                    <option value="flac">FLAC</option>
-                                </optgroup>
-                                <optgroup label="Rare formats">
-                                    <option value="opus">Opus</option>
-                                    <option value="avi">AVI</option>
-                                    <option value="ts">TS</option>
-                                    <option value="mts">MTS</option>
-                                    <option value="vob">VOB</option>
-                                    <option value="flv">FLV</option>
-                                    <option value="3gp">3GP</option>
-                                    <option value="dav">DAV</option>
-                                </optgroup>
-                            </select>
+                        <!-- Trim: optional, collapsed by default, only makes sense for a single file -->
+                        <div id="convertTrimToggleWrap" class="convert-trim-toggle-wrap" style="display:none">
+                            <button id="convertTrimToggleBtn" class="convert-toggle-btn" onclick="toggleConvertTrim()">
+                                <svg class="icon-svg" width="14" height="14"><use href="#ic-scissors"/></svg>
+                                <span data-i18n="convert.trim.toggle">Trim (optional)</span>
+                                <svg class="convert-toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
                         </div>
                         <div id="convertLossyWarn" class="convert-lossy-warn" style="display:none">
                             ⚠ FLAC/WAV ne s'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.
+                        </div>
+                        <div id="convertMezzanineWarn" class="convert-lossy-warn" style="display:none">
+                            ⚠ DNxHR ne redonne pas de qualité que la source n'avait pas — utile seulement si la source est déjà en format intermédiaire/mastering (ou RAW/Log caméra). Sur un H.264/H.265 classique, le fichier sera juste beaucoup plus gros sans gain réel.
                         </div>
                     </div>
                     <div id="convertPlayerWrap" class="convert-player-wrap" style="display:none">
@@ -580,6 +574,7 @@
                     </div>
 
                     <div id="convertProgressWrap" class="convert-progress-wrap" style="display:none">
+                        <div id="convertProgressFormatLabel" class="convert-progress-format-label"></div>
                         <div class="convert-progress-bar-track">
                             <div id="convertProgressBar" class="convert-progress-bar" style="width:0%"></div>
                         </div>
@@ -626,14 +621,22 @@
                     <div class="convert-options">
                         <div class="convert-option-group">
                             <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
-                            <select id="imgConvertFormat" class="convert-select" onchange="selectImageConvertFormat(this.value)">
-                                <option value="jpeg" selected>JPEG</option>
-                                <option value="png">PNG</option>
-                                <option value="webp">WebP</option>
-                                <option value="avif">AVIF</option>
-                                <option value="tiff">TIFF</option>
-                                <option value="gif">GIF</option>
-                            </select>
+                            <div class="format-picker" id="imgConvertFormatPicker">
+                                <button type="button" class="format-picker-trigger" id="imgConvertFormatTrigger" onclick="toggleFormatMenu('imgConvert')">
+                                    <span id="imgConvertFormatTriggerLabel">JPEG</span>
+                                    <svg class="format-picker-trigger-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div class="format-picker-menu" id="imgConvertFormatMenu">
+                                    <div id="imgConvertFormatGrid" class="convert-format-grid">
+                                        <button type="button" class="convert-format-tile active" data-format="jpeg" onclick="selectImageConvertFormat('jpeg')">JPEG</button>
+                                        <button type="button" class="convert-format-tile" data-format="png" onclick="selectImageConvertFormat('png')">PNG</button>
+                                        <button type="button" class="convert-format-tile" data-format="webp" onclick="selectImageConvertFormat('webp')">WebP</button>
+                                        <button type="button" class="convert-format-tile" data-format="avif" onclick="selectImageConvertFormat('avif')">AVIF</button>
+                                        <button type="button" class="convert-format-tile" data-format="tiff" onclick="selectImageConvertFormat('tiff')">TIFF</button>
+                                        <button type="button" class="convert-format-tile" data-format="gif" onclick="selectImageConvertFormat('gif')">GIF</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -674,10 +677,18 @@
                     <div class="convert-options">
                         <div class="convert-option-group">
                             <label class="convert-option-label" data-i18n="convert.format.label">Output format</label>
-                            <select id="docConvertFormat" class="convert-select" onchange="selectDocConvertFormat(this.value)">
-                                <option value="markdown" selected>Markdown</option>
-                                <option value="pdf" id="docConvertFormatPdf" disabled>PDF</option>
-                            </select>
+                            <div class="format-picker" id="docConvertFormatPicker">
+                                <button type="button" class="format-picker-trigger" id="docConvertFormatTrigger" onclick="toggleFormatMenu('docConvert')">
+                                    <span id="docConvertFormatTriggerLabel">Markdown</span>
+                                    <svg class="format-picker-trigger-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div class="format-picker-menu" id="docConvertFormatMenu">
+                                    <div id="docConvertFormatGrid" class="convert-format-grid">
+                                        <button type="button" class="convert-format-tile active" data-format="markdown" onclick="selectDocConvertFormat('markdown')">Markdown</button>
+                                        <button type="button" class="convert-format-tile" data-format="pdf" id="docConvertFormatPdf" disabled onclick="selectDocConvertFormat('pdf')">PDF</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div id="docConvertPdfHint" class="convert-lossy-warn" style="display:none" data-i18n="convert.doc.pdfHint">PDF output needs every file in this batch to be Word, PowerPoint, or Excel (.docx/.pptx/.xlsx).</div>
                     </div>

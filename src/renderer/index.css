@@ -3114,8 +3114,6 @@ html.platform-mac .update-banner {
 
 .convert-option-group { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 
-.convert-more-formats-wrap { width: 100%; }
-
 .convert-option-label {
     font-size: 12px;
     font-weight: 600;
@@ -3124,7 +3122,19 @@ html.platform-mac .update-banner {
     letter-spacing: 0.04em;
 }
 
-.convert-select {
+/* Format picker: a compact trigger button (looks like the old <select>, shows the current
+   format) that opens a popover containing a grid of small tiles (Convertio/FreeConvert-style)
+   — every format is one click away inside the popover, but nothing takes up permanent space
+   in the page the way an always-expanded grid did. */
+.format-picker {
+    position: relative;
+    width: 100%;
+}
+
+.format-picker-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     padding: 9px 12px;
     border-radius: var(--radius);
@@ -3132,7 +3142,95 @@ html.platform-mac .update-banner {
     background: var(--input-bg);
     color: var(--text);
     font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.format-picker-trigger:hover,
+.format-picker-trigger.open {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.format-picker-trigger-chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+
+.format-picker-trigger.open .format-picker-trigger-chevron {
+    transform: rotate(180deg);
+}
+
+.format-picker-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: var(--space-3);
+    animation: fadeUp 0.15s ease;
+}
+
+.format-picker-menu.open {
+    display: block;
+}
+
+.convert-format-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
+.convert-format-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 44px;
+    padding: 8px 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.convert-format-tile:hover:not(:disabled) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.convert-format-tile.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.convert-format-tile:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.convert-progress-format-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
 }
 
 .convert-progress-wrap {

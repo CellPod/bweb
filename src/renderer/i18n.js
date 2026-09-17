@@ -158,11 +158,7 @@ const TRANSLATIONS = {
         'convert.trim.now1':     '● Mark start',
         'convert.trim.now2':     '● Mark end',
         'convert.format.label':  'Output format',
-        'convert.format.more':   'More formats',
-        'convert.format.choose': 'Choose a format…',
-        'convert.og.video':      'Video',
-        'convert.og.lossless':   'Lossless audio — only useful if source is uncompressed',
-        'convert.og.rare':       'Rare formats',
+        'convert.progress.to':   'Converting to',
         'convert.warn.lossy':    '⚠ FLAC/WAV only improves if source is lossless. On a compressed video, the file will be larger with no quality gain.',
         'convert.btn':           'Convert',
         'convert.btn.another':   'Convert another file',
@@ -498,11 +494,7 @@ const TRANSLATIONS = {
         'convert.trim.now1':     '● Marquer le début',
         'convert.trim.now2':     '● Marquer la fin',
         'convert.format.label':  'Format de sortie',
-        'convert.format.more':   'Plus de formats',
-        'convert.format.choose': 'Choisir un format…',
-        'convert.og.video':      'Vidéo',
-        'convert.og.lossless':   'Audio sans perte — utile seulement si la source est non compressée',
-        'convert.og.rare':       'Formats rares',
+        'convert.progress.to':   'Conversion vers',
         'convert.warn.lossy':    '⚠ FLAC/WAV ne s\'améliore que si la source est lossless. Sur une vidéo compressée, le fichier sera plus gros sans gain de qualité.',
         'convert.btn':           'Convertir',
         'convert.btn.another':   'Convertir un autre fichier',
@@ -717,19 +709,6 @@ function applyTranslations() {
     document.querySelectorAll('[data-i18n-title]').forEach((el) => {
         el.title = t(el.dataset.i18nTitle);
     });
-    // <optgroup label=""> — must update via JS property
-    const ogMap = {
-        'convert.og.video':    0,
-        'convert.og.lossless': 1,
-        'convert.og.rare':     2,
-    };
-    const convertSelect = document.getElementById('convertFormatAdvanced');
-    if (convertSelect) {
-        const groups = convertSelect.querySelectorAll('optgroup');
-        Object.entries(ogMap).forEach(([key, idx]) => {
-            if (groups[idx]) groups[idx].label = t(key);
-        });
-    }
     // Warn text (has HTML entities — update innerHTML)
     const lossyWarn = document.getElementById('convertLossyWarn');
     if (lossyWarn) lossyWarn.textContent = t('convert.warn.lossy');

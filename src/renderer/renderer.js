@@ -185,6 +185,30 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.view-header-actions')) closeAllDestPopovers();
 });
 
+// Format picker popover — shared by Convert's Video/Image/Document sub-views. Shows the
+// current format on a compact trigger button; clicking it reveals the tile grid instead of
+// keeping every format permanently expanded on the page. Only one open at a time.
+function closeAllFormatMenus() {
+    document.querySelectorAll('.format-picker-menu.open').forEach((m) => m.classList.remove('open'));
+    document.querySelectorAll('.format-picker-trigger.open').forEach((b) => b.classList.remove('open'));
+}
+
+function toggleFormatMenu(prefix) {
+    const menu = document.getElementById(`${prefix}FormatMenu`);
+    const trigger = document.getElementById(`${prefix}FormatTrigger`);
+    if (!menu) return;
+    const willOpen = !menu.classList.contains('open');
+    closeAllFormatMenus();
+    if (willOpen) {
+        menu.classList.add('open');
+        trigger?.classList.add('open');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.format-picker')) closeAllFormatMenus();
+});
+
 // Manual override for the Download nav group's expanded/collapsed state — set by clicking the
 // chevron (toggleDownloadNavGroup). Without this, switchTab() used to force the group open on
 // every single click while on Fetch/Queue/History, making the chevron's collapse have zero
@@ -2578,12 +2602,14 @@ async function init() {
     } catch {}
 }
 
-// Just the 5 formats that cover almost everyone (MP4/MOV, MP3/WAV/M4A) live in the
-// plain primary select; rarer ones (other containers, re-encode variants, lossless
-// FLAC, legacy formats) live behind "More formats" in their own select.
-const CONVERT_COMMON_FORMATS = new Set(['mp4', 'mov', 'mp3', 'wav', 'm4a']);
-
-const CONVERT_ADVANCED_FORMAT_LABELS = {
+// Human-readable label per format, used both for the progress-bar's "converting to X"
+// indicator and anywhere else a format needs a display name instead of its raw value.
+const CONVERT_FORMAT_LABELS = {
+    mp4: 'MP4',
+    mov: 'MOV',
+    mp3: 'MP3',
+    wav: 'WAV',
+    m4a: 'M4A',
     mkv: 'MKV',
     webm: 'WebM',
     'mp4-h264': 'MP4 · H.264',
@@ -2597,6 +2623,8 @@ const CONVERT_ADVANCED_FORMAT_LABELS = {
     flv: 'FLV',
     '3gp': '3GP',
     dav: 'DAV',
+    hap: 'HAP',
+    dnxhr: 'DNxHR',
 };
 
 let convertFormat = 'mp4';
@@ -2605,30 +2633,17 @@ function selectConvertFormat(value) {
     if (!value) return;
     convertFormat = value;
 
-    const primarySelect = document.getElementById('convertFormat');
-    const advancedSelect = document.getElementById('convertFormatAdvanced');
-    const moreBtn = document.getElementById('convertMoreFormatsBtn');
-
-    if (CONVERT_COMMON_FORMATS.has(value)) {
-        if (primarySelect) primarySelect.value = value;
-        if (advancedSelect) advancedSelect.value = '';
-        if (moreBtn) moreBtn.querySelector('span').textContent = t('convert.format.more');
-    } else {
-        if (advancedSelect) advancedSelect.value = value;
-        const label = CONVERT_ADVANCED_FORMAT_LABELS[value] || value.toUpperCase();
-        if (moreBtn) moreBtn.querySelector('span').textContent = `${t('convert.format.more')}: ${label}`;
-    }
+    document.querySelectorAll('#convertFormatGrid .convert-format-tile').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.format === value);
+    });
+    const triggerLabel = document.getElementById('convertFormatTriggerLabel');
+    if (triggerLabel) triggerLabel.textContent = CONVERT_FORMAT_LABELS[value] || value.toUpperCase();
+    closeAllFormatMenus();
 
     const lossyWarn = document.getElementById('convertLossyWarn');
     if (lossyWarn) lossyWarn.style.display = ['flac', 'wav'].includes(value) ? 'block' : 'none';
-}
-
-function toggleMoreFormats() {
-    const wrap = document.getElementById('convertMoreFormatsWrap');
-    const btn = document.getElementById('convertMoreFormatsBtn');
-    const opening = wrap.style.display === 'none';
-    wrap.style.display = opening ? 'block' : 'none';
-    if (btn) btn.classList.toggle('open', opening);
+    const mezzanineWarn = document.getElementById('convertMezzanineWarn');
+    if (mezzanineWarn) mezzanineWarn.style.display = value === 'dnxhr' ? 'block' : 'none';
 }
 
 let _logOpenHeight = 180;
@@ -2840,6 +2855,8 @@ let imageConvertRunning = false;
 let imageConvertRenderedIds = new Set();
 let imageConvertFormat = 'jpeg';
 
+const IMAGE_CONVERT_FORMAT_LABELS = { jpeg: 'JPEG', png: 'PNG', webp: 'WebP', avif: 'AVIF', tiff: 'TIFF', gif: 'GIF' };
+
 // Convert tab — Document sub-view (Word/PowerPoint/Excel/OpenDocument/RTF/EPUB/CSV/PDF →
 // Markdown via anydoc, or Office-only → PDF via minipdf). Unlike Image/Video, not every
 // input can produce every output — "PDF" is only offered when the whole batch is
@@ -2850,6 +2867,8 @@ let docConvertItemIdCounter = 0;
 let docConvertRunning = false;
 let docConvertRenderedIds = new Set();
 let docConvertFormat = 'markdown';
+
+const DOC_CONVERT_FORMAT_LABELS = { markdown: 'Markdown', pdf: 'PDF' };
 
 // Compress tab — batch image compression via sharp (PDF/video to follow)
 let compressItems = []; // { id, path, name, type, size, estimates: {max,balanced,small}|null, state, compressedSize }
@@ -4500,9 +4519,11 @@ async function runConvertQueue() {
     const progressWrap = document.getElementById('convertProgressWrap');
     const bar = document.getElementById('convertProgressBar');
     const label = document.getElementById('convertProgressLabel');
+    const formatLabel = document.getElementById('convertProgressFormatLabel');
     if (progressWrap) progressWrap.style.display = 'flex';
     if (bar) bar.style.width = '0%';
     if (label) label.textContent = '0%';
+    if (formatLabel) formatLabel.textContent = `${t('convert.progress.to')} ${CONVERT_FORMAT_LABELS[format] || format.toUpperCase()}`;
     renderConvertList();
 
     while (!convertStopRequested) {
@@ -4594,6 +4615,12 @@ function doImageConvertClear() {
 
 function selectImageConvertFormat(value) {
     imageConvertFormat = value;
+    document.querySelectorAll('#imgConvertFormatGrid .convert-format-tile').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.format === value);
+    });
+    const triggerLabel = document.getElementById('imgConvertFormatTriggerLabel');
+    if (triggerLabel) triggerLabel.textContent = IMAGE_CONVERT_FORMAT_LABELS[value] || value.toUpperCase();
+    closeAllFormatMenus();
 }
 
 const IMAGE_CONVERT_BUSY_STATES = new Set(['converting']);
@@ -4695,28 +4722,34 @@ function doDocConvertClear() {
     if (btn) { btn.textContent = t('convert.btn'); btn.disabled = true; btn.style.display = ''; }
     const doneActions = document.getElementById('docConvertDoneActions');
     if (doneActions) doneActions.style.display = 'none';
-    document.getElementById('docConvertFormat').value = 'markdown';
+    selectDocConvertFormat('markdown');
     updateDocConvertFormatAvailability();
     document.querySelector('#convertDocumentView .convert-center-wrapper')?.classList.remove('has-content');
 }
 
 function selectDocConvertFormat(value) {
+    if (document.getElementById('docConvertFormatPdf')?.disabled && value === 'pdf') return;
     docConvertFormat = value;
+    document.querySelectorAll('#docConvertFormatGrid .convert-format-tile').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.format === value);
+    });
+    const triggerLabel = document.getElementById('docConvertFormatTriggerLabel');
+    if (triggerLabel) triggerLabel.textContent = DOC_CONVERT_FORMAT_LABELS[value] || value;
+    closeAllFormatMenus();
 }
 
 // PDF output only works when every file in the batch is Office (docx/pptx/xlsx, per
 // minipdf) — everything else (odt/rtf/epub/csv/pdf/legacy .doc-.ppt-.xls) can only go to
-// Markdown. Disable the option rather than hide it, so it's clear it's conditional, not gone.
+// Markdown. Disable the tile rather than hide it, so it's clear it's conditional, not gone.
 function updateDocConvertFormatAvailability() {
-    const pdfOption = document.getElementById('docConvertFormatPdf');
+    const pdfTile = document.getElementById('docConvertFormatPdf');
     const pdfHint = document.getElementById('docConvertPdfHint');
-    if (!pdfOption) return;
+    if (!pdfTile) return;
     const allPdfEligible = docConvertItems.length > 0 && docConvertItems.every((i) => DOC_CONVERT_PDF_EXTS.has(i.ext));
-    pdfOption.disabled = !allPdfEligible;
+    pdfTile.disabled = !allPdfEligible;
     if (pdfHint) pdfHint.style.display = (docConvertItems.length > 0 && !allPdfEligible) ? 'block' : 'none';
     if (!allPdfEligible && docConvertFormat === 'pdf') {
-        docConvertFormat = 'markdown';
-        document.getElementById('docConvertFormat').value = 'markdown';
+        selectDocConvertFormat('markdown');
     }
 }
 

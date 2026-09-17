@@ -32,6 +32,20 @@ const FORMAT_PRESETS = {
     'flv':       { vcodec: 'copy',       acodec: 'copy',       ext: '.flv'  },
     '3gp':       { vcodec: 'libx264',    acodec: 'aac',        ext: '.3gp'  },
     'dav':       { vcodec: 'copy',       acodec: 'copy',       ext: '.dav'  },
+    // Vidvox Hap — GPU-decoded intermediate codec for VJ/playback software (Resolume, VDMX,
+    // TouchDesigner...). Always shipped in a .mov container (an .mp4 muxer rejects the tag
+    // the same way it rejects ProRes, see isOutputStreamInitError above) and only ever reads
+    // RGBA frames (-pix_fmt rgba below), regardless of the source's own pixel format.
+    'hap':       { vcodec: 'hap',        acodec: 'aac',        ext: '.mov'  },
+    // DNxHR — Avid's modern, resolution-independent broadcast/mastering intermediate codec
+    // (replaces the older DNxHD, which needed a bitrate matched to an exact resolution/frame
+    // rate table). HQ profile is a sane single default: good delivery quality without
+    // implying a bit-depth/color-grading headroom the source never had (see the mezzanine
+    // codec warning below, mirroring the FLAC/WAV one). PCM audio, not AAC, to match the
+    // "uncompressed mastering" intent of picking an intermediate codec in the first place.
+    // ffmpeg's encoder is confusingly still named "dnxhd" — the -profile flag (added in
+    // runFfmpegPass below) is what actually selects DNxHR vs. legacy DNxHD.
+    'dnxhr':     { vcodec: 'dnxhd',      acodec: 'pcm_s16le',  ext: '.mov'  },
 };
 
 function getOutputPath(inputPath, format, startTime, endTime, destDir) {
@@ -64,6 +78,14 @@ function runFfmpegPass(ffmpegBin, inputPath, outputPath, vcodec, acodec, startTi
 
         if (acodec === 'libmp3lame') {
             args.push('-q:a', '0'); // best VBR quality for MP3
+        }
+
+        if (vcodec === 'hap') {
+            args.push('-pix_fmt', 'rgba'); // the only pixel format ffmpeg's hap encoder accepts
+        }
+
+        if (vcodec === 'dnxhd') {
+            args.push('-profile:v', 'dnxhr_hq', '-pix_fmt', 'yuv422p');
         }
 
         args.push(outputPath);

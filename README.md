@@ -94,7 +94,7 @@ Installs per-user — no admin required. Uninstall from **Settings → Apps**.
 
 ### Convert
 Three sub-views for three different jobs — same tab, same "Saving to" destination.
-- **Video & Audio** — drop any local video or audio file to convert or trim it. Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more. Trim with a visual timeline before converting. Cancel mid-conversion — no partial output file left behind
+- **Video & Audio** — drop any local video or audio file to convert or trim it. Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more, including professional/broadcast codecs (HAP for VJ/playback software, DNxHR for mastering). Trim with a visual timeline before converting. Cancel mid-conversion — no partial output file left behind
 - **Image** — convert between JPEG, PNG, WebP, AVIF, TIFF, and GIF, including HEIC (iPhone photos) as an input format, no extra install required
 - **Document** — turn Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, or PDF into clean Markdown, or Word/PowerPoint/Excel straight into a PDF, without needing Microsoft Office or LibreOffice installed
 - Once a batch finishes, "Open folder" and "Convert another file" replace the single action button — nothing auto-clears itself
