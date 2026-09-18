@@ -96,6 +96,9 @@
   <symbol id="ic-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M15 6L9 12L15 18"/>
   </symbol>
+  <symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 21H7C4.79086 21 3 19.2091 3 17V10.7076C3 9.30887 3.73061 8.01175 4.92679 7.28679L9.92679 4.25649C11.2011 3.48421 12.7989 3.48421 14.0732 4.25649L19.0732 7.28679C20.2694 8.01175 21 9.30887 21 10.7076V17C21 19.2091 19.2091 21 17 21Z"/><path d="M9 17H15"/>
+  </symbol>
 </svg>
 
 <div class="app-shell">
@@ -108,40 +111,16 @@
         <!-- Sidebar navigation -->
         <nav class="sidebar">
             <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
-            <div class="sidebar-header">
+            <button class="sidebar-header" onclick="switchTab('download')" aria-label="Home">
                 <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
                 <span class="sidebar-app-name">bWeb</span>
-            </div>
+            </button>
 
             <div class="sidebar-nav">
-                <div class="nav-group expanded" id="downloadNavGroup">
-                    <button class="nav-group-toggle" id="downloadNavToggle" onclick="switchTab('download')" aria-expanded="true">
-                        <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-download"/></svg>
-                        <span class="nav-label" data-i18n="nav.download">Download</span>
-                        <span class="nav-group-chevron-btn" onclick="toggleDownloadNavGroup(event)" aria-label="Collapse Fetch/Queue/History">
-                            <svg class="nav-group-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                        </span>
-                    </button>
-                    <div class="nav-group-body">
-                        <div class="nav-group-body-inner">
-                            <button class="nav-item nav-item-sub active" data-tab="download" onclick="switchTab('download')">
-                                <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-download"/></svg>
-                                <span class="nav-label" data-i18n="nav.fetch">Fetch</span>
-                            </button>
-                            <button class="nav-item nav-item-sub" data-tab="queue" onclick="switchTab('queue')">
-                                <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-layers"/></svg>
-                                <span class="nav-label" data-i18n="nav.queue">Queue</span>
-                                <span id="queueCount" class="nav-badge" style="display:none">0</span>
-                                <span id="queueActivityDot" class="nav-activity-dot" style="display:none"></span>
-                            </button>
-                            <button class="nav-item nav-item-sub" data-tab="history" onclick="switchTab('history')">
-                                <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-clock"/></svg>
-                                <span class="nav-label" data-i18n="nav.history">History</span>
-                                <span id="historyCount" class="nav-badge" style="display:none">0</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <button class="nav-item active" data-tab="download" onclick="switchTab('download')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-home"/></svg>
+                    <span class="nav-label" data-i18n="nav.home">Home</span>
+                </button>
                 <button class="nav-item" data-tab="tools" onclick="switchTab('tools')">
                     <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-grid"/></svg>
                     <span class="nav-label" data-i18n="nav.tools">Tools</span>
@@ -163,11 +142,31 @@
         <!-- Content area -->
         <div class="content-area">
 
+            <!-- Home top tabs: Fetch/Queue/History, shown above the content only while one
+                 of those three views is active (see switchTab() in renderer.js) -->
+            <div id="homeTopTabs" class="content-top-tabs" style="display:flex">
+                <button class="content-top-tab active" data-tab="download" onclick="switchTab('download')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-download"/></svg>
+                    <span data-i18n="nav.fetch">Fetch</span>
+                </button>
+                <button class="content-top-tab" data-tab="queue" onclick="switchTab('queue')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-layers"/></svg>
+                    <span data-i18n="nav.queue">Queue</span>
+                    <span id="queueCount" class="nav-badge" style="display:none">0</span>
+                    <span id="queueActivityDot" class="nav-activity-dot" style="display:none"></span>
+                </button>
+                <button class="content-top-tab" data-tab="history" onclick="switchTab('history')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-clock"/></svg>
+                    <span data-i18n="nav.history">History</span>
+                    <span id="historyCount" class="nav-badge" style="display:none">0</span>
+                </button>
+            </div>
+
             <!-- Download view -->
             <div id="tab-download" class="view active">
-                <div class="view-header">
-                    <h1 class="view-title" data-i18n="dl.title">Download</h1>
-                    <p class="view-subtitle" data-i18n="dl.subtitle">Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally</p>
+                <div class="dl-hero">
+                    <img class="dl-hero-logo" src="./bweb-logo.png" alt="" />
+                    <p class="dl-hero-tagline" data-i18n="dl.subtitle">Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally</p>
                 </div>
                 <div class="dl-mode-tabs">
                     <button class="dl-mode-tab active" data-mode="single" onclick="setDlMode('single')">
@@ -367,9 +366,6 @@
 
             <!-- Queue view -->
             <div id="tab-queue" class="view">
-                <div class="view-header">
-                    <h1 class="view-title" data-i18n="queue.title">Queue</h1>
-                </div>
                 <div id="queueToolbar" class="queue-toolbar" style="display: none">
                     <div class="queue-toolbar-info">
                         <span id="queueStatus" class="queue-status-text">0 items</span>
@@ -395,9 +391,6 @@
 
             <!-- History view -->
             <div id="tab-history" class="view">
-                <div class="view-header">
-                    <h1 class="view-title" data-i18n="history.title">History</h1>
-                </div>
                 <div id="historyToolbar" class="history-toolbar" style="display: none">
                     <span id="historyCountLabel" class="count"></span>
                     <button class="btn-ghost" data-i18n="history.clearAll" onclick="doClearHistory()">Clear all</button>

@@ -67,6 +67,12 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   "Privacy" tab and reverted 2026-09-18: it made no sense once the tile grid itself already
   solved the sidebar-clutter problem that merge existed for, and users couldn't tell there
   even were two separate tools inside).
+- **Download/Queue/History share one "Home" sidebar row** (as of 2026-09-18), not three
+  separate rows. Fetch is the centered Home hero (`.dl-hero` in `index.html`/`index.css`);
+  Queue and History are reached through `#homeTopTabs`, a segmented bar that's a sibling of
+  `.view` (not inside one) so it can stay visible across all three. `switchTab()` shows/hides
+  it and syncs its active pill via the `HOME_TABS` array, the same pattern `TOOL_TABS` uses
+  for the Tools hub. Clicking the sidebar logo/app-name also calls `switchTab('download')`.
 - **Don't assume a shared CSS class is safe to reuse across tabs without checking its
   assumptions fit the new context.** `.convert-container`'s `margin: 0 auto` centering
   is right for Convert/Compress's centered empty-drop-zone hero state, but wrong for a

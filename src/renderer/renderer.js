@@ -229,13 +229,15 @@ const $qRetryFailedBtn = $('qRetryFailedBtn');
 const $qClearDoneBtn = $('qClearDoneBtn');
 const $qCancelAllBtn = $('qCancelAllBtn');
 
-const DOWNLOAD_GROUP_TABS = ['download', 'queue', 'history'];
-
 // Convert/Compress/Privacy/QR/BgRemove no longer have their own sidebar row, they're reached
 // through the Tools catalog tile grid. The sidebar still needs to show "you are somewhere in
 // Tools" while any of them is open, so switchTab() highlights the "tools" nav-item instead of
 // looking for a nav-item matching the real tabId (which no longer exists for these five).
 const TOOL_TABS = ['tools', 'convert', 'compress', 'watermark', 'redact', 'qrcode', 'bgremove'];
+
+// Same idea for Fetch/Queue/History: they used to be sidebar sub-items of a "Download" group,
+// now they share one "Home" sidebar row and switch between each other via #homeTopTabs instead.
+const HOME_TABS = ['download', 'queue', 'history'];
 
 // Destination popover — shared by every processing tool's "Saving to" + "Open folder after
 // X" panel. Only one open at a time; clicking outside (or re-clicking the same trigger)
@@ -290,15 +292,8 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.format-picker')) closeAllFormatMenus();
 });
 
-// Manual override for the Download nav group's expanded/collapsed state — set by clicking the
-// chevron (toggleDownloadNavGroup). Without this, switchTab() used to force the group open on
-// every single click while on Fetch/Queue/History, making the chevron's collapse have zero
-// lasting effect: you could never see e.g. Queue with the sub-tabs list collapsed to save space.
-let downloadGroupCollapsed = false;
-
 function switchTab(tabId) {
-    const previousTab = document.querySelector('.nav-item.active')?.dataset.tab;
-    const navActiveId = TOOL_TABS.includes(tabId) ? 'tools' : tabId;
+    const navActiveId = TOOL_TABS.includes(tabId) ? 'tools' : HOME_TABS.includes(tabId) ? 'download' : tabId;
 
     document.querySelectorAll('.nav-item').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.tab === navActiveId);
@@ -307,18 +302,15 @@ function switchTab(tabId) {
         panel.classList.toggle('active', panel.id === 'tab-' + tabId);
     });
 
-    const downloadGroup = document.getElementById('downloadNavGroup');
-    if (downloadGroup) {
-        const inGroup = DOWNLOAD_GROUP_TABS.includes(tabId);
-        const wasInGroup = DOWNLOAD_GROUP_TABS.includes(previousTab);
-        // Entering the group from outside (e.g. clicking "Download" from Convert) always reveals
-        // the sub-tabs — a manual collapse from a previous visit shouldn't hide them on re-entry.
-        // Moving between sub-tabs while already inside the group (Fetch -> Queue) respects
-        // whatever the user last chose with the chevron.
-        if (inGroup && !wasInGroup) downloadGroupCollapsed = false;
-        const expanded = inGroup && !downloadGroupCollapsed;
-        downloadGroup.classList.toggle('expanded', expanded);
-        document.getElementById('downloadNavToggle')?.setAttribute('aria-expanded', String(expanded));
+    const homeTopTabs = document.getElementById('homeTopTabs');
+    if (homeTopTabs) {
+        const inHome = HOME_TABS.includes(tabId);
+        homeTopTabs.style.display = inHome ? 'flex' : 'none';
+        if (inHome) {
+            homeTopTabs.querySelectorAll('.content-top-tab').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            });
+        }
     }
 
     if (tabId === 'history') loadHistory();
@@ -330,20 +322,6 @@ function switchTab(tabId) {
     if (tabId === 'redact') { initPrivacyRedactTab(); loadRedactDestPath(); loadRedactAutoOpen(); }
     if (tabId === 'qrcode') initQrTab();
     if (tabId === 'bgremove') initBgRemoveTab();
-}
-
-// Chevron-only click target: collapses/expands the Download group's sub-tabs list without
-// navigating away from whichever of Fetch/Queue/History is currently active (e.g. lets you sit
-// on Queue with the sub-tabs list hidden to save sidebar space). Separate from clicking the
-// rest of the header row, which still navigates to Fetch via switchTab('download').
-function toggleDownloadNavGroup(event) {
-    event.stopPropagation();
-    downloadGroupCollapsed = !downloadGroupCollapsed;
-    const downloadGroup = document.getElementById('downloadNavGroup');
-    const inGroup = DOWNLOAD_GROUP_TABS.includes(document.querySelector('.nav-item.active')?.dataset.tab);
-    const expanded = inGroup && !downloadGroupCollapsed;
-    downloadGroup?.classList.toggle('expanded', expanded);
-    document.getElementById('downloadNavToggle')?.setAttribute('aria-expanded', String(expanded));
 }
 
 function addLog(msg, type = '') {

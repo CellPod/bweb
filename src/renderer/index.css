@@ -350,11 +350,17 @@ body::before {
 }
 
 .sidebar-header {
+    width: 100%;
     padding: 14px 16px 10px;
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    border: none;
+    background: transparent;
+    font-family: var(--font);
+    text-align: left;
+    cursor: pointer;
     -webkit-app-region: drag;
 }
 
@@ -426,95 +432,6 @@ html.platform-mac .update-banner {
 .nav-item:hover {
     background: var(--surface-2);
     color: var(--text);
-}
-
-/* Collapsible group for a set of related tabs (e.g. Download's Fetch/Queue/History) —
-   collapsed by default footprint is a single row, same height as any other nav-item;
-   expanding it reveals the sub-tabs instead of three permanently flat top-level rows. */
-.nav-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.nav-group-toggle {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 8px 11px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-2);
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.15s, color 0.15s;
-    user-select: none;
-    text-align: left;
-    -webkit-app-region: no-drag;
-}
-
-.nav-group-toggle:hover {
-    background: var(--surface-2);
-    color: var(--text);
-}
-
-/* Highlights even while collapsed, so the group still shows "you are somewhere in here"
-   without needing to expand it. */
-.nav-group:has(.nav-item-sub.active) .nav-group-toggle {
-    color: var(--accent);
-    font-weight: 600;
-}
-
-.nav-group-chevron-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto;
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    transition: background-color 0.15s;
-}
-
-.nav-group-chevron-btn:hover {
-    background: var(--border);
-}
-
-.nav-group-chevron {
-    flex-shrink: 0;
-    transition: transform 0.15s;
-}
-
-.nav-group.expanded .nav-group-chevron {
-    transform: rotate(180deg);
-}
-
-/* Grid-rows 0fr/1fr trick: animates height without knowing the content's pixel height,
-   and collapses to a true zero footprint (not just visually hidden). */
-.nav-group-body {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.2s ease;
-}
-
-.nav-group.expanded .nav-group-body {
-    grid-template-rows: 1fr;
-}
-
-.nav-group-body-inner {
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-top: 2px;
-}
-
-.nav-item-sub {
-    padding-left: 16px;
 }
 
 .nav-item.active {
@@ -590,6 +507,47 @@ html.platform-mac .update-banner {
 .content-area::-webkit-scrollbar-thumb {
     background: var(--text-3);
     border-radius: 3px;
+}
+
+/* Home top tabs: Fetch/Queue/History, replacing the sidebar sub-items those three used to
+   be. A sibling of .view rather than living inside one, since it stays visible across all
+   three (see switchTab() in renderer.js), matching .view's own max-width so both align. */
+.content-top-tabs {
+    display: none;
+    justify-content: center;
+    gap: 4px;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 16px 28px 0;
+    flex-shrink: 0;
+}
+
+.content-top-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.content-top-tab:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.content-top-tab.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
 }
 
 /* View header — page title area */
@@ -995,7 +953,8 @@ html.platform-mac .update-banner {
 .url-bar {
     display: flex;
     gap: 8px;
-    margin-bottom: 20px;
+    max-width: 640px;
+    margin: 0 auto 20px;
 }
 
 .url-input {
@@ -1024,8 +983,8 @@ html.platform-mac .update-banner {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: -12px;
-    margin-bottom: 14px;
+    max-width: 640px;
+    margin: -12px auto 14px;
     padding: 8px 10px;
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -2779,6 +2738,14 @@ html.platform-mac .update-banner {
     width: fit-content;
 }
 
+/* Only the Home/Fetch screen's own top-level mode switcher centers itself, matching the
+   rest of its hero column. Convert/Compress/Watermark reuse .dl-mode-tabs left-aligned
+   inside their own layout and must stay untouched. */
+#tab-download > .dl-mode-tabs {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .dl-mode-tab {
     display: flex;
     align-items: center;
@@ -2811,11 +2778,36 @@ html.platform-mac .update-banner {
 .dl-destination {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-1);
     font-size: var(--fs-xs);
     color: var(--text-3);
     margin-bottom: var(--space-4);
     -webkit-app-region: no-drag;
+}
+
+/* Home hero: small brand mark + one-line pitch, replacing the old left-aligned page title.
+   The top tabs (Fetch/Queue/History) now carry the "where am I" job the title used to. */
+.dl-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    margin: 12px 0 26px;
+}
+
+.dl-hero-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+}
+
+.dl-hero-tagline {
+    max-width: 480px;
+    font-size: var(--fs-sm);
+    color: var(--text-3);
+    line-height: 1.5;
 }
 
 .dl-destination-path {

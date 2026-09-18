@@ -8,6 +8,7 @@ const TRANSLATIONS = {
     en: {
         // Nav
         'nav.download':  'Download',
+        'nav.home':      'Home',
         'nav.fetch':     'Fetch',
         'nav.queue':     'Queue',
         'nav.history':   'History',
@@ -372,6 +373,7 @@ const TRANSLATIONS = {
     fr: {
         // Nav
         'nav.download':  'Télécharger',
+        'nav.home':      'Accueil',
         'nav.fetch':     'Récupérer',
         'nav.queue':     'Attente',
         'nav.history':   'Historique',
