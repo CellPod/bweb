@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('api', {
     getAppInfo: () => ipcRenderer.invoke('app:info'),
     checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
 
+    // Onboarding wizard + responsible-use acknowledgment
+    isOnboardingCompleted: () => ipcRenderer.invoke('onboarding:isCompleted'),
+    completeOnboarding: () => ipcRenderer.invoke('onboarding:complete'),
+    isLegalAcknowledged: () => ipcRenderer.invoke('legal:isAcknowledged'),
+    acknowledgeLegal: () => ipcRenderer.invoke('legal:acknowledge'),
+
     // History
     getHistory: () => ipcRenderer.invoke('history:get'),
     removeHistory: (videoId, extractorKey) => ipcRenderer.invoke('history:remove', videoId, extractorKey),

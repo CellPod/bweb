@@ -62,15 +62,90 @@ function toggleTheme() {
 
 function updateThemeBtn() {
     const dark = isDarkMode();
-    const icon = document.getElementById('themeIcon');
-    const label = document.getElementById('themeToggleLabel');
-    const desc = document.getElementById('themeLabel');
     const saved = localStorage.getItem('theme');
-    if (icon) icon.innerHTML = dark
-        ? '<use href="#ic-sun"/>'
-        : '<use href="#ic-moon"/>';
-    if (label) label.textContent = dark ? 'Light mode' : 'Dark mode';
-    if (desc) desc.textContent = saved ? (dark ? 'Dark' : 'Light') : 'Follows system';
+
+    // Settings tab and the onboarding wizard each show their own copy of this toggle,
+    // so both need to stay in sync with whichever one the user actually clicked.
+    const pairs = [
+        ['themeIcon', 'themeToggleLabel', 'themeLabel'],
+        ['onboardingThemeIcon', 'onboardingThemeToggleLabel', 'onboardingThemeLabel'],
+    ];
+    for (const [iconId, labelId, descId] of pairs) {
+        const icon = document.getElementById(iconId);
+        const label = document.getElementById(labelId);
+        const desc = document.getElementById(descId);
+        if (icon) icon.innerHTML = dark ? '<use href="#ic-sun"/>' : '<use href="#ic-moon"/>';
+        if (label) label.textContent = dark ? 'Light mode' : 'Dark mode';
+        if (desc) desc.textContent = saved ? (dark ? 'Dark' : 'Light') : 'Follows system';
+    }
+}
+
+// ── First-run onboarding wizard + one-time responsible-use dialog ─────────────
+
+async function initOnboarding() {
+    let completed = false;
+    try {
+        completed = await window.api.isOnboardingCompleted();
+    } catch {}
+
+    if (!completed) {
+        try {
+            const dlPath = await window.api.getDownloadPath();
+            $('onboardingFolderPath').textContent = dlPath || '-';
+        } catch {}
+        onboardingGoToStep(1);
+        $('onboardingModal').style.display = 'flex';
+        return;
+    }
+
+    await maybeShowLegal();
+}
+
+function onboardingGoToStep(step) {
+    $('onboardingStep1').style.display = step === 1 ? 'block' : 'none';
+    $('onboardingStep2').style.display = step === 2 ? 'block' : 'none';
+    $('onboardingProgressFill').style.width = step === 1 ? '50%' : '100%';
+}
+
+async function skipOnboarding() {
+    await finishOnboarding();
+}
+
+async function finishOnboarding() {
+    try {
+        await window.api.completeOnboarding();
+    } catch {}
+    $('onboardingModal').style.display = 'none';
+    await maybeShowLegal();
+}
+
+async function wizardChooseFolder() {
+    try {
+        const newPath = await window.api.chooseDownloadPath();
+        $('onboardingFolderPath').textContent = newPath;
+        $('settingsPath').textContent = newPath;
+        $('dlDestPath').textContent = newPath;
+        addLog('Download folder changed: ' + newPath, 'success');
+    } catch (e) {
+        addLog('Failed to change folder: ' + e.message, 'error');
+    }
+}
+
+async function maybeShowLegal() {
+    let acknowledged = false;
+    try {
+        acknowledged = await window.api.isLegalAcknowledged();
+    } catch {}
+    if (!acknowledged) {
+        $('legalModal').style.display = 'flex';
+    }
+}
+
+async function acknowledgeLegal() {
+    try {
+        await window.api.acknowledgeLegal();
+    } catch {}
+    $('legalModal').style.display = 'none';
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -2544,6 +2619,8 @@ async function doCheckForUpdates() {
 
 async function init() {
     addLog('App starting...');
+
+    await initOnboarding();
 
     try {
         const dlPath = await window.api.getDownloadPath();

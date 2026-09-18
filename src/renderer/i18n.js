@@ -304,6 +304,27 @@ const TRANSLATIONS = {
         'settings.vimeo.resolving':      (i, total) => `Resolving… (${i}/${total})`,
         'settings.deps':           'Dependencies',
 
+        // Onboarding wizard
+        'onboarding.skip':         'Skip',
+        'onboarding.next':         'Next',
+        'onboarding.back':         'Back',
+        'onboarding.finish':       'Done',
+        'onboarding.step1.badge':  'Step 1 of 2',
+        'onboarding.step1.title':  'Welcome to bWeb',
+        'onboarding.step1.desc':   'Download and convert locally. No cloud, no account.',
+        'onboarding.step2.badge':  'Step 2 of 2',
+        'onboarding.step2.title':  'Download folder',
+        'onboarding.step2.desc':   'You can change this anytime in Settings.',
+
+        // Responsible-use acknowledgment, shown once after onboarding
+        'legal.badge':             'Shown once',
+        'legal.title':             'Before you start',
+        'legal.intro':             'bWeb downloads content to your machine. By continuing, you confirm:',
+        'legal.rule1':             'I only download content I own, I am licensed for, or that is explicitly free to reuse.',
+        'legal.rule2':             'I respect the source platform\'s terms of service.',
+        'legal.rule3':             'I understand the tool is provided as is, with no liability for misuse.',
+        'legal.acknowledge':       'Got it',
+
         // About view
         'about.checkUpdates':      'Check for updates',
         'about.description':       'I built bWeb to solve my own problem — downloading videos and audio without jumping through hoops. Works with YouTube, Vimeo, Twitter/X, Instagram, and 1000+ other sites. Everything stays on your machine. No cloud, no accounts, no tracking.',
@@ -639,6 +660,27 @@ const TRANSLATIONS = {
         'settings.vimeo.allImported':    'Tout est importé',
         'settings.vimeo.resolving':      (i, total) => `Résolution… (${i}/${total})`,
         'settings.deps':           'Dépendances',
+
+        // Wizard de premier lancement
+        'onboarding.skip':         'Passer',
+        'onboarding.next':         'Suivant',
+        'onboarding.back':         'Retour',
+        'onboarding.finish':       'Terminé',
+        'onboarding.step1.badge':  'Étape 1 sur 2',
+        'onboarding.step1.title':  'Bienvenue sur bWeb',
+        'onboarding.step1.desc':   'Téléchargement et conversion en local. Pas de cloud, pas de compte.',
+        'onboarding.step2.badge':  'Étape 2 sur 2',
+        'onboarding.step2.title':  'Dossier de téléchargement',
+        'onboarding.step2.desc':   'Tu pourras le changer à tout moment dans Réglages.',
+
+        // Écran de responsabilité, affiché une seule fois après le wizard
+        'legal.badge':             'Affiché une seule fois',
+        'legal.title':             'Avant de commencer',
+        'legal.intro':             'bWeb télécharge du contenu sur ta machine. En continuant, tu confirmes :',
+        'legal.rule1':             'Je ne télécharge que du contenu que je possède, pour lequel j\'ai une licence, ou explicitement libre de réutilisation.',
+        'legal.rule2':             'Je respecte les CGU de la plateforme d\'origine.',
+        'legal.rule3':             'Je comprends que l\'outil est fourni tel quel, sans garantie en cas de mauvais usage.',
+        'legal.acknowledge':       'J\'ai compris',
 
         // About view
         'about.checkUpdates':      'Vérifier les mises à jour',

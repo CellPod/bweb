@@ -264,6 +264,8 @@ app.whenReady().then(() => {
             bgRemoveDestPath: path.join(app.getPath('downloads'), APP_NAME),
             history: [],
             vimeoApiToken: '',
+            onboardingCompleted: false,
+            legalAcknowledged: false,
         },
     });
 
@@ -497,6 +499,18 @@ ipcMain.handle('sparkle:setSkippedVersion', (_e, version) => {
 ipcMain.handle('sparkle:getAutoInstall', () => !!store.get('updateAutoInstall'));
 ipcMain.handle('sparkle:setAutoInstall', (_e, enabled) => {
     store.set('updateAutoInstall', !!enabled);
+});
+
+// First-run onboarding wizard, plus a one-time responsible-use acknowledgment. Two
+// separate flags on purpose: legal is gated on onboarding being done first, so it
+// never adds friction to the initial setup screen.
+ipcMain.handle('onboarding:isCompleted', () => !!store.get('onboardingCompleted'));
+ipcMain.handle('onboarding:complete', () => {
+    store.set('onboardingCompleted', true);
+});
+ipcMain.handle('legal:isAcknowledged', () => !!store.get('legalAcknowledged'));
+ipcMain.handle('legal:acknowledge', () => {
+    store.set('legalAcknowledged', true);
 });
 
 // Auth — YouTube/Instagram/Vimeo all share the same cookie-based check/login/logout shape,

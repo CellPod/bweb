@@ -1541,6 +1541,91 @@
     </div>
 </div>
 
+<!-- First-run onboarding wizard (see initOnboarding() in renderer.js) -->
+<div id="onboardingModal" class="modal-overlay" style="display:none">
+    <div class="modal-box onboarding-modal-box">
+        <div class="onboarding-progress-track"><div id="onboardingProgressFill" class="onboarding-progress-fill" style="width:50%"></div></div>
+
+        <div id="onboardingStep1">
+            <div class="onboarding-head">
+                <span class="onboarding-step-label" data-i18n="onboarding.step1.badge">Step 1 of 2</span>
+                <button class="onboarding-skip-btn" onclick="skipOnboarding()" data-i18n="onboarding.skip">Skip</button>
+            </div>
+            <h2 class="onboarding-title" data-i18n="onboarding.step1.title">Welcome to bWeb</h2>
+            <p class="onboarding-desc" data-i18n="onboarding.step1.desc">Download and convert locally. No cloud, no account.</p>
+            <div class="onboarding-rows">
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label" data-i18n="settings.theme">Theme</div>
+                        <div id="onboardingThemeLabel" class="settings-row-value" data-i18n="settings.theme.system">Follows system</div>
+                    </div>
+                    <div class="settings-row-action">
+                        <button class="theme-toggle-btn" onclick="toggleTheme()">
+                            <svg class="toggle-icon icon-svg" id="onboardingThemeIcon"><use href="#ic-sun"/></svg>
+                            <span id="onboardingThemeToggleLabel" data-i18n="settings.theme.light">Light</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label" data-i18n="settings.language">Language</div>
+                    </div>
+                    <div class="settings-row-action">
+                        <div class="lang-toggle">
+                            <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+                            <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="onboarding-footer">
+                <span></span>
+                <button class="btn-sm btn-sm-primary" onclick="onboardingGoToStep(2)" data-i18n="onboarding.next">Next</button>
+            </div>
+        </div>
+
+        <div id="onboardingStep2" style="display:none">
+            <div class="onboarding-head">
+                <span class="onboarding-step-label" data-i18n="onboarding.step2.badge">Step 2 of 2</span>
+                <button class="onboarding-skip-btn" onclick="skipOnboarding()" data-i18n="onboarding.skip">Skip</button>
+            </div>
+            <h2 class="onboarding-title" data-i18n="onboarding.step2.title">Download folder</h2>
+            <p class="onboarding-desc" data-i18n="onboarding.step2.desc">You can change this anytime in Settings.</p>
+            <div class="onboarding-rows">
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div id="onboardingFolderPath" class="settings-row-label">-</div>
+                    </div>
+                    <div class="settings-row-action">
+                        <button class="btn-sm" onclick="wizardChooseFolder()" data-i18n="settings.change">Change</button>
+                    </div>
+                </div>
+            </div>
+            <div class="onboarding-footer">
+                <button class="onboarding-skip-btn" onclick="onboardingGoToStep(1)" data-i18n="onboarding.back">Back</button>
+                <button class="btn-sm btn-sm-primary" onclick="finishOnboarding()" data-i18n="onboarding.finish">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- One-time responsible-use acknowledgment, shown after onboarding completes -->
+<div id="legalModal" class="modal-overlay" style="display:none">
+    <div class="modal-box onboarding-modal-box">
+        <span class="onboarding-step-label" data-i18n="legal.badge">Shown once</span>
+        <h2 class="onboarding-title" data-i18n="legal.title">Before you start</h2>
+        <p class="onboarding-desc" data-i18n="legal.intro">bWeb downloads content to your machine. By continuing, you confirm:</p>
+        <ul class="legal-rules">
+            <li data-i18n="legal.rule1">I only download content I own, I am licensed for, or that is explicitly free to reuse.</li>
+            <li data-i18n="legal.rule2">I respect the source platform's terms of service.</li>
+            <li data-i18n="legal.rule3">I understand the tool is provided as is, with no liability for misuse.</li>
+        </ul>
+        <div class="onboarding-footer" style="justify-content:flex-end">
+            <button class="btn-sm btn-sm-primary" onclick="acknowledgeLegal()" data-i18n="legal.acknowledge">Got it</button>
+        </div>
+    </div>
+</div>
+
 <script src="./vendor/qr-code-styling.js"></script>
 <script type="module" src="./vendor/pdfjs-loader.mjs"></script>
 <script src="./renderer.js"></script>
