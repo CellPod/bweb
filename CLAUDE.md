@@ -73,6 +73,14 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   `.view` (not inside one) so it can stay visible across all three. `switchTab()` shows/hides
   it and syncs its active pill via the `HOME_TABS` array, the same pattern `TOOL_TABS` uses
   for the Tools hub. Clicking the sidebar logo/app-name also calls `switchTab('download')`.
+- **Never hand-draw or AI-generate an SVG icon for this app, full stop (rule set 2026-09-18,
+  immutable).** Every icon in the sprite at the top of `index.html` must come from the real
+  Iconoir set (iconoir.com / github.com/iconoir-icons/iconoir, MIT), fetched and copied
+  verbatim, never invented. Two icons broke this before the rule existed and were swapped for
+  the genuine Iconoir path once caught: `ic-grid` (was a hand-drawn square-with-cross-lines,
+  now Iconoir's real `dots-grid-3x3`) and the original `.tool-back-link` arrow (was a hand-
+  drawn arrow-with-shaft, now Iconoir's real `nav-arrow-left` chevron, see the bullet above).
+  If the exact icon needed doesn't exist in Iconoir, say so and ask, don't approximate one.
 - **Don't assume a shared CSS class is safe to reuse across tabs without checking its
   assumptions fit the new context.** `.convert-container`'s `margin: 0 auto` centering
   is right for Convert/Compress's centered empty-drop-zone hero state, but wrong for a

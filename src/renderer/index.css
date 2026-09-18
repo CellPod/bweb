@@ -141,21 +141,21 @@
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg:           oklch(0.28 0.010 258);
-        --card:         oklch(0.34 0.010 258);
-        --card-bg:      oklch(0.34 0.010 258);
-        --card-border:  oklch(0.46 0.012 258);
-        --surface:      oklch(0.34 0.010 258);
-        --surface-2:    oklch(0.38 0.010 258);
-        --surface-3:    oklch(0.42 0.010 258);
-        --border:       oklch(0.46 0.012 258);
-        --input-bg:     oklch(0.34 0.010 258);
-        --input-border: oklch(0.61 0.014 258);
-        --sidebar-bg:   oklch(0.24 0.009 258);
+        --bg:           oklch(0.257 0.004 286);
+        --card:         oklch(0.286 0.005 286);
+        --card-bg:      oklch(0.286 0.005 286);
+        --card-border:  oklch(0.53 0.008 286);
+        --surface:      oklch(0.286 0.005 286);
+        --surface-2:    oklch(0.34 0.006 286);
+        --surface-3:    oklch(0.38 0.006 286);
+        --border:       oklch(0.53 0.008 286);
+        --input-bg:     oklch(0.286 0.005 286);
+        --input-border: oklch(0.56 0.008 286);
+        --sidebar-bg:   oklch(0.227 0.004 286);
 
-        --text:   oklch(0.97 0.003 258);
-        --text-2: oklch(0.82 0.006 258);
-        --text-3: oklch(0.68 0.008 258);
+        --text:   oklch(0.97 0.003 286);
+        --text-2: oklch(0.82 0.006 286);
+        --text-3: oklch(0.68 0.008 286);
 
         --accent:       oklch(0.72 0.19 55);
         --accent-hover: oklch(0.78 0.17 55);
@@ -189,21 +189,21 @@
 }
 
 :root[data-theme="dark"] {
-    --bg:           oklch(0.28 0.010 258);
-    --card:         oklch(0.34 0.010 258);
-    --card-bg:      oklch(0.34 0.010 258);
-    --card-border:  oklch(0.46 0.012 258);
-    --surface:      oklch(0.34 0.010 258);
-    --surface-2:    oklch(0.38 0.010 258);
-    --surface-3:    oklch(0.42 0.010 258);
-    --border:       oklch(0.46 0.012 258);
-    --input-bg:     oklch(0.34 0.010 258);
-    --input-border: oklch(0.61 0.014 258);
-    --sidebar-bg:   oklch(0.24 0.009 258);
+    --bg:           oklch(0.257 0.004 286);
+    --card:         oklch(0.286 0.005 286);
+    --card-bg:      oklch(0.286 0.005 286);
+    --card-border:  oklch(0.53 0.008 286);
+    --surface:      oklch(0.286 0.005 286);
+    --surface-2:    oklch(0.34 0.006 286);
+    --surface-3:    oklch(0.38 0.006 286);
+    --border:       oklch(0.53 0.008 286);
+    --input-bg:     oklch(0.286 0.005 286);
+    --input-border: oklch(0.56 0.008 286);
+    --sidebar-bg:   oklch(0.227 0.004 286);
 
-    --text:   oklch(0.97 0.003 258);
-    --text-2: oklch(0.82 0.006 258);
-    --text-3: oklch(0.68 0.008 258);
+    --text:   oklch(0.97 0.003 286);
+    --text-2: oklch(0.82 0.006 286);
+    --text-3: oklch(0.68 0.008 286);
 
     --accent:       oklch(0.72 0.19 55);
     --accent-hover: oklch(0.78 0.17 55);
@@ -515,12 +515,24 @@ html.platform-mac .update-banner {
 .content-top-tabs {
     display: none;
     justify-content: center;
-    gap: 4px;
     max-width: 860px;
     width: 100%;
     margin: 0 auto;
     padding: 16px 28px 0;
     flex-shrink: 0;
+}
+
+/* One shared frame around all three segments, same visual language as .dl-mode-tabs's
+   Single video/Batch toggle just below it in the hero. Without this frame, only the active
+   segment had a visible edge, so two equal gaps (Fetch-Queue, Queue-History) read as unequal:
+   the eye measured text-to-text past the transparent inactive tabs instead of edge-to-edge. */
+.content-top-tabs-frame {
+    display: flex;
+    gap: 2px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
 }
 
 .content-top-tab {
@@ -529,8 +541,10 @@ html.platform-mac .update-banner {
     gap: 6px;
     padding: 7px 16px;
     border: none;
-    border-radius: 8px;
-    background: transparent;
+    border-radius: 7px;
+    /* Barely-there fill, not transparent: every segment keeps a real edge to measure
+       gaps against, active or not (see the frame comment above). */
+    background: oklch(1 0 0 / 0.03);
     color: var(--text-2);
     font-family: var(--font);
     font-size: 13px;
@@ -545,9 +559,10 @@ html.platform-mac .update-banner {
 }
 
 .content-top-tab.active {
-    background: var(--accent-soft);
+    background: var(--bg);
     color: var(--accent);
     font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10);
 }
 
 /* View header — page title area */
@@ -1251,6 +1266,13 @@ html.platform-mac .update-banner {
     padding: 40px 20px;
     min-height: 52vh;
     color: var(--text-3);
+}
+
+/* Retired: this text duplicated the Home hero above it (see index.html). The element stays
+   in the DOM because renderer.js still toggles its style.display through the fetch/clear/
+   error flow; this keeps it hidden regardless of what that inline style is set to. */
+#emptyState {
+    display: none !important;
 }
 
 .empty-state .icon {
@@ -2775,26 +2797,26 @@ html.platform-mac .update-banner {
 
 /* Persistent destination indicator — lets a "project" session change where downloads
    land without going through Settings, while a one-off download just keeps the default. */
+/* Lines up with .url-bar right above it (same max-width, same auto-centered box) so its
+   left edge matches the input's left edge instead of sitting centered on its own. */
 .dl-destination {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--space-1);
+    max-width: 640px;
+    margin: 0 auto var(--space-4);
     font-size: var(--fs-xs);
     color: var(--text-3);
-    margin-bottom: var(--space-4);
     -webkit-app-region: no-drag;
 }
 
-/* Home hero: small brand mark + one-line pitch, replacing the old left-aligned page title.
-   The top tabs (Fetch/Queue/History) now carry the "where am I" job the title used to. */
+/* Home hero: small brand mark, replacing the old left-aligned page title. The top tabs
+   (Fetch/Queue/History) now carry the "where am I" job the title used to. */
 .dl-hero {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
-    margin: 12px 0 26px;
+    justify-content: center;
+    margin: 20px 0 18px;
 }
 
 .dl-hero-logo {
@@ -2803,11 +2825,15 @@ html.platform-mac .update-banner {
     border-radius: 9px;
 }
 
+/* Sits below the destination line rather than under the logo, so it reads as a closing
+   line ("here's what this supports") instead of repeating the URL bar's own placeholder. */
 .dl-hero-tagline {
     max-width: 480px;
+    margin: 0 auto;
     font-size: var(--fs-sm);
     color: var(--text-3);
     line-height: 1.5;
+    text-align: center;
 }
 
 .dl-destination-path {
