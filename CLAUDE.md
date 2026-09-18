@@ -53,10 +53,15 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
 
 ## Architecture rules
 
-- Every new tool is a new top-level sidebar tab (never folded into an existing tab like
-  Convert). Small related tools get grouped as sub-tabs *within* one tab (e.g. Watermark/
-  Redact under "Privacy") to avoid sidebar clutter — this has been explicitly re-decided
-  more than once, don't propose "just extend Convert" again.
+- **Local file tools live in the Tools catalog hub, not as individual sidebar rows** (as of
+  2026-09-18, see `HISTORY.md` for the OmniGet-driven redesign). Sidebar has one "Tools" row
+  (`#tab-tools` in `index.html`, `.tools-grid`/`.tool-tile` in `index.css`); each tool is a
+  tile that calls `switchTab(<tool>)`. A new tool means a new tile in that grid plus a new
+  `--tool-<name>`/`--tool-<name>-soft` color pair in `index.css`, never a new top-level
+  sidebar row. `switchTab()` in `renderer.js` keeps the sidebar's "Tools" row highlighted
+  while any tool tab is open via the `TOOL_TABS` array, don't forget to add a new tool's
+  tabId there too. Small related tools still get grouped as sub-tabs *within* one tool
+  (e.g. Watermark/Redact under "Privacy") to avoid tile-grid clutter.
 - **Don't assume a shared CSS class is safe to reuse across tabs without checking its
   assumptions fit the new context.** `.convert-container`'s `margin: 0 auto` centering
   is right for Convert/Compress's centered empty-drop-zone hero state, but wrong for a

@@ -16,6 +16,7 @@ const TRANSLATIONS = {
         'nav.privacy':   'Privacy',
         'nav.qrcode':    'QR Code',
         'nav.bgremove':  'Background Remover',
+        'nav.tools':     'Tools',
         'nav.settings':  'Settings',
         'nav.about':     'About',
 
@@ -40,6 +41,10 @@ const TRANSLATIONS = {
         'qrcode.exporting':      'Exporting…',
         'qrcode.done':           'Done ✓',
         'qrcode.error':          'Export failed',
+
+        // Tools hub view
+        'tools.title':             'Tools',
+        'tools.subtitle':          'Local file tools, pick one to get started',
 
         // Background Remover view
         'bgremove.title':          'Background Remover',
@@ -133,7 +138,7 @@ const TRANSLATIONS = {
 
         // Convert view
         'convert.title':         'Convert',
-        'convert.subtitle':      'Convert local audio & video files — any format to any format, right on your computer',
+        'convert.subtitle':      'Convert local audio & video files, any format to any format, right on your computer',
         'convert.dest.label':    'Saving to',
         'convert.dest.autoopen': 'Open folder after converting',
         'convert.drop.title':    'Drop one or more media files, or click to browse',
@@ -373,6 +378,7 @@ const TRANSLATIONS = {
         'nav.privacy':   'Confidentialité',
         'nav.qrcode':    'QR Code',
         'nav.bgremove':  'Retrait de fond',
+        'nav.tools':     'Outils',
         'nav.settings':  'Paramètres',
         'nav.about':     'À propos',
 
@@ -397,6 +403,10 @@ const TRANSLATIONS = {
         'qrcode.exporting':      'Export en cours…',
         'qrcode.done':           'Terminé ✓',
         'qrcode.error':          'Échec de l\'export',
+
+        // Tools hub view
+        'tools.title':             'Outils',
+        'tools.subtitle':          'Outils locaux sur tes fichiers, choisis-en un pour commencer',
 
         // Background Remover view
         'bgremove.title':          'Retrait de fond',
@@ -490,7 +500,7 @@ const TRANSLATIONS = {
 
         // Convert view
         'convert.title':         'Convertir',
-        'convert.subtitle':      'Convertir des fichiers audio & vidéo locaux — de n\'importe quel format à n\'importe quel format, sur votre ordinateur',
+        'convert.subtitle':      'Convertir des fichiers audio & vidéo locaux, de n\'importe quel format à n\'importe quel format, sur votre ordinateur',
         'convert.dest.label':    'Enregistrer dans',
         'convert.dest.autoopen': 'Ouvrir le dossier après conversion',
         'convert.drop.title':    'Déposer un ou plusieurs fichiers, ou cliquer pour parcourir',

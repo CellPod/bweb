@@ -69,6 +69,18 @@
     --warning:      oklch(0.62 0.17 60);
     --warning-soft: oklch(0.62 0.17 60 / 0.10);
 
+    /* Tools hub: one hue per tool, used on the catalog tile icons only */
+    --tool-convert:       oklch(0.60 0.17 255);
+    --tool-convert-soft:  oklch(0.60 0.17 255 / 0.10);
+    --tool-compress:      oklch(0.58 0.13 175);
+    --tool-compress-soft: oklch(0.58 0.13 175 / 0.10);
+    --tool-privacy:       oklch(0.58 0.18 295);
+    --tool-privacy-soft:  oklch(0.58 0.18 295 / 0.10);
+    --tool-qrcode:        oklch(0.58 0.15 200);
+    --tool-qrcode-soft:   oklch(0.58 0.15 200 / 0.10);
+    --tool-bgremove:      oklch(0.62 0.18 335);
+    --tool-bgremove-soft: oklch(0.62 0.18 335 / 0.10);
+
     /* Log panel — always dark */
     --log-bg:        oklch(0.14 0.018 40);
     --log-text:      oklch(0.62 0.015 40);
@@ -154,6 +166,17 @@
         --warning:      oklch(0.74 0.17 68);
         --warning-soft: oklch(0.74 0.17 68 / 0.13);
 
+        --tool-convert:       oklch(0.70 0.16 255);
+        --tool-convert-soft:  oklch(0.70 0.16 255 / 0.16);
+        --tool-compress:      oklch(0.68 0.12 175);
+        --tool-compress-soft: oklch(0.68 0.12 175 / 0.16);
+        --tool-privacy:       oklch(0.68 0.17 295);
+        --tool-privacy-soft:  oklch(0.68 0.17 295 / 0.16);
+        --tool-qrcode:        oklch(0.68 0.14 200);
+        --tool-qrcode-soft:   oklch(0.68 0.14 200 / 0.16);
+        --tool-bgremove:      oklch(0.72 0.17 335);
+        --tool-bgremove-soft: oklch(0.72 0.17 335 / 0.16);
+
         --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.30);
         --shadow:    0 2px 10px oklch(0 0 0 / 0.40);
 
@@ -188,6 +211,17 @@
     --success-soft: oklch(0.70 0.18 145 / 0.13);
     --warning:      oklch(0.74 0.17 68);
     --warning-soft: oklch(0.74 0.17 68 / 0.13);
+
+    --tool-convert:       oklch(0.70 0.16 255);
+    --tool-convert-soft:  oklch(0.70 0.16 255 / 0.16);
+    --tool-compress:      oklch(0.68 0.12 175);
+    --tool-compress-soft: oklch(0.68 0.12 175 / 0.16);
+    --tool-privacy:       oklch(0.68 0.17 295);
+    --tool-privacy-soft:  oklch(0.68 0.17 295 / 0.16);
+    --tool-qrcode:        oklch(0.68 0.14 200);
+    --tool-qrcode-soft:   oklch(0.68 0.14 200 / 0.16);
+    --tool-bgremove:      oklch(0.72 0.17 335);
+    --tool-bgremove-soft: oklch(0.72 0.17 335 / 0.16);
 
     --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.30);
     --shadow:    0 2px 10px oklch(0 0 0 / 0.40);
@@ -695,6 +729,70 @@ html.platform-mac .update-banner {
     color: var(--text-3);
     margin: 5px 0 0;
     font-weight: 400;
+}
+
+/* Tools hub: catalog grid of tool tiles */
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.tool-tile {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.12s, transform 0.12s, box-shadow 0.12s;
+}
+
+.tool-tile:hover {
+    border-color: var(--tool-color, var(--accent));
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.tool-tile-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--tool-soft, var(--accent-soft));
+    color: var(--tool-color, var(--accent));
+}
+
+.tool-tile[data-tool="convert"]   { --tool-color: var(--tool-convert);   --tool-soft: var(--tool-convert-soft); }
+.tool-tile[data-tool="compress"]  { --tool-color: var(--tool-compress);  --tool-soft: var(--tool-compress-soft); }
+.tool-tile[data-tool="privacy"]   { --tool-color: var(--tool-privacy);   --tool-soft: var(--tool-privacy-soft); }
+.tool-tile[data-tool="qrcode"]    { --tool-color: var(--tool-qrcode);    --tool-soft: var(--tool-qrcode-soft); }
+.tool-tile[data-tool="bgremove"]  { --tool-color: var(--tool-bgremove);  --tool-soft: var(--tool-bgremove-soft); }
+
+.tool-tile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.tool-tile-title {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tool-tile-desc {
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    line-height: 1.4;
 }
 
 /* Buttons */

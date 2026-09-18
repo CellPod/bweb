@@ -90,6 +90,9 @@
   <symbol id="ic-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 21L13 11M18 6L15.5 8.5"/><path d="M9.5 2L10.4453 4.55468L13 5.5L10.4453 6.44532L9.5 9L8.55468 6.44532L6 5.5L8.55468 4.55468L9.5 2Z"/><path d="M19 10L19.5402 11.4598L21 12L19.5402 12.5402L19 14L18.4598 12.5402L17 12L18.4598 11.4598L19 10Z"/>
   </symbol>
+  <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.6 3H20.4C20.7314 3 21 3.26863 21 3.6V20.4C21 20.7314 20.7314 21 20.4 21H3.6C3.26863 21 3 20.7314 3 20.4V3.6C3 3.26863 3.26863 3 3.6 3Z"/><path d="M3 12H21"/><path d="M12 3V21"/>
+  </symbol>
 </svg>
 
 <div class="app-shell">
@@ -136,25 +139,9 @@
                         </div>
                     </div>
                 </div>
-                <button class="nav-item" data-tab="convert" onclick="switchTab('convert')">
-                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-scissors"/></svg>
-                    <span class="nav-label" data-i18n="nav.convert">Convert</span>
-                </button>
-                <button class="nav-item" data-tab="compress" onclick="switchTab('compress')">
-                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-compress"/></svg>
-                    <span class="nav-label" data-i18n="nav.compress">Compress</span>
-                </button>
-                <button class="nav-item" data-tab="privacy" onclick="switchTab('privacy')">
-                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-shield"/></svg>
-                    <span class="nav-label" data-i18n="nav.privacy">Privacy</span>
-                </button>
-                <button class="nav-item" data-tab="qrcode" onclick="switchTab('qrcode')">
-                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-qrcode"/></svg>
-                    <span class="nav-label" data-i18n="nav.qrcode">QR Code</span>
-                </button>
-                <button class="nav-item" data-tab="bgremove" onclick="switchTab('bgremove')">
-                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-wand"/></svg>
-                    <span class="nav-label" data-i18n="nav.bgremove">Background Remover</span>
+                <button class="nav-item" data-tab="tools" onclick="switchTab('tools')">
+                    <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-grid"/></svg>
+                    <span class="nav-label" data-i18n="nav.tools">Tools</span>
                 </button>
             </div>
 
@@ -379,7 +366,6 @@
             <div id="tab-queue" class="view">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="queue.title">Queue</h1>
-                    <p class="view-subtitle" data-i18n="queue.subtitle">Everything you've added to download — start, pause, and track progress here</p>
                 </div>
                 <div id="queueToolbar" class="queue-toolbar" style="display: none">
                     <div class="queue-toolbar-info">
@@ -408,7 +394,6 @@
             <div id="tab-history" class="view">
                 <div class="view-header">
                     <h1 class="view-title" data-i18n="history.title">History</h1>
-                    <p class="view-subtitle" data-i18n="history.subtitle">Everything you've fetched before — find it again or download it once more</p>
                 </div>
                 <div id="historyToolbar" class="history-toolbar" style="display: none">
                     <span id="historyCountLabel" class="count"></span>
@@ -424,12 +409,58 @@
                 </div>
             </div>
 
+            <!-- Tools hub view -->
+            <div id="tab-tools" class="view">
+                <div class="view-header">
+                    <div class="view-header-text">
+                        <h1 class="view-title" data-i18n="tools.title">Tools</h1>
+                        <p class="view-subtitle" data-i18n="tools.subtitle">Local file tools, pick one to get started</p>
+                    </div>
+                </div>
+                <div class="tools-grid">
+                    <button class="tool-tile" data-tool="convert" onclick="switchTab('convert')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-scissors"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.convert">Convert</span>
+                            <span class="tool-tile-desc" data-i18n="convert.subtitle">Convert local audio &amp; video files, any format to any format, right on your computer</span>
+                        </span>
+                    </button>
+                    <button class="tool-tile" data-tool="compress" onclick="switchTab('compress')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-compress"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.compress">Compress</span>
+                            <span class="tool-tile-desc" data-i18n="compress.subtitle">Reduce the file size of an image or PDF, right on your computer</span>
+                        </span>
+                    </button>
+                    <button class="tool-tile" data-tool="privacy" onclick="switchTab('privacy')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-shield"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.privacy">Privacy</span>
+                            <span class="tool-tile-desc" data-i18n="privacy.subtitle">Watermark or redact a file, right on your computer</span>
+                        </span>
+                    </button>
+                    <button class="tool-tile" data-tool="qrcode" onclick="switchTab('qrcode')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-qrcode"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.qrcode">QR Code</span>
+                            <span class="tool-tile-desc" data-i18n="qrcode.subtitle">Generate a customizable QR code from a link or text</span>
+                        </span>
+                    </button>
+                    <button class="tool-tile" data-tool="bgremove" onclick="switchTab('bgremove')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-wand"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.bgremove">Background Remover</span>
+                            <span class="tool-tile-desc" data-i18n="bgremove.subtitle">Cut a subject out of an image, right on your computer</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Convert view -->
             <div id="tab-convert" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
                         <h1 class="view-title" data-i18n="convert.title">Convert</h1>
-                        <p class="view-subtitle" data-i18n="convert.subtitle">Convert local audio &amp; video files — any format to any format, right on your computer</p>
                     </div>
                     <div class="view-header-actions">
                         <button class="dest-popover-trigger" id="convertDestTrigger" onclick="toggleDestPopover('convert')" aria-label="Save location">
@@ -711,7 +742,6 @@
                 <div class="view-header">
                     <div class="view-header-text">
                         <h1 class="view-title" data-i18n="compress.title">Compress</h1>
-                        <p class="view-subtitle" data-i18n="compress.subtitle">Reduce the file size of an image or PDF, right on your computer</p>
                     </div>
                     <div class="view-header-actions">
                         <button class="dest-popover-trigger" id="compressDestTrigger" onclick="toggleDestPopover('compress')" aria-label="Save location">
@@ -808,7 +838,6 @@
                 <div class="view-header">
                     <div class="view-header-text">
                         <h1 class="view-title" data-i18n="privacy.title">Privacy</h1>
-                        <p class="view-subtitle" data-i18n="privacy.subtitle">Watermark or redact a file, right on your computer</p>
                     </div>
                     <div class="view-header-actions">
                         <!-- Watermark and Redact are mutually exclusive sub-views (see setPrivacyMode) so
@@ -1044,7 +1073,6 @@
                 <div class="view-header">
                     <div class="view-header-text">
                         <h1 class="view-title" data-i18n="qrcode.title">QR Code</h1>
-                        <p class="view-subtitle" data-i18n="qrcode.subtitle">Generate a customizable QR code from a link or text</p>
                     </div>
                     <div class="view-header-actions">
                         <button class="dest-popover-trigger" id="qrDestTrigger" onclick="toggleDestPopover('qr')" aria-label="Save location">
@@ -1147,7 +1175,6 @@
                 <div class="view-header">
                     <div class="view-header-text">
                         <h1 class="view-title" data-i18n="bgremove.title">Background Remover</h1>
-                        <p class="view-subtitle" data-i18n="bgremove.subtitle">Cut a subject out of an image, right on your computer</p>
                     </div>
                     <div class="view-header-actions">
                         <button class="dest-popover-trigger" id="bgremoveDestTrigger" onclick="toggleDestPopover('bgremove')" aria-label="Save location">

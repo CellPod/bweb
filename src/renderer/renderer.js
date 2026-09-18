@@ -231,6 +231,12 @@ const $qCancelAllBtn = $('qCancelAllBtn');
 
 const DOWNLOAD_GROUP_TABS = ['download', 'queue', 'history'];
 
+// Convert/Compress/Privacy/QR/BgRemove no longer have their own sidebar row, they're reached
+// through the Tools catalog tile grid. The sidebar still needs to show "you are somewhere in
+// Tools" while any of them is open, so switchTab() highlights the "tools" nav-item instead of
+// looking for a nav-item matching the real tabId (which no longer exists for these five).
+const TOOL_TABS = ['tools', 'convert', 'compress', 'privacy', 'qrcode', 'bgremove'];
+
 // Destination popover — shared by every processing tool's "Saving to" + "Open folder after
 // X" panel. Only one open at a time; clicking outside (or re-clicking the same trigger)
 // closes it.
@@ -292,9 +298,10 @@ let downloadGroupCollapsed = false;
 
 function switchTab(tabId) {
     const previousTab = document.querySelector('.nav-item.active')?.dataset.tab;
+    const navActiveId = TOOL_TABS.includes(tabId) ? 'tools' : tabId;
 
     document.querySelectorAll('.nav-item').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.tab === tabId);
+        btn.classList.toggle('active', btn.dataset.tab === navActiveId);
     });
     document.querySelectorAll('.view').forEach((panel) => {
         panel.classList.toggle('active', panel.id === 'tab-' + tabId);
