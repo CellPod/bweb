@@ -124,7 +124,7 @@ async function wizardChooseFolder() {
         const newPath = await window.api.chooseDownloadPath();
         $('onboardingFolderPath').textContent = newPath;
         $('settingsPath').textContent = newPath;
-        $('dlDestPath').textContent = newPath;
+        setDlDestPath(newPath);
         addLog('Download folder changed: ' + newPath, 'success');
     } catch (e) {
         addLog('Failed to change folder: ' + e.message, 'error');
@@ -182,6 +182,11 @@ let updateInfo = null;
 
 const $ = (id) => document.getElementById(id);
 
+// Shown in both Single and Batch mode, so it's a class (two DOM nodes), not an id.
+function setDlDestPath(path) {
+    document.querySelectorAll('.dl-destination-path').forEach((el) => { el.textContent = path; });
+}
+
 const $url = $('urlInput');
 const $fetchBtn = $('fetchBtn');
 const $clearBtn = $('clearBtn');
@@ -198,7 +203,6 @@ const $vMeta = $('vMeta');
 const $vidFmts = $('videoFormats');
 const $audFmts = $('audioFormats');
 const $dlBtn = $('dlBtn');
-const $logBody = $('logBody');
 const $toastContainer = $('toastContainer');
 
 // Fetch panel
@@ -324,29 +328,10 @@ function switchTab(tabId) {
     if (tabId === 'bgremove') initBgRemoveTab();
 }
 
+// No visible panel for this anymore (removed 2026-09-18, see HISTORY.md): kept as a
+// devtools-only trace instead of touching its ~100 call sites across the fetch/queue flow.
 function addLog(msg, type = '') {
-    const now = new Date();
-    const time = now.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    });
-
-    const line = document.createElement('div');
-    line.className = 'log-line' + (type ? ' ' + type : '');
-    line.innerHTML = `<span class="log-time">${time}</span>${escapeHtml(msg)}`;
-    $logBody.appendChild(line);
-    $logBody.scrollTop = $logBody.scrollHeight;
-
-    while ($logBody.children.length > 200) {
-        $logBody.removeChild($logBody.firstChild);
-    }
-}
-
-function clearLog() {
-    $logBody.innerHTML = '';
-    addLog('Log cleared');
+    console.debug(`[bWeb]${type ? ' ' + type : ''} ${msg}`);
 }
 
 function showToast(msg, type = '') {
@@ -2122,7 +2107,7 @@ async function doChooseFolder() {
     try {
         const newPath = await window.api.chooseDownloadPath();
         $('settingsPath').textContent = newPath;
-        $('dlDestPath').textContent = newPath;
+        setDlDestPath(newPath);
         addLog('Download folder changed: ' + newPath, 'success');
     } catch (e) {
         addLog('Failed to change folder: ' + e.message, 'error');
@@ -2297,7 +2282,7 @@ async function loadSettings() {
     try {
         const dlPath = await window.api.getDownloadPath();
         $('settingsPath').textContent = dlPath || '-';
-        $('dlDestPath').textContent = dlPath || '-';
+        setDlDestPath(dlPath || '-');
     } catch {}
 
     try {
@@ -2610,7 +2595,7 @@ async function init() {
 
     try {
         const dlPath = await window.api.getDownloadPath();
-        $('dlDestPath').textContent = dlPath || '-';
+        setDlDestPath(dlPath || '-');
     } catch {}
 
     try {
@@ -2707,60 +2692,6 @@ function selectConvertFormat(value) {
     if (lossyWarn) lossyWarn.style.display = ['flac', 'wav'].includes(value) ? 'block' : 'none';
     const mezzanineWarn = document.getElementById('convertMezzanineWarn');
     if (mezzanineWarn) mezzanineWarn.style.display = value === 'dnxhr' ? 'block' : 'none';
-}
-
-let _logOpenHeight = 180;
-
-function toggleLog() {
-    const panel = document.getElementById('logPanel');
-    if (!panel) return;
-    if (panel.classList.contains('open')) {
-        _logOpenHeight = Math.max(60, panel.offsetHeight);
-        panel.style.height = '34px';
-        panel.classList.remove('open');
-    } else {
-        panel.style.height = _logOpenHeight + 'px';
-        panel.classList.add('open');
-    }
-}
-
-function initLogResize() {
-    const handle = document.getElementById('logResizeHandle');
-    const panel = document.getElementById('logPanel');
-    if (!handle || !panel) return;
-
-    let active = false;
-    let startY = 0;
-    let startH = 0;
-
-    handle.addEventListener('mousedown', (e) => {
-        active = true;
-        startY = e.clientY;
-        startH = panel.offsetHeight;
-        document.body.style.cursor = 'ns-resize';
-        document.body.style.userSelect = 'none';
-        panel.style.transition = 'none';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!active) return;
-        const delta = startY - e.clientY;
-        // Capped at 40% (was 60%) — at 60% the panel could squeeze the download
-        // buttons out of view on smaller windows.
-        const newH = Math.max(34, Math.min(window.innerHeight * 0.4, startH + delta));
-        panel.style.height = newH + 'px';
-        if (newH > 34) panel.classList.add('open');
-        else panel.classList.remove('open');
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (!active) return;
-        active = false;
-        panel.style.transition = '';
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    });
 }
 
 function initSidebarResize() {
@@ -5224,5 +5155,4 @@ async function doBgRemoveExport() {
 initLang();
 initTheme();
 initSidebarResize();
-initLogResize();
 init();

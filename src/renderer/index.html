@@ -109,15 +109,43 @@
     <div id="updateBanner" class="update-banner"></div>
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Single full-width chrome bar: clears the macOS traffic lights, carries the app
+         brand and the Home top tabs. Sits above the sidebar (not just above the content
+         card), see HISTORY.md 2026-09-18 for the OmniGet-driven restructure. -->
+    <div class="app-titlebar">
+        <button class="titlebar-brand" onclick="switchTab('download')" aria-label="Home">
+            <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
+            <span class="sidebar-app-name">bWeb</span>
+        </button>
+
+        <!-- Home top tabs: Fetch/Queue/History, shown only while one of those three views
+             is active (see switchTab() in renderer.js) -->
+        <div id="homeTopTabs" class="content-top-tabs" style="display:flex">
+            <div class="content-top-tabs-frame">
+                <button class="content-top-tab active" data-tab="download" onclick="switchTab('download')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-download"/></svg>
+                    <span data-i18n="nav.fetch">Fetch</span>
+                </button>
+                <button class="content-top-tab" data-tab="queue" onclick="switchTab('queue')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-list"/></svg>
+                    <span data-i18n="nav.queue">Queue</span>
+                    <span id="queueCount" class="nav-badge" style="display:none">0</span>
+                    <span id="queueActivityDot" class="nav-activity-dot" style="display:none"></span>
+                </button>
+                <button class="content-top-tab" data-tab="history" onclick="switchTab('history')">
+                    <svg class="icon-svg" width="14" height="14"><use href="#ic-clock"/></svg>
+                    <span data-i18n="nav.history">History</span>
+                    <span id="historyCount" class="nav-badge" style="display:none">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-body">
 
         <!-- Sidebar navigation -->
         <nav class="sidebar">
             <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
-            <button class="sidebar-header" onclick="switchTab('download')" aria-label="Home">
-                <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
-                <span class="sidebar-app-name">bWeb</span>
-            </button>
 
             <div class="sidebar-nav">
                 <button class="nav-item active" data-tab="download" onclick="switchTab('download')">
@@ -144,28 +172,6 @@
 
         <!-- Content area -->
         <div class="content-area">
-
-            <!-- Home top tabs: Fetch/Queue/History, shown above the content only while one
-                 of those three views is active (see switchTab() in renderer.js) -->
-            <div id="homeTopTabs" class="content-top-tabs" style="display:flex">
-                <div class="content-top-tabs-frame">
-                    <button class="content-top-tab active" data-tab="download" onclick="switchTab('download')">
-                        <svg class="icon-svg" width="14" height="14"><use href="#ic-download"/></svg>
-                        <span data-i18n="nav.fetch">Fetch</span>
-                    </button>
-                    <button class="content-top-tab" data-tab="queue" onclick="switchTab('queue')">
-                        <svg class="icon-svg" width="14" height="14"><use href="#ic-list"/></svg>
-                        <span data-i18n="nav.queue">Queue</span>
-                        <span id="queueCount" class="nav-badge" style="display:none">0</span>
-                        <span id="queueActivityDot" class="nav-activity-dot" style="display:none"></span>
-                    </button>
-                    <button class="content-top-tab" data-tab="history" onclick="switchTab('history')">
-                        <svg class="icon-svg" width="14" height="14"><use href="#ic-clock"/></svg>
-                        <span data-i18n="nav.history">History</span>
-                        <span id="historyCount" class="nav-badge" style="display:none">0</span>
-                    </button>
-                </div>
-            </div>
 
             <!-- Download view -->
             <div id="tab-download" class="view active">
@@ -198,7 +204,7 @@
                 <div class="dl-destination">
                     <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
                     <span data-i18n="dl.dest.label">Saving to:</span>
-                    <span id="dlDestPath" class="dl-destination-path">—</span>
+                    <span class="dl-destination-path">—</span>
                     <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseFolder()">Change</button>
                 </div>
 
@@ -350,6 +356,14 @@
                 <div id="dlModeBatch" style="display:none">
                     <div class="batch-body">
                         <textarea id="batchUrls" class="batch-textarea" placeholder="Paste URLs here, one per line…&#10;https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=..." oninput="onBatchUrlsInput()" spellcheck="false"></textarea>
+
+                        <div class="dl-destination">
+                            <svg class="icon-svg" width="13" height="13"><use href="#ic-folder-open"/></svg>
+                            <span data-i18n="dl.dest.label">Saving to:</span>
+                            <span class="dl-destination-path">—</span>
+                            <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseFolder()">Change</button>
+                        </div>
+
                         <div class="batch-quality-label" data-i18n="dl.batch.quality">Quality</div>
                         <div class="batch-quality-row">
                             <button class="batch-q-btn" data-preset="best" data-i18n="dl.batch.best" onclick="selectBatchPreset('best')">Best</button>
@@ -1536,18 +1550,6 @@
         </div>
         <div class="ds-bar-bg"><div class="ds-bar" id="dsBar" style="width:0%"></div></div>
         <div class="ds-meta" id="dsMeta"></div>
-    </div>
-
-    <!-- Log Panel (resizable) -->
-    <div id="logPanel" class="log-panel">
-        <div class="log-resize-handle" id="logResizeHandle"></div>
-        <div class="log-header" onclick="toggleLog()">
-            <div class="log-header-title">Log</div>
-            <div class="log-header-actions">
-                <button onclick="event.stopPropagation(); clearLog()">Clear</button>
-            </div>
-        </div>
-        <div id="logBody" class="log-body"></div>
     </div>
 
 </div><!-- /app-shell -->

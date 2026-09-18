@@ -69,10 +69,28 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   even were two separate tools inside).
 - **Download/Queue/History share one "Home" sidebar row** (as of 2026-09-18), not three
   separate rows. Fetch is the centered Home hero (`.dl-hero` in `index.html`/`index.css`);
-  Queue and History are reached through `#homeTopTabs`, a segmented bar that's a sibling of
-  `.view` (not inside one) so it can stay visible across all three. `switchTab()` shows/hides
-  it and syncs its active pill via the `HOME_TABS` array, the same pattern `TOOL_TABS` uses
-  for the Tools hub. Clicking the sidebar logo/app-name also calls `switchTab('download')`.
+  Queue and History are reached through `#homeTopTabs`, a segmented bar living in
+  `.app-titlebar` (see the shell bullet below) so it can stay visible across all three.
+  `switchTab()` shows/hides it and syncs its active pill via the `HOME_TABS` array, the same
+  pattern `TOOL_TABS` uses for the Tools hub. Clicking the titlebar logo/app-name also calls
+  `switchTab('download')`.
+- **App shell is titlebar + sidebar + content card, in that nesting** (as of 2026-09-18, the
+  OmniGet-style "window within the window" restructure, see `HISTORY.md`). `.app-titlebar` is
+  one full-width bar above both the sidebar and the content, carrying the brand
+  (`.titlebar-brand`) and `#homeTopTabs`; it also owns the macOS traffic-light clearance
+  (`padding-left: 80px`, same convention as `.dep-banner`/`.update-banner`), not the sidebar.
+  `.sidebar` starts below it, not at the top of the window. `.content-area` is a visually
+  distinct card (`--card` background, border, `--radius-lg`, margin gutter on all 4 sides) over
+  `.app-body`'s `--sidebar-bg`, not a flush panel. Don't reintroduce a header row inside
+  `.sidebar` or `.content-area` (that's what caused two independent traffic-light-clearance
+  zones stacked instead of one, the original bug this restructure fixed). Any new chrome-level
+  element (brand, global tabs, future search/actions) belongs in `.app-titlebar`.
+- **`#tab-download` centers vertically, other views don't** (as of 2026-09-18). It's the only
+  `.view` with `justify-content: safe center` (`#tab-download.view.active` in `index.css`): the
+  `safe` keyword falls back to top alignment once fetched results make it taller than the
+  viewport, so a long result list still scrolls from the top instead of centering with its top
+  clipped. Don't add this to Queue/History/Tools/tool views, they're lists meant to start at
+  the top like OmniGet's own Downloads/History tabs.
 - **Never hand-draw or AI-generate an SVG icon for this app, full stop (rule set 2026-09-18,
   immutable).** Every icon in the sprite at the top of `index.html` must come from the real
   Iconoir set (iconoir.com / github.com/iconoir-icons/iconoir, MIT), fetched and copied
