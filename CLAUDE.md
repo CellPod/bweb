@@ -33,6 +33,20 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
 
 ## Testing discipline
 
+- **Verify alignment/centering claims with real geometry (`getBoundingClientRect`,
+  comparing midpoints/edges), not by eyeballing a screenshot.** Shipped a "centered" mode-
+  tabs row that was actually left-aligned (2026-09-18) despite taking and looking at
+  screenshots of it beforehand. The screenshot was accurate, the visual review wasn't
+  careful enough to catch a ~230px offset. A one-line `getBoundingClientRect()` comparison
+  catches this instantly and doesn't degrade with reviewer attention/fatigue the way "does
+  this look centered" does after several fixes in a row.
+- **A fixed pixel width on a shared component can silently overflow a narrower context it's
+  also used in, with no visible sign in a screenshot.** `.convert-btn`'s fixed `280px`
+  (2026-09-18) overflowed QR Code's ~196px sidebar column invisibly, because
+  `.content-area` has `overflow-x: hidden`, so the excess was clipped, not rendered as an
+  obvious glitch. Caught only by checking the button's actual rendered width against its
+  container's. Prefer `width: 100%; max-width: <n>px` over a bare fixed `width` on anything
+  reused across containers of different widths.
 - **Test UI changes at a realistic window size, not just the small dev-default window.**
   Several real bugs this project has hit (a circle frame becoming a squashed oval, content
   floating detached from its own title) were completely invisible at a small ~1200×800

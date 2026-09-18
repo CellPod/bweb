@@ -2712,7 +2712,7 @@ textarea::placeholder {
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 3px;
-    margin-bottom: 18px;
+    margin: 0 auto 18px;
     width: fit-content;
 }
 
@@ -3413,7 +3413,20 @@ textarea::placeholder {
     text-decoration: underline;
 }
 
-.convert-btn { margin-top: 4px; }
+/* Capped, compact width instead of .btn-download's default 100%, same recipe as the
+   approved Convert mockup: a full-bleed 600-980px bar read as one more oversized block on
+   an already "pâté" page, and OmniGet's own primary actions are small, sober buttons, not
+   full-width bars (2026-09-18). max-width + width:100% (not a fixed width) so it still
+   fits QR's narrower ~196px sidebar column instead of overflowing it: a fixed 280px here
+   quietly overflowed .qr-sidebar, invisible in a screenshot since .content-area clips
+   horizontal overflow, only caught by checking the button's actual rendered width. */
+.convert-btn {
+    margin: 4px auto 0;
+    width: 100%;
+    max-width: 280px;
+    padding: 11px;
+    font-size: 14px;
+}
 
 /* Shown once a Convert/Compress batch is fully finished (every item done/error, none
    pending) in place of the single primary action button — otherwise finishing just leaves
