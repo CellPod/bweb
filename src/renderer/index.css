@@ -348,17 +348,20 @@ html.platform-mac .update-banner {
        present in the flex flow. Without this it collapsed back toward the
        traffic lights on tabs where the top tabs are display:none. */
     margin-left: auto;
-    border: none;
+    /* Visible at rest, not just on hover, so it reads as a distinct control rather than
+       bare floating icon (user feedback, 2026-09-18). */
+    border: 1.5px solid var(--border);
     border-radius: 999px;
     background: transparent;
     color: var(--text-2);
     cursor: pointer;
-    transition: background-color 0.15s, color 0.15s, transform 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
     -webkit-app-region: no-drag;
 }
 
 .titlebar-theme-toggle:hover {
     background: var(--surface-2);
+    border-color: var(--accent);
     color: var(--text);
 }
 
@@ -514,7 +517,12 @@ html.platform-mac .update-banner {
 
 .sidebar-tools-flyout-item {
     display: flex;
-    align-items: center;
+    /* flex-start, not center: "Background Remover" wraps to 2 lines at the default
+       sidebar width, and centering the icon against a 2-line-tall row puts it between
+       the lines instead of level with the first one, reading as misaligned next to the
+       single-line rows above it (2026-09-18). flex-start keeps the icon level with the
+       first line regardless of how many the label wraps to. */
+    align-items: flex-start;
     gap: 9px;
     padding: 7px 11px 7px 30px;
     border: none;
@@ -3523,6 +3531,7 @@ textarea::placeholder {
    output folder if "Open folder after X" wasn't checked before the run. */
 .convert-done-actions {
     display: flex;
+    justify-content: center;
     gap: 10px;
     margin-top: 4px;
 }
@@ -3559,18 +3568,22 @@ textarea::placeholder {
 
 /* ── Convert player + trim ──────────────────────────────────────── */
 
-.convert-trim-toggle-wrap { display: flex; }
+/* justify-content: center, not left-default: this wrapper is full width (matches the
+   drop zone above it), but the "Trim (optional)" button inside is a small fit-content
+   element, so without this it sat flush left instead of centered like everything else on
+   the page (2026-09-18). Was declared twice (duplicate, harmless but redundant); merged
+   into one. */
+.convert-trim-toggle-wrap { display: flex; justify-content: center; }
 
-/* Disclosure buttons ("More formats", "Trim (optional)") — a solid secondary button with a
+/* Disclosure buttons ("More formats", "Trim (optional)"): a solid secondary button with a
    chevron that rotates open, not the dashed "add new item" style these used to borrow,
    which signaled the wrong affordance (create) for what's actually a reveal/expand action. */
 .convert-toggle-row {
     display: flex;
+    justify-content: center;
     gap: var(--space-2);
     margin-top: var(--space-2);
 }
-
-.convert-trim-toggle-wrap { display: flex; }
 
 .convert-toggle-btn {
     display: flex;
@@ -3943,6 +3956,7 @@ textarea::placeholder {
 .compress-target-wrap {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
     margin: var(--space-4) 0;
 }
@@ -3974,6 +3988,7 @@ textarea::placeholder {
 .watermark-input-row {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-2);
 }
 
@@ -3992,6 +4007,7 @@ textarea::placeholder {
 .watermark-size-row {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-3);
 }
 

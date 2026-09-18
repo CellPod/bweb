@@ -244,6 +244,23 @@ These have each cost real debugging time more than once in this codebase:
    which read as "everything is black" even though headings were legible. Fixed 2026-09-18 by
    computing actual contrast ratios (see `HISTORY.md`) instead of eyeballing oklch numbers,
    don't just nudge lightness values and hope.
+6. **A full-width flex wrapper around a small fit-content control needs its own
+   `justify-content: center`, it doesn't inherit centering from the page just for looking
+   like it should be centered.** Convert's "Trim (optional)" button, Watermark's size row
+   and text input row, Compress's target-size input all sat flush left inside wrappers that
+   were themselves full width and correctly positioned (2026-09-18). The wrapper being in
+   the right place says nothing about how its own children are justified. Same fix each
+   time: `justify-content: center` on the wrapper. When adding a new small control to a
+   tool page, check this specifically, it won't show up as "the container is misplaced."
+7. **`align-items: center` on a row centers a small icon against the row's full height,
+   not against its text's first line** — fine for single-line labels, wrong once the label
+   wraps to 2+ lines (the icon ends up between the lines, not level with the first one).
+   Hit on `.sidebar-tools-flyout-item` (2026-09-18): "Background Remover" is the one label
+   long enough to wrap at the sidebar's default width, so it was the one row that looked
+   subtly misaligned next to the five single-line ones, even though every row's icon sits
+   at the identical x-position. Confirmed with `getBoundingClientRect` before assuming it
+   was a horizontal bug. Fixed with `align-items: flex-start` instead, which keeps the
+   icon level with line one regardless of how many lines the label takes.
 
 ## Recurring build/release bugs to watch for
 
