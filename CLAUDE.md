@@ -102,10 +102,19 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   directly) so the spacer tracks a live resize drag; `.sidebar`'s own `width` reads from the
   same token, don't hardcode 186px again in either place. `.sidebar` starts below the
   titlebar, not at the top of the window. `.app-titlebar` is `46px` tall (trimmed down from
-  its original `56px` on 2026-09-18 to match the OmniGet reference more closely and shrink
-  the visible gap between the macOS traffic lights and the sidebar nav items sitting right
-  below the bar); `.content-top-tabs-frame`/`.content-top-tab` padding was trimmed to match.
-  `.content-area` is a visually distinct card
+  its original `56px` on 2026-09-18 to match the OmniGet reference more closely);
+  `.content-top-tabs-frame`/`.content-top-tab` padding was trimmed to match. That alone
+  didn't fix the gap the user kept flagging between the Fetch/Queue/History pill and the
+  sidebar nav below it: `.content-top-tabs-frame` is already correctly centered inside the
+  46px bar (6px above, 6px below, confirmed with `getBoundingClientRect()`), but `.sidebar`
+  used to add its own `padding-top: 10px` on top of that before its first nav item, on top
+  of `.sidebar-nav`'s own 4px padding, making the space below the pill (20px) about 3x the
+  space above it (6px) despite the pill itself being centered. Confirmed pixel-precise via
+  the user annotating the live app directly (`playwright-cli show --annotate`) rather than
+  another round of guessing from screenshots. Fixed by removing `.sidebar`'s own
+  `padding-top` entirely: `.sidebar-nav`'s existing 4px top padding is now the only inset,
+  bringing the gap down to 10px, close to the 6px above the pill. `.content-area` is a
+  visually distinct card
   (`--card` background, border, `--radius-lg`, margin gutter on all 4 sides) over
   `.app-body`'s `--sidebar-bg`, not a flush panel. Don't reintroduce a header row inside
   `.sidebar` or `.content-area` (that's what caused two independent traffic-light-clearance

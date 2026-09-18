@@ -376,7 +376,12 @@ html.platform-mac .update-banner {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    padding-top: 10px;
+    /* No padding-top of its own: .sidebar-nav's own 4px top padding is the only inset
+       between the titlebar and the first nav item. The old 10px here (sized for the
+       titlebar's previous 56px height) stacked on top of the titlebar's own 6px bottom
+       gap around the Fetch/Queue/History pill, making the space below the pill (20px)
+       nearly 3x the space above it (6px) even though the pill itself is centered inside
+       the titlebar. Confirmed by the user annotating the live app directly, 2026-09-18. */
     background: var(--sidebar-bg);
     overflow: hidden;
     position: relative;
