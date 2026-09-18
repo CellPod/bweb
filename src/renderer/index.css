@@ -493,7 +493,12 @@ html.platform-mac .update-banner {
    shows through as the gutter. */
 .content-area {
     flex: 1;
-    margin: 12px 12px 12px 0;
+    /* Top margin is 4px, not 12px like the other three sides: the sidebar's first nav item
+       sits at 4px below the titlebar (.sidebar-nav's own padding, see .sidebar above), so a
+       12px top margin here left the card's rounded top-left corner sitting visibly lower
+       than the top of the Home/Tools highlight next to it. Matched to 4px so both start at
+       the same y, confirmed by the user directly comparing the two edges (2026-09-18). */
+    margin: 4px 12px 12px 0;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -773,6 +778,43 @@ html.platform-mac .update-banner {
     margin: 5px 0 0;
     font-weight: 400;
 }
+
+/* Tool hero: centered icon + title + description above a tool's own controls, the same
+   idea as Home's own hero (.dl-hero) but smaller since this is a utility page, not the
+   flagship screen. Added 2026-09-18 so each tool page carries the same identity/
+   explanation its Tools hub tile already gives it instead of a bare left-aligned title.
+   .view-title/.view-subtitle keep their own font rules, this only centers and adds the
+   icon badge. Lives below .view-header (which still holds just the back-link and the
+   "Saving to" trigger), not inside it, so the back-link stays a small top-left wayfinding
+   element instead of being centered along with the hero. */
+.tool-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 480px;
+    margin: 4px auto 0;
+}
+
+.tool-hero-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    background: var(--tool-soft, var(--accent-soft));
+    color: var(--tool-color, var(--accent));
+}
+
+.tool-hero[data-tool="convert"]   { --tool-color: var(--tool-convert);   --tool-soft: var(--tool-convert-soft); }
+.tool-hero[data-tool="compress"]  { --tool-color: var(--tool-compress);  --tool-soft: var(--tool-compress-soft); }
+.tool-hero[data-tool="watermark"] { --tool-color: var(--tool-watermark); --tool-soft: var(--tool-watermark-soft); }
+.tool-hero[data-tool="redact"]    { --tool-color: var(--tool-redact);    --tool-soft: var(--tool-redact-soft); }
+.tool-hero[data-tool="qrcode"]    { --tool-color: var(--tool-qrcode);    --tool-soft: var(--tool-qrcode-soft); }
+.tool-hero[data-tool="bgremove"]  { --tool-color: var(--tool-bgremove);  --tool-soft: var(--tool-bgremove-soft); }
 
 /* Tools hub: catalog grid of tool tiles */
 
@@ -3276,8 +3318,12 @@ textarea::placeholder {
 
 .convert-format-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-    gap: 8px;
+    /* Smaller cells than before (was minmax(76px,1fr)): the picker itself shrank from a
+       full-width bar to a fixed 220px, so the same 76px-minimum tiles only fit 2 per row
+       and read as oversized for a menu that narrow. 56px fits 3 per row instead, showing
+       most formats without scrolling (2026-09-18). */
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 6px;
     width: 100%;
 }
 
@@ -3286,16 +3332,16 @@ textarea::placeholder {
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-height: 44px;
-    padding: 8px 6px;
+    min-height: 34px;
+    padding: 6px 4px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text-2);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     font-family: inherit;
-    line-height: 1.25;
+    line-height: 1.2;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }

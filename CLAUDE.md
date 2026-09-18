@@ -168,6 +168,25 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   declaration is now redundant with the base default but was left in place rather than
   removed, so Batch's sizing stays self-contained if the Convert-driven default ever
   changes again for a Convert-specific reason.
+- **`.convert-format-grid`'s tiles are sized for a 220px-wide menu (`minmax(56px, 1fr)`,
+  not `minmax(76px, 1fr)`)** (changed 2026-09-18, same day as the bullet above). The
+  trigger and its menu share one width (`.format-picker-menu` is `left:0; right:0` inside
+  `.format-picker`), so shrinking the trigger without also shrinking the grid left only 2
+  oversized columns fitting in the new, narrower menu. 56px fits 3 per row.
+- **Every tool view has a centered `.tool-hero` (icon badge + title + description) below
+  `.view-header`, not inside it** (added 2026-09-18, see `HISTORY.md`). Mirrors Home's own
+  `.dl-hero` pattern at a smaller scale, since these are utility pages, not the flagship
+  screen. `.view-header` itself now holds only the back-link and the "Saving to" trigger,
+  both of which stay small and left/right-anchored, not part of the centered block.
+  `.tool-hero-icon`'s color comes from the same `--tool-<name>`/`--tool-<name>-soft` tokens
+  and `data-tool="<name>"` attribute convention the Tools hub tiles already use
+  (`.tool-tile[data-tool="convert"]` etc.). A `.tool-hero` for a new tool needs a matching
+  `.tool-hero[data-tool="<name>"]` color rule and should reuse that tool's own hub-tile
+  icon, not a new one. First pass at this rewrite only recentered the existing
+  `.view-header` row and restored the description text without adding the icon/hero block
+  itself, shipped as "done" once, user caught it was missing entirely on a second look. A
+  reminder to actually diff the shipped result against an approved mockup before reporting
+  a task complete, not just re-read the diff of what was intentionally changed.
 
 ## Recurring CSS bugs to watch for
 
