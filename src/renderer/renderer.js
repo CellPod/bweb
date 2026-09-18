@@ -2717,7 +2717,10 @@ function initSidebarResize() {
         if (!active) return;
         const delta = e.clientX - startX;
         const newW = Math.max(140, Math.min(280, startW + delta));
-        sidebar.style.width = newW + 'px';
+        // Sets --sidebar-w (which .sidebar's own width now reads from) instead of
+        // sidebar.style.width directly, so .titlebar-sidebar-spacer stays the same
+        // width as the sidebar while dragging, not just after the fact.
+        document.documentElement.style.setProperty('--sidebar-w', newW + 'px');
     });
 
     document.addEventListener('mouseup', () => {
@@ -2762,6 +2765,9 @@ function selectBatchPreset(preset) {
     document.querySelectorAll('.batch-q-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.preset === preset);
     });
+    const triggerLabel = document.getElementById('batchQualityFormatTriggerLabel');
+    if (triggerLabel) triggerLabel.textContent = preset === 'mp3' || preset === 'wav' ? preset.toUpperCase() : t('dl.batch.' + preset);
+    closeAllFormatMenus();
 }
 
 async function doBatchAdd() {

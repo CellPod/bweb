@@ -85,6 +85,7 @@
 
     /* Sidebar */
     --sidebar-bg: oklch(0.91 0.010 58);
+    --sidebar-w:  186px;
 
     /* Radius */
     --radius:    10px;
@@ -314,16 +315,10 @@ body::before {
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    height: 52px;
-    padding: 0 20px;
+    height: 56px;
+    padding: 0 20px 0 0;
     background: var(--sidebar-bg);
     -webkit-app-region: drag;
-}
-
-/* macOS: clear the traffic lights (hiddenInset title bar, set synchronously via head
-   script). Same 80px already used by .dep-banner/.update-banner below. */
-html.platform-mac .app-titlebar {
-    padding-left: 80px;
 }
 
 html.platform-mac .dep-banner,
@@ -331,17 +326,37 @@ html.platform-mac .update-banner {
     padding-left: 80px;
 }
 
+/* Matches .sidebar's own width so #homeTopTabs (just after it) centers itself
+   against the same horizontal span as the hero below, not the full window width.
+   Also comfortably clears the macOS traffic lights at any sidebar width down to
+   its 140px minimum, replacing the old fixed 80px padding-left on the bar itself. */
+.titlebar-sidebar-spacer {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+}
+
 .titlebar-brand {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    /* Pins to the far right whether or not #homeTopTabs (flex: 1, before it) is
+       present in the flex flow. Without this it collapsed back toward the
+       traffic lights on tabs where the top tabs are display:none. */
+    margin-left: auto;
     border: none;
     background: transparent;
     font-family: var(--font);
     text-align: left;
     cursor: pointer;
     -webkit-app-region: no-drag;
+}
+
+.titlebar-brand-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
 }
 
 .app-body {
@@ -355,7 +370,7 @@ html.platform-mac .update-banner {
 /* ── Sidebar ────────────────────────────────────────────────────────── */
 
 .sidebar {
-    width: 186px;
+    width: var(--sidebar-w);
     min-width: 140px;
     max-width: 280px;
     flex-shrink: 0;
@@ -535,11 +550,6 @@ html.platform-mac .update-banner {
     display: none;
     flex: 1;
     justify-content: center;
-    /* .app-titlebar is a drag region: without this, the buttons sit inside it and are
-       unclickable (Electron treats a drag region as consuming clicks, not just window
-       moves). Easy to miss with CDP-driven testing, since a synthetic click() dispatches
-       straight to the DOM and never exercises the native drag-region check at all. */
-    -webkit-app-region: no-drag;
 }
 
 /* Same recipe as .dl-mode-tab's Single video/Batch toggle just below it in the hero
@@ -554,19 +564,26 @@ html.platform-mac .update-banner {
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 3px;
+    /* Scoped to just this pill, not the whole flex:1 .content-top-tabs box around it:
+       .app-titlebar is a drag region, and no-drag on the wider box made all the empty
+       space around the pill (which looks like plain draggable titlebar) undraggable
+       too, breaking window drag almost entirely. Buttons still need it since a drag
+       region consumes clicks, not just window-move gestures; easy to miss with CDP
+       testing, which never exercises the native drag-region check either way. */
+    -webkit-app-region: no-drag;
 }
 
 .content-top-tab {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 16px;
+    padding: 6px 13px;
     border: none;
     border-radius: 7px;
     background: transparent;
     color: var(--text-2);
     font-family: var(--font);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
@@ -987,7 +1004,7 @@ html.platform-mac .update-banner {
     display: flex;
     gap: 8px;
     max-width: 640px;
-    margin: 0 auto 20px;
+    margin: 0 auto 8px;
 }
 
 .url-input {
@@ -2565,7 +2582,7 @@ textarea::placeholder {
 
 .batch-textarea {
     width: 100%;
-    height: 180px;
+    height: 140px;
     padding: 12px;
     border: 1px solid var(--input-border);
     border-radius: var(--radius);
@@ -2590,35 +2607,53 @@ textarea::placeholder {
     color: var(--text-2);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    text-align: center;
 }
 
-.batch-quality-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+/* Reuses .format-picker/.format-picker-menu (Convert's output-format popover, see
+   below), just narrower and centered instead of full-width, and with a plain
+   vertical list of rows inside instead of a tile grid. .format-picker.batch-
+   quality-picker (not just .batch-quality-picker): .format-picker's own width:100%
+   is declared later in this file, same specificity would let it win on source
+   order alone. */
+.format-picker.batch-quality-picker {
+    width: 220px;
+    margin: 0 auto;
 }
 
+/* .format-picker-menu resolves to display:block (or :none, closed) regardless of
+   what's declared here, same specificity fight either way, so vertical spacing
+   between rows comes from each button's own margin, not a flex gap on this. */
 .batch-q-btn {
-    padding: 7px 16px;
-    border: 1px solid var(--border);
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 2px;
+    padding: 8px 10px;
+    border: none;
     border-radius: var(--radius);
-    background: var(--surface-2);
+    background: transparent;
     color: var(--text-2);
     font-size: 13px;
     font-weight: 500;
+    text-align: left;
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.batch-q-btn:last-child {
+    margin-bottom: 0;
 }
 
 .batch-q-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    background: var(--surface-2);
+    color: var(--text);
 }
 
 .batch-q-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
 }
 
 /* ── Download mode tabs ───────────────────────────────────────────────────── */
@@ -2705,9 +2740,9 @@ textarea::placeholder {
 }
 
 .dl-hero-logo {
-    width: 106px;
-    height: 106px;
-    border-radius: 22px;
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
     margin-bottom: 20px;
 }
 
@@ -2780,6 +2815,8 @@ textarea::placeholder {
     flex-direction: column;
     gap: 12px;
     padding-top: 4px;
+    max-width: 640px;
+    margin: 0 auto;
 }
 
 /* ── Download activity strip ──────────────────────────────────────────────── */

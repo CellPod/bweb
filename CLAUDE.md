@@ -59,6 +59,12 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   lands inside a `-webkit-app-region: drag` element, check `getComputedStyle(el)
   .getPropertyValue('-webkit-app-region')` resolves to `no-drag` on it or an ancestor. That's
   as far as automated verification goes; real click confirmation needs the user.
+- **Scope `no-drag` to the actual interactive element, not a wrapper sized to fill most of
+  the drag region around it.** Fixing the bug above by putting `no-drag` on `#homeTopTabs`
+  (a `flex: 1` box spanning nearly the whole titlebar) shipped a worse regression the same
+  day: it made all the empty space around the Fetch/Queue/History pill undraggable too, so
+  the window could barely be moved at all. `no-drag` belongs on `.content-top-tabs-frame`
+  (the visible pill itself), not on every ancestor between it and the drag region.
 
 ## Architecture rules
 
@@ -85,11 +91,18 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   `switchTab('download')`.
 - **App shell is titlebar + sidebar + content card, in that nesting** (as of 2026-09-18, the
   OmniGet-style "window within the window" restructure, see `HISTORY.md`). `.app-titlebar` is
-  one full-width bar above both the sidebar and the content, carrying the brand
-  (`.titlebar-brand`) and `#homeTopTabs`; it also owns the macOS traffic-light clearance
-  (`padding-left: 80px`, same convention as `.dep-banner`/`.update-banner`), not the sidebar.
-  `.sidebar` starts below it, not at the top of the window. `.content-area` is a visually
-  distinct card (`--card` background, border, `--radius-lg`, margin gutter on all 4 sides) over
+  one full-width bar above both the sidebar and the content: `.titlebar-sidebar-spacer` (an
+  empty element the exact width of `.sidebar`, via the shared `--sidebar-w` token) comes
+  first, then `#homeTopTabs` (centered in the space after it, so it lines up with the hero
+  below rather than the full window width), then `.titlebar-brand` pinned to the far right
+  with `margin-left: auto` regardless of whether `#homeTopTabs` is visible. The spacer also
+  covers the macOS traffic lights (it's always well over their ~80px, even at the sidebar's
+  140px resize minimum), so there's no separate padding-left rule for them here.
+  `initSidebarResize()` in `renderer.js` updates `--sidebar-w` (not `.sidebar.style.width`
+  directly) so the spacer tracks a live resize drag; `.sidebar`'s own `width` reads from the
+  same token, don't hardcode 186px again in either place. `.sidebar` starts below the
+  titlebar, not at the top of the window. `.content-area` is a visually distinct card
+  (`--card` background, border, `--radius-lg`, margin gutter on all 4 sides) over
   `.app-body`'s `--sidebar-bg`, not a flush panel. Don't reintroduce a header row inside
   `.sidebar` or `.content-area` (that's what caused two independent traffic-light-clearance
   zones stacked instead of one, the original bug this restructure fixed). Any new chrome-level
