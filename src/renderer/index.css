@@ -3195,7 +3195,7 @@ textarea::placeholder {
 
 .convert-options { display: flex; flex-direction: column; gap: 12px; }
 
-.convert-option-group { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.convert-option-group { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 
 .convert-option-label {
     font-size: 12px;
@@ -3211,7 +3211,14 @@ textarea::placeholder {
    in the page the way an always-expanded grid did. */
 .format-picker {
     position: relative;
-    width: 100%;
+    /* Compact and centered, same fixed width as Batch's own quality picker
+       (.batch-quality-picker) rather than stretching to fill .convert-container's full
+       width: a wide bar with the value pinned left and the chevron pinned right read as
+       "not centered" even though the wrapper itself was centered (2026-09-18). 220px
+       comfortably fits the longest trigger label in either picker ("MP4 · H.264",
+       "Up to 1080p"). */
+    width: 220px;
+    margin: 0 auto;
 }
 
 .format-picker-trigger {

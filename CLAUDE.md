@@ -157,6 +157,17 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   added alongside `.convert-container` on QR's own container div. Any future 2-column tool
   page needs this same override, the 600px default is sized for the single-column drop-zone
   tools (Convert/Compress/Watermark/Background Remover), not a sidebar layout.
+- **`.format-picker`'s default width is `220px`, centered (`margin: 0 auto`), not `100%`**
+  (changed 2026-09-18). Convert's 3 sub-view format triggers (video/audio, image, document)
+  used to stretch to fill `.convert-option-group`, reading as an oversized bar with the
+  value pinned left and the chevron pinned at the far right: "not centered" even though the
+  wrapper column itself was. Now matches the fixed-width recipe `.batch-quality-picker`
+  already used, made the app-wide default instead of a one-off override, sized to
+  comfortably fit the longest real trigger label (`MP4 · H.264`). `.convert-option-group`
+  gained `align-items: center` to match. `.batch-quality-picker`'s own width/margin
+  declaration is now redundant with the base default but was left in place rather than
+  removed, so Batch's sizing stays self-contained if the Convert-driven default ever
+  changes again for a Convert-specific reason.
 
 ## Recurring CSS bugs to watch for
 
