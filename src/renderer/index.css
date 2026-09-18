@@ -141,21 +141,21 @@
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg:           oklch(0.20 0.009 258);
-        --card:         oklch(0.27 0.009 258);
-        --card-bg:      oklch(0.27 0.009 258);
-        --card-border:  oklch(0.40 0.011 258);
-        --surface:      oklch(0.27 0.009 258);
-        --surface-2:    oklch(0.32 0.009 258);
-        --surface-3:    oklch(0.37 0.009 258);
-        --border:       oklch(0.40 0.011 258);
-        --input-bg:     oklch(0.27 0.009 258);
-        --input-border: oklch(0.55 0.012 258);
-        --sidebar-bg:   oklch(0.16 0.008 258);
+        --bg:           oklch(0.28 0.010 258);
+        --card:         oklch(0.34 0.010 258);
+        --card-bg:      oklch(0.34 0.010 258);
+        --card-border:  oklch(0.46 0.012 258);
+        --surface:      oklch(0.34 0.010 258);
+        --surface-2:    oklch(0.38 0.010 258);
+        --surface-3:    oklch(0.42 0.010 258);
+        --border:       oklch(0.46 0.012 258);
+        --input-bg:     oklch(0.34 0.010 258);
+        --input-border: oklch(0.61 0.014 258);
+        --sidebar-bg:   oklch(0.24 0.009 258);
 
-        --text:   oklch(0.88 0.004 258);
-        --text-2: oklch(0.72 0.007 258);
-        --text-3: oklch(0.56 0.008 258);
+        --text:   oklch(0.97 0.003 258);
+        --text-2: oklch(0.82 0.006 258);
+        --text-3: oklch(0.68 0.008 258);
 
         --accent:       oklch(0.72 0.19 55);
         --accent-hover: oklch(0.78 0.17 55);
@@ -189,21 +189,21 @@
 }
 
 :root[data-theme="dark"] {
-    --bg:           oklch(0.20 0.009 258);
-    --card:         oklch(0.27 0.009 258);
-    --card-bg:      oklch(0.27 0.009 258);
-    --card-border:  oklch(0.40 0.011 258);
-    --surface:      oklch(0.27 0.009 258);
-    --surface-2:    oklch(0.32 0.009 258);
-    --surface-3:    oklch(0.37 0.009 258);
-    --border:       oklch(0.40 0.011 258);
-    --input-bg:     oklch(0.27 0.009 258);
-    --input-border: oklch(0.55 0.012 258);
-    --sidebar-bg:   oklch(0.16 0.008 258);
+    --bg:           oklch(0.28 0.010 258);
+    --card:         oklch(0.34 0.010 258);
+    --card-bg:      oklch(0.34 0.010 258);
+    --card-border:  oklch(0.46 0.012 258);
+    --surface:      oklch(0.34 0.010 258);
+    --surface-2:    oklch(0.38 0.010 258);
+    --surface-3:    oklch(0.42 0.010 258);
+    --border:       oklch(0.46 0.012 258);
+    --input-bg:     oklch(0.34 0.010 258);
+    --input-border: oklch(0.61 0.014 258);
+    --sidebar-bg:   oklch(0.24 0.009 258);
 
-    --text:   oklch(0.88 0.004 258);
-    --text-2: oklch(0.72 0.007 258);
-    --text-3: oklch(0.56 0.008 258);
+    --text:   oklch(0.97 0.003 258);
+    --text-2: oklch(0.82 0.006 258);
+    --text-3: oklch(0.68 0.008 258);
 
     --accent:       oklch(0.72 0.19 55);
     --accent-hover: oklch(0.78 0.17 55);
