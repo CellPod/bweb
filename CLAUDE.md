@@ -101,7 +101,11 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   `initSidebarResize()` in `renderer.js` updates `--sidebar-w` (not `.sidebar.style.width`
   directly) so the spacer tracks a live resize drag; `.sidebar`'s own `width` reads from the
   same token, don't hardcode 186px again in either place. `.sidebar` starts below the
-  titlebar, not at the top of the window. `.content-area` is a visually distinct card
+  titlebar, not at the top of the window. `.app-titlebar` is `46px` tall (trimmed down from
+  its original `56px` on 2026-09-18 to match the OmniGet reference more closely and shrink
+  the visible gap between the macOS traffic lights and the sidebar nav items sitting right
+  below the bar); `.content-top-tabs-frame`/`.content-top-tab` padding was trimmed to match.
+  `.content-area` is a visually distinct card
   (`--card` background, border, `--radius-lg`, margin gutter on all 4 sides) over
   `.app-body`'s `--sidebar-bg`, not a flush panel. Don't reintroduce a header row inside
   `.sidebar` or `.content-area` (that's what caused two independent traffic-light-clearance
@@ -127,6 +131,23 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   left-aligned form like QR Code — reusing it there floated the whole tab's content
   detached from its own left-aligned title. Check what a shared class actually *does*
   before reusing it, don't assume "it's already used elsewhere so it's safe here too."
+- **Every tool view's `.view-header-text` needs its `.view-title` AND a `.view-subtitle`
+  describing what the tool does** (restored 2026-09-18: all six had lost their subtitle
+  during the OmniGet restructure, leaving only a bare title with no explanation of what the
+  tool does; only the Tools hub tiles still had the description text). Reuse the exact same
+  `*.subtitle` i18n key the tool's own hub tile already uses (`convert.subtitle`,
+  `qrcode.subtitle`, etc.) rather than writing new copy, so the tile and the tool's own page
+  never say something different. `.view-header` uses `align-items: center` (not
+  `flex-start`) specifically so `.view-header-actions` (the "Saving to" button) centers
+  against this now-3-line block instead of hugging its top edge.
+- **A 2-column `.qr-body`/`.redact-body` grid (content + 220px sidebar) needs a widened
+  container, not the default `.convert-container` (`max-width: 600px`).** Redact already had
+  `.redact-container { max-width: 980px }` for this. QR Code didn't, so its grid was
+  squeezed into ~300px of usable width and read as "not centered, kind of a mess" (verbatim
+  user feedback, 2026-09-18). Fixed with the same recipe: `.qr-container { max-width: 980px }`
+  added alongside `.convert-container` on QR's own container div. Any future 2-column tool
+  page needs this same override, the 600px default is sized for the single-column drop-zone
+  tools (Convert/Compress/Watermark/Background Remover), not a sidebar layout.
 
 ## Recurring CSS bugs to watch for
 

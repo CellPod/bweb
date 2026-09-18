@@ -315,7 +315,7 @@ body::before {
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    height: 56px;
+    height: 46px;
     padding: 0 20px 0 0;
     background: var(--sidebar-bg);
     -webkit-app-region: drag;
@@ -562,8 +562,8 @@ html.platform-mac .update-banner {
     gap: 2px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 3px;
+    border-radius: 9px;
+    padding: 2px;
     /* Scoped to just this pill, not the whole flex:1 .content-top-tabs box around it:
        .app-titlebar is a drag region, and no-drag on the wider box made all the empty
        space around the pill (which looks like plain draggable titlebar) undraggable
@@ -577,13 +577,13 @@ html.platform-mac .update-banner {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 13px;
+    padding: 5px 12px;
     border: none;
-    border-radius: 7px;
+    border-radius: 6px;
     background: transparent;
     color: var(--text-2);
     font-family: var(--font);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
@@ -603,7 +603,7 @@ html.platform-mac .update-banner {
 /* View header — page title area */
 .view-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
     margin-bottom: var(--space-5);
@@ -3873,6 +3873,13 @@ textarea::placeholder {
    differently from the batch-list pattern used everywhere else — it needs to, the interaction
    is fundamentally different (draw regions on a single file vs. queue several files). */
 .redact-container {
+    max-width: 980px;
+}
+
+/* Same widening as .redact-container, same reason: the 2-column grid (preview +
+   220px sidebar) needs more than .convert-container's default 600px, or the sidebar
+   crushes the preview into ~300px and neither column reads as centered. */
+.qr-container {
     max-width: 980px;
 }
 
