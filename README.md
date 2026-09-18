@@ -4,21 +4,36 @@
 
 # bWeb
 
-Download videos and audio from anywhere — YouTube, Vimeo, Twitter/X, Instagram,
-and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) —
-plus a growing set of everyday creator tools: compress, watermark, redact,
-remove backgrounds, generate QR codes. Everything runs locally on your machine.
-No cloud, no subscriptions, no tracking, no uploads.
+Free, open-source desktop app to download video & audio from YouTube, Instagram,
+Twitter/X, Vimeo, and [1,800+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
+via [yt-dlp](https://github.com/yt-dlp/yt-dlp): plus a growing local toolbox to
+convert, compress, watermark, redact, generate QR codes, and remove backgrounds.
+No cloud, no subscriptions, no tracking, no uploads. Everything stays on your computer.
 
-**[Download the latest release](https://github.com/CellPod/bweb/releases/latest)**
+**[⬇ Download the latest release](https://github.com/CellPod/bweb/releases/latest)** ·
+Windows, macOS (Apple Silicon), and Linux
 
 </div>
 
 <br/>
 
 <p align="center">
-  <img src="screenshots/screenshot-download.png" width="80%" alt="bWeb — download a video" />
+  <img src="screenshots/02-fetch-result.png" width="85%" alt="bWeb: paste a link, get your file" />
 </p>
+
+---
+
+## Contents
+
+- [Download & Install](#download--install)
+- [Common installation mistakes](#common-installation-mistakes)
+- [See it in action](#see-it-in-action)
+- [Features](#features)
+- [Usage](#usage)
+- [Build from Source](#build-from-source)
+- [Project Structure](#project-structure)
+- [Credits](#credits)
+- [License](#license)
 
 ---
 
@@ -34,115 +49,228 @@ Go to the Releases page, scroll down to **Assets**, and pick the file for your s
 | Windows | `bWeb-Setup-x.x.x.exe` |
 | Linux | `bWeb-x.x.x.AppImage` |
 
-> Only Apple Silicon Macs are built at the moment — no Intel (`x64`) mac build is published yet.
+> Only Apple Silicon Macs are built at the moment: no Intel (`x64`) mac build is published yet.
 
-No dependencies to install. yt-dlp and ffmpeg are bundled inside the app.
+No dependencies to install. yt-dlp and ffmpeg are bundled inside the app: nothing else
+to download or configure.
 
 ### macOS
 
-1. Download the `.dmg` file
-2. Open it and drag bWeb to your Applications folder
-3. Open bWeb
+1. Download the `.dmg` file and double-click it: a window opens showing the bWeb icon
+   next to a shortcut to your **Applications** folder
+2. **Drag the bWeb icon onto the Applications shortcut** (don't skip this: see the
+   mistake below)
+3. Open **Applications** (Finder → Applications, or press <kbd>⌘</kbd><kbd>⇧</kbd><kbd>A</kbd>)
+   and double-click **bWeb**
 
-bWeb is not code-signed with an Apple certificate, so macOS will block it on first launch. On macOS Sequoia and Sonoma it shows **"bWeb is damaged and can't be opened"** — the app is fine, macOS is just enforcing its quarantine policy.
+bWeb isn't code-signed with a paid Apple Developer certificate (that costs $99/year for a
+free open-source project), so macOS blocks it on first launch. On macOS Sequoia and Sonoma
+it shows:
 
-**To fix it, open Terminal and run:**
+> **"bWeb is damaged and can't be opened. You should move it to the Trash."**
+
+The app isn't actually damaged: macOS is just refusing to run anything it can't verify
+the publisher of. **To fix it, open Terminal** (Spotlight → type `Terminal` → Enter) and
+run:
 
 ```bash
 xattr -cr /Applications/bWeb.app
 ```
 
-Then double-click bWeb again — it opens normally from that point on.
+Then double-click bWeb again: it opens normally from that point on, no need to repeat
+this on future launches or updates.
 
-> If you haven't moved it to Applications yet, run `xattr -cr` on the `.dmg` file first:
+> If you haven't moved it to Applications yet, run the same command on the `.dmg` file
+> instead:
 > ```bash
 > xattr -cr ~/Downloads/bWeb-*.dmg
 > ```
 
-You only need to do this once.
-
 ### Windows
 
 1. Download and run the `.exe` installer
-2. If SmartScreen appears, click **More info → Run anyway**
-3. bWeb installs automatically and creates a shortcut
+2. Windows SmartScreen will likely show **"Windows protected your PC"**: this appears
+   for any app that isn't from a paid, verified publisher, it doesn't mean anything is
+   wrong. Click **More info**, then **Run anyway** (see the mistake below, the "Run
+   anyway" button only appears after clicking "More info")
+3. bWeb installs automatically and creates a shortcut: no further steps
 
-Installs per-user — no admin required. Uninstall from **Settings → Apps**.
+Installs per-user: no admin rights required. Uninstall from **Settings → Apps**.
 
 ### Linux
 
 1. Download the `.AppImage` file
-2. Make it executable: right-click → Properties → Permissions → **Allow executing as program**
+2. Make it executable: right-click → **Properties** → **Permissions** → **Allow
+   executing file as program** (or `chmod +x bWeb-*.AppImage` in a terminal)
 3. Double-click to run
+
+> On newer Ubuntu/Debian (22.04+), AppImages need `libfuse2` to launch at all. If
+> double-clicking does nothing, run `sudo apt install libfuse2` once.
+
+---
+
+## Common installation mistakes
+
+A few things that trip people up, since bWeb isn't distributed through an app store with
+its own guided install:
+
+- **macOS: opening the app straight from the `.dmg` window instead of dragging it to
+  Applications first.** It may seem to launch fine, but the app will be running from a
+  read-only disk image: settings and updates can behave unpredictably. Always drag it
+  to Applications first, then open it from there.
+- **macOS: copy-pasting the `xattr` command with the wrong path.** If Terminal says
+  `No such file or directory`, double-check bWeb is actually in `/Applications` (not
+  still in Downloads): or use the `.dmg` version of the command shown above instead.
+- **Windows: clicking "Don't run" on the SmartScreen warning.** The safe option,
+  **Run anyway**, is hidden one click deeper behind **More info**: easy to miss the
+  first time.
+- **Windows: antivirus flags or deletes a bundled file (usually `yt-dlp.exe` or
+  `ffmpeg.exe`).** This is a well-known false positive for yt-dlp-based tools: some
+  antivirus engines flag anything that fetches media over the network. If this happens,
+  restore the file from quarantine and add bWeb's install folder to your antivirus's
+  exclusions.
+- **Linux: double-clicking the AppImage before making it executable.** Nothing happens,
+  or the file manager offers to open it as an archive/text file instead of running it:
+  see step 2 above.
+
+If none of this fixes it, please [open an issue](https://github.com/CellPod/bweb/issues)
+with your OS version and what you see: it helps fix it for the next person too.
+
+---
+
+## See it in action
+
+### Paste a link, get your file
+<p align="center"><img src="screenshots/02-fetch-result.png" width="90%" alt="Fetching a video on Home" /></p>
+
+Paste a URL, bWeb fetches the title, thumbnail, and every quality/format available for it.
+Pick one (or hit Batch for up to 50 links at once) and it lands in the queue.
+
+### Local tools, right on your computer
+<p align="center"><img src="screenshots/03-tools-hub.png" width="90%" alt="The Tools catalog hub, sidebar flyout expanded" /></p>
+
+Six local file tools live in one catalog: click **Tools** in the sidebar to jump straight
+to any of them without leaving the page you're on.
+
+<table>
+<tr>
+<td width="50%">
+<img src="screenshots/04-convert-empty.png" alt="Convert" />
+<p align="center"><b>Convert</b>: any video, audio, image, or document format to another</p>
+</td>
+<td width="50%">
+<img src="screenshots/06-compress-loaded.png" alt="Compress" />
+<p align="center"><b>Compress</b>: three no-jargon presets, ranked by actual measured size</p>
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="screenshots/08-watermark-loaded.png" alt="Watermark" />
+<p align="center"><b>Watermark</b>: tile a text or logo watermark, with a real live preview</p>
+</td>
+<td width="50%">
+<img src="screenshots/09-redact-loaded.png" alt="Redact" />
+<p align="center"><b>Redact</b>: draw zones to permanently destroy sensitive content</p>
+</td>
+</tr>
+</table>
+
+<p align="center"><img src="screenshots/10-qrcode.png" width="90%" alt="QR Code generator" /></p>
+<p align="center"><b>QR Code</b>: generate and style a QR code from any link or text, live as you type</p>
+
+### Queue, settings, light & dark
+
+<table>
+<tr>
+<td width="50%">
+<img src="screenshots/13-queue.png" alt="Download queue" />
+<p align="center">Sequential queue, one failure never stops the rest</p>
+</td>
+<td width="50%">
+<img src="screenshots/12-settings.png" alt="Settings" />
+<p align="center">Bilingual (EN/FR), local-only settings</p>
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="screenshots/01-home.png" alt="Light mode" />
+<p align="center">Light mode</p>
+</td>
+<td width="50%">
+<img src="screenshots/14-dark-mode.png" alt="Dark mode" />
+<p align="center">Dark mode: one click in the titlebar</p>
+</td>
+</tr>
+</table>
 
 ---
 
 ## Features
 
 ### Download
-- **Single video** — Paste a URL, preview the metadata and thumbnail, pick a quality (4K / 2K / 1080p / 720p / 480p or lower), download as MP4 or extract audio as MP3, M4A, OPUS, FLAC, or WAV
-- **Playlist** — Paste a playlist URL, select which items to download, pick a format for the whole batch
-- **Batch mode** — Paste up to 50 URLs at once, pick a quality preset, add them all to the queue
-- **Trim before download** — Scrub a real preview player (or drag the range slider — both stay in sync) to pick start/end points before adding to queue, or use "Mark start/end" while it plays. Supports multiple segments. Works on **live streams** too: since the total duration isn't known yet, marking is based on elapsed time since the broadcast actually started, and the download uses yt-dlp's `--live-from-start` to grab just that part
+- **Single video**: Paste a URL, preview the metadata and thumbnail, pick a quality (4K / 2K / 1080p / 720p / 480p or lower), download as MP4 or extract audio as MP3, M4A, OPUS, FLAC, or WAV
+- **Playlist**: Paste a playlist URL, select which items to download, pick a format for the whole batch
+- **Batch mode**: Paste up to 50 URLs at once, pick a quality preset, add them all to the queue
+- **Trim before download**: Scrub a real preview player (or drag the range slider: both stay in sync) to pick start/end points before adding to queue, or use "Mark start/end" while it plays. Supports multiple segments. Works on **live streams** too: since the total duration isn't known yet, marking is based on elapsed time since the broadcast actually started, and the download uses yt-dlp's `--live-from-start` to grab just that part
 
 ### Queue
 - Sequential processing with real-time progress per item
-- Pause, retry failed, clear done, or cancel all — one failure never stops the rest
+- Pause, retry failed, clear done, or cancel all: one failure never stops the rest
 - Active download strip always visible at the bottom
-- In-progress downloads survive an app quit or crash — they resume as pending on next launch
+- In-progress downloads survive an app quit or crash: they resume as pending on next launch
 - A download that stalls for 5 minutes with no progress is auto-cancelled instead of blocking the rest of the queue
 
 ### Convert
-Three sub-views for three different jobs — same tab, same "Saving to" destination.
-- **Video & Audio** — drop any local video or audio file to convert or trim it. Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more, including professional/broadcast codecs (HAP for VJ/playback software, DNxHR for mastering). Trim with a visual timeline before converting. Cancel mid-conversion — no partial output file left behind
-- **Image** — convert between JPEG, PNG, WebP, AVIF, TIFF, and GIF, including HEIC (iPhone photos) as an input format, no extra install required
-- **Document** — turn Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, or PDF into clean Markdown, or Word/PowerPoint/Excel straight into a PDF, without needing Microsoft Office or LibreOffice installed
-- Once a batch finishes, "Open folder" and "Convert another file" replace the single action button — nothing auto-clears itself
+Three sub-views for three different jobs: same tab, same "Saving to" destination.
+- **Video & Audio**: drop any local video or audio file to convert or trim it. Supports MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC, M4A, and more, including professional/broadcast codecs (HAP for VJ/playback software, DNxHR for mastering). Trim with a visual timeline before converting. Cancel mid-conversion: no partial output file left behind
+- **Image**: convert between JPEG, PNG, WebP, AVIF, TIFF, and GIF, including HEIC (iPhone photos) as an input format, no extra install required
+- **Document**: turn Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, or PDF into clean Markdown, or Word/PowerPoint/Excel straight into a PDF, without needing Microsoft Office or LibreOffice installed
+- Once a batch finishes, "Open folder" and "Convert another file" replace the single action button: nothing auto-clears itself
 
 ### Compress
 - Drop an image (JPG/PNG/WebP/AVIF/TIFF) or PDF, batch multiple files at once
-- Three no-jargon presets — Maximum quality / Balanced / Smallest — ranked by actual measured output size, not a fixed setting
+- Three no-jargon presets, Maximum quality / Balanced / Smallest, ranked by actual measured output size, not a fixed setting
 - Target-size mode for images: enter a size in MB and bWeb finds the closest match
-- Never overwrites the original — always writes a new `_compressed` file
-- Once a batch finishes, "Open folder" and "Compress another file" replace the single action button — nothing auto-clears itself
+- Never overwrites the original: always writes a new `_compressed` file
+- Once a batch finishes, "Open folder" and "Compress another file" replace the single action button: nothing auto-clears itself
 
 ### Privacy (Watermark & Redact)
-- **Watermark** — Tile a text or logo watermark diagonally across images or PDFs, batch mode. PDF watermarking rasterizes each page so the mark can't be stripped in a couple of clicks in Acrobat/Illustrator
-- **Redact** — Draw zones over an image or PDF page to permanently black out, blur, or pixelate sensitive content. Redaction is real pixel destruction (rasterized), not a shape drawn on top that can be removed to reveal the original underneath
-- **Redact PDF editor** — Real zoom (25%–400%, mouse wheel/trackpad or +/− buttons) and pan (drag or Space+drag) over the actual PDF, rendered client-side so landscape/portrait pages and fine detail (maps, technical drawings) stay sharp at any zoom level — not a fixed-resolution snapshot
+- **Watermark**: Tile a text or logo watermark diagonally across images or PDFs, batch mode. PDF watermarking rasterizes each page so the mark can't be stripped in a couple of clicks in Acrobat/Illustrator
+- **Redact**: Draw zones over an image or PDF page to permanently black out, blur, or pixelate sensitive content. Redaction is real pixel destruction (rasterized), not a shape drawn on top that can be removed to reveal the original underneath
+- **Redact PDF editor**: Real zoom (25%–400%, mouse wheel/trackpad or +/− buttons) and pan (drag or Space+drag) over the actual PDF, rendered client-side so landscape/portrait pages and fine detail (maps, technical drawings) stay sharp at any zoom level: not a fixed-resolution snapshot
 
 ### QR Code
 - Generate a QR code from any link or text, live preview as you type
-- Optional logo in the center (error correction is bumped automatically — nothing to configure)
-- Shape: square, rounded, or circle frame — baked into the exported file, not just the preview
+- Optional logo in the center (error correction is bumped automatically: nothing to configure)
+- Shape: square, rounded, or circle frame: baked into the exported file, not just the preview
 - Export as PNG (512/1024/2048px) or SVG
 
 ### Background Remover
-- Drop, browse, or **paste an image from your clipboard** — get a transparent PNG back, runs a local AI model, nothing uploaded
+- Drop, browse, or **paste an image from your clipboard**: get a transparent PNG back, runs a local AI model, nothing uploaded
 - Before/after preview on a checkerboard so you can see the real transparency
 - If a photo has no distinct subject to cut out (a full scene/landscape rather than a product-on-background shot), bWeb automatically falls back to trimming solid-color borders instead of handing back a blank image
 
 ### Account sign-in
-- **YouTube** — Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
-- **Instagram** — Sign in to download from your saved collections. The app opens Instagram's login page directly — your password is never stored
-- **Vimeo** — Sign in for Pro/private videos, or import your entire Vimeo library via a personal access token (title, description, upload date, direct download — bypasses yt-dlp's Vimeo bot detection entirely)
+- **YouTube**: Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
+- **Instagram**: Sign in to download from your saved collections. The app opens Instagram's login page directly: your password is never stored
+- **Vimeo**: Sign in for Pro/private videos, or import your entire Vimeo library via a personal access token (title, description, upload date, direct download: bypasses yt-dlp's Vimeo bot detection entirely)
 
 ### Instagram saved collections
 yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a built-in scraper:
 1. Sign in via **Settings → Instagram Account**
 2. Paste a saved collection URL
 3. The app opens the page in a hidden browser, scrolls through it, and collects all post links
-4. Results appear in a playlist-style picker — select what you want and queue
+4. Results appear in a playlist-style picker: select what you want and queue
 
 ### Interface
-- **French / English** — Full bilingual UI, toggle in Settings
-- **Light and dark mode** — Follows your system preference, or force one in Settings
-- **Download history** — Quick access to all previously fetched videos with cached metadata
+- **French / English**: Full bilingual UI, toggle in Settings
+- **Light and dark mode**: Follows your system preference, or force one from the titlebar toggle
+- **Download history**: Quick access to all previously fetched videos with cached metadata
 
 ### Settings
-- **Download location** — Change where files are saved (defaults to `~/Downloads/bWeb`)
-- **Language, theme** — see Interface above
-- **Updates** — bWeb checks GitHub for a newer version on launch (and on demand from the About tab) and shows a notification with a link to the release — nothing is ever silently downloaded or installed
+- **Download location**: Change where files are saved (defaults to `~/Downloads/bWeb`)
+- **Language, theme**: see Interface above
+- **Updates**: bWeb checks GitHub for a newer version on launch (and on demand from the About tab) and shows a notification with a link to the release: nothing is ever silently downloaded or installed
 
 ---
 
@@ -155,7 +283,7 @@ yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a b
 
 Files are saved to `~/Downloads/bWeb` by default. Change the location in **Settings → Storage**.
 
-You can paste and fetch multiple URLs back-to-back — each result lands in a side panel so you can review and queue them one by one.
+You can paste and fetch multiple URLs back-to-back: each result lands in a side panel so you can review and queue them one by one.
 
 ---
 
@@ -169,14 +297,14 @@ npm run dev
 ```
 
 `npm install` downloads yt-dlp and ffmpeg automatically for your platform, plus the
-Background Remover's ONNX model (~433MB, one-time — skipped if already present).
+Background Remover's ONNX model (~433MB, one-time, skipped if already present).
 
 ### Builds
 
 ```bash
-npm run build:mac      # macOS — .dmg + .zip
-npm run build:win      # Windows — NSIS installer
-npm run build:linux    # Linux — AppImage
+npm run build:mac      # macOS: .dmg + .zip
+npm run build:win      # Windows: NSIS installer
+npm run build:linux    # Linux: AppImage
 ```
 
 For Apple Silicon:
@@ -215,9 +343,9 @@ npm run build:linux
 bweb/
 ├── src/
 │   ├── main/
-│   │   ├── main.js              # Electron main process — window, IPC, history
+│   │   ├── main.js              # Electron main process: window, IPC, history
 │   │   ├── preload.js           # Context bridge (window.api)
-│   │   ├── ytdlp.js             # yt-dlp integration — spawn, parse, download
+│   │   ├── ytdlp.js             # yt-dlp integration: spawn, parse, download
 │   │   ├── queue.js             # Sequential download queue with per-item state
 │   │   ├── cookies.js           # YouTube + Instagram cookie auth
 │   │   ├── scraper.js           # Instagram collection scraper (BrowserWindow)
@@ -248,7 +376,7 @@ bweb/
 │   ├── release-all.js      # Automates the mac/Linux/Windows release sequence
 │   └── fix-ffmpeg-win.js   # Post-pack binary permission fixes + ad-hoc code signing
 ├── bin/                    # yt-dlp + ffmpeg + Deno binaries (auto-populated by postinstall)
-├── resources/models/       # Background Remover's ONNX model (gitignored — fetched by
+├── resources/models/       # Background Remover's ONNX model (gitignored: fetched by
 │                           # postinstall, too large for a normal git push)
 ├── licenses/               # Third-party license texts required for bundled models
 ├── build/                  # App icons (icon.icns, icon.ico, icon.png)
@@ -261,21 +389,21 @@ bweb/
 
 ## Credits
 
-- [ArcDLP](https://github.com/archisvaze/arcdlp) by Archis — the foundation this project is built on (MIT)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the engine that does all the downloading
-- [Electron](https://www.electronjs.org/) — desktop app framework
-- [ffmpeg](https://ffmpeg.org/) — audio/video processing (bundled per platform: [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) LGPL builds on Windows/Linux, [martin-riedl.de](https://ffmpeg.martin-riedl.de/) on macOS)
-- [sharp](https://github.com/lovell/sharp) — image compression and processing
-- [Ghostscript](https://www.ghostscript.com/) (via [@jspawn/ghostscript-wasm](https://github.com/jsscheller/ghostscript-wasm)) — PDF compression/rasterization
-- [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) — QR code rendering
-- [withoutBG](https://github.com/withoutbg/withoutbg-python) — Background Remover model (built with [DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license/))
-- [Iconoir](https://iconoir.com) — icon set (MIT)
-- [PDF.js](https://mozilla.github.io/pdf.js/) — client-side PDF rendering for the Redact editor (Apache-2.0)
-- [anydoc](https://github.com/firecrawl/anydoc) by Firecrawl — Document → Markdown conversion (MIT)
-- [MiniPdf](https://github.com/mini-software/MiniPdf) — Word/PowerPoint/Excel → PDF conversion (Apache-2.0)
+- [ArcDLP](https://github.com/archisvaze/arcdlp) by Archis: the foundation this project is built on (MIT)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp): the engine that does all the downloading
+- [Electron](https://www.electronjs.org/): desktop app framework
+- [ffmpeg](https://ffmpeg.org/): audio/video processing (bundled per platform: [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) LGPL builds on Windows/Linux, [martin-riedl.de](https://ffmpeg.martin-riedl.de/) on macOS)
+- [sharp](https://github.com/lovell/sharp): image compression and processing
+- [Ghostscript](https://www.ghostscript.com/) (via [@jspawn/ghostscript-wasm](https://github.com/jsscheller/ghostscript-wasm)): PDF compression/rasterization
+- [qr-code-styling](https://github.com/kozakdenys/qr-code-styling): QR code rendering
+- [withoutBG](https://github.com/withoutbg/withoutbg-python): Background Remover model (built with [DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license/))
+- [Iconoir](https://iconoir.com): icon set (MIT)
+- [PDF.js](https://mozilla.github.io/pdf.js/): client-side PDF rendering for the Redact editor (Apache-2.0)
+- [anydoc](https://github.com/firecrawl/anydoc) by Firecrawl: Document → Markdown conversion (MIT)
+- [MiniPdf](https://github.com/mini-software/MiniPdf): Word/PowerPoint/Excel → PDF conversion (Apache-2.0)
 
 ---
 
 ## License
 
-[MIT](LICENSE) — see the license file for details.
+[MIT](LICENSE): see the license file for details.
