@@ -141,21 +141,21 @@
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg:           oklch(0.16 0.008 258);
-        --card:         oklch(0.25 0.008 258);
-        --card-bg:      oklch(0.25 0.008 258);
-        --card-border:  oklch(0.37 0.010 258);
-        --surface:      oklch(0.25 0.008 258);
-        --surface-2:    oklch(0.30 0.008 258);
-        --surface-3:    oklch(0.35 0.008 258);
-        --border:       oklch(0.37 0.010 258);
-        --input-bg:     oklch(0.25 0.008 258);
-        --input-border: oklch(0.53 0.012 258);
-        --sidebar-bg:   oklch(0.12 0.007 258);
+        --bg:           oklch(0.20 0.009 258);
+        --card:         oklch(0.27 0.009 258);
+        --card-bg:      oklch(0.27 0.009 258);
+        --card-border:  oklch(0.40 0.011 258);
+        --surface:      oklch(0.27 0.009 258);
+        --surface-2:    oklch(0.32 0.009 258);
+        --surface-3:    oklch(0.37 0.009 258);
+        --border:       oklch(0.40 0.011 258);
+        --input-bg:     oklch(0.27 0.009 258);
+        --input-border: oklch(0.55 0.012 258);
+        --sidebar-bg:   oklch(0.16 0.008 258);
 
-        --text:   oklch(0.94 0.004 258);
-        --text-2: oklch(0.76 0.007 258);
-        --text-3: oklch(0.60 0.008 258);
+        --text:   oklch(0.88 0.004 258);
+        --text-2: oklch(0.72 0.007 258);
+        --text-3: oklch(0.56 0.008 258);
 
         --accent:       oklch(0.72 0.19 55);
         --accent-hover: oklch(0.78 0.17 55);
@@ -189,21 +189,21 @@
 }
 
 :root[data-theme="dark"] {
-    --bg:           oklch(0.16 0.008 258);
-    --card:         oklch(0.25 0.008 258);
-    --card-bg:      oklch(0.25 0.008 258);
-    --card-border:  oklch(0.37 0.010 258);
-    --surface:      oklch(0.25 0.008 258);
-    --surface-2:    oklch(0.30 0.008 258);
-    --surface-3:    oklch(0.35 0.008 258);
-    --border:       oklch(0.37 0.010 258);
-    --input-bg:     oklch(0.25 0.008 258);
-    --input-border: oklch(0.53 0.012 258);
-    --sidebar-bg:   oklch(0.12 0.007 258);
+    --bg:           oklch(0.20 0.009 258);
+    --card:         oklch(0.27 0.009 258);
+    --card-bg:      oklch(0.27 0.009 258);
+    --card-border:  oklch(0.40 0.011 258);
+    --surface:      oklch(0.27 0.009 258);
+    --surface-2:    oklch(0.32 0.009 258);
+    --surface-3:    oklch(0.37 0.009 258);
+    --border:       oklch(0.40 0.011 258);
+    --input-bg:     oklch(0.27 0.009 258);
+    --input-border: oklch(0.55 0.012 258);
+    --sidebar-bg:   oklch(0.16 0.008 258);
 
-    --text:   oklch(0.94 0.004 258);
-    --text-2: oklch(0.76 0.007 258);
-    --text-3: oklch(0.60 0.008 258);
+    --text:   oklch(0.88 0.004 258);
+    --text-2: oklch(0.72 0.007 258);
+    --text-3: oklch(0.56 0.008 258);
 
     --accent:       oklch(0.72 0.19 55);
     --accent-hover: oklch(0.78 0.17 55);
@@ -616,18 +616,21 @@ html.platform-mac .update-banner {
 .tool-back-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     background: none;
     border: none;
     padding: 0;
-    margin: 0 0 6px;
-    font-size: var(--fs-xs);
-    font-weight: 600;
+    margin: 0 0 12px;
+    font-family: var(--font);
+    font-size: var(--fs-sm);
+    font-weight: 500;
     color: var(--text-3);
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
     -webkit-app-region: no-drag;
+}
+
+.tool-back-link .icon-svg {
+    margin-left: -3px;
 }
 
 .tool-back-link:hover {
@@ -768,7 +771,7 @@ html.platform-mac .update-banner {
 
 .tool-tile {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     padding: 14px;
     border: 1px solid var(--card-border);
