@@ -60,8 +60,13 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   `--tool-<name>`/`--tool-<name>-soft` color pair in `index.css`, never a new top-level
   sidebar row. `switchTab()` in `renderer.js` keeps the sidebar's "Tools" row highlighted
   while any tool tab is open via the `TOOL_TABS` array, don't forget to add a new tool's
-  tabId there too. Small related tools still get grouped as sub-tabs *within* one tool
-  (e.g. Watermark/Redact under "Privacy") to avoid tile-grid clutter.
+  tabId there too. Every tool view needs a `.tool-back-link` (see Convert/Compress/Watermark/
+  Redact/QR/BgRemove in `index.html`) since there's no sidebar row of its own to click back to.
+  **Each tool is its own tile and its own tab, full stop, don't merge two tools behind an
+  internal mode-switcher again** (this was tried once for Watermark/Redact under a shared
+  "Privacy" tab and reverted 2026-09-18: it made no sense once the tile grid itself already
+  solved the sidebar-clutter problem that merge existed for, and users couldn't tell there
+  even were two separate tools inside).
 - **Don't assume a shared CSS class is safe to reuse across tabs without checking its
   assumptions fit the new context.** `.convert-container`'s `margin: 0 auto` centering
   is right for Convert/Compress's centered empty-drop-zone hero state, but wrong for a
@@ -85,6 +90,13 @@ These have each cost real debugging time more than once in this codebase:
 4. **`margin: 0 auto` on a flex item with no explicit `width` disables the parent's default
    stretch** — the item shrinks to fit only its own content instead of filling available
    space. Needs an explicit `width: 100%` (or similar) alongside `max-width` + `margin: auto`.
+5. **A dark theme can pass on text contrast while still being unreadable**, because borders
+   and input/card boundaries are a separate WCAG check (non-text contrast, 3:1) that text
+   contrast math doesn't cover. bWeb's original dark tokens had `--text` at 16:1 against `--bg`
+   (fine) but `--border`/`--input-border` at only 1.4:1 against their surface (invisible),
+   which read as "everything is black" even though headings were legible. Fixed 2026-09-18 by
+   computing actual contrast ratios (see `HISTORY.md`) instead of eyeballing oklch numbers,
+   don't just nudge lightness values and hope.
 
 ## Recurring build/release bugs to watch for
 

@@ -235,7 +235,7 @@ const DOWNLOAD_GROUP_TABS = ['download', 'queue', 'history'];
 // through the Tools catalog tile grid. The sidebar still needs to show "you are somewhere in
 // Tools" while any of them is open, so switchTab() highlights the "tools" nav-item instead of
 // looking for a nav-item matching the real tabId (which no longer exists for these five).
-const TOOL_TABS = ['tools', 'convert', 'compress', 'privacy', 'qrcode', 'bgremove'];
+const TOOL_TABS = ['tools', 'convert', 'compress', 'watermark', 'redact', 'qrcode', 'bgremove'];
 
 // Destination popover — shared by every processing tool's "Saving to" + "Open folder after
 // X" panel. Only one open at a time; clicking outside (or re-clicking the same trigger)
@@ -326,7 +326,8 @@ function switchTab(tabId) {
     if (tabId === 'about') loadAbout();
     if (tabId === 'convert') initConvertTab();
     if (tabId === 'compress') initCompressTab();
-    if (tabId === 'privacy') initPrivacyTab();
+    if (tabId === 'watermark') initPrivacyTab();
+    if (tabId === 'redact') { initPrivacyRedactTab(); loadRedactDestPath(); loadRedactAutoOpen(); }
     if (tabId === 'qrcode') initQrTab();
     if (tabId === 'bgremove') initBgRemoveTab();
 }
@@ -3384,7 +3385,7 @@ async function addFilesToWatermarkList(paths) {
     document.getElementById('watermarkDropZone').style.display = 'none';
     document.getElementById('watermarkListWrap').style.display = 'flex';
     document.getElementById('watermarkOptions').style.display = 'flex';
-    document.querySelector('#tab-privacy .convert-center-wrapper')?.classList.add('has-content');
+    document.querySelector('#tab-watermark .convert-center-wrapper')?.classList.add('has-content');
 
     for (const p of paths) {
         const type = await window.api.watermarkDetectType(p);
@@ -3580,7 +3581,7 @@ function doWatermarkClear() {
     document.querySelectorAll('#watermarkOptions [data-wmsize]').forEach((b) => b.classList.toggle('active', b.dataset.wmsize === 'medium'));
     document.getElementById('watermarkTextWrap').style.display = 'flex';
     document.getElementById('watermarkLogoWrap').style.display = 'none';
-    document.querySelector('#tab-privacy .convert-center-wrapper')?.classList.remove('has-content');
+    document.querySelector('#tab-watermark .convert-center-wrapper')?.classList.remove('has-content');
     wmPreviewLogoImg = null;
     wmPreviewLogoPathLoaded = null;
     const previewCanvas = document.getElementById('watermarkPreviewCanvas');
@@ -3772,20 +3773,6 @@ function initPrivacyRedactTab() {
     };
     layer.addEventListener('mouseup', finishDraft);
     layer.addEventListener('mouseleave', finishDraft);
-}
-
-function setPrivacyMode(mode) {
-    document.querySelectorAll('#tab-privacy > .dl-mode-tabs [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
-    document.getElementById('privacyWatermarkView').style.display = mode === 'watermark' ? '' : 'none';
-    document.getElementById('privacyRedactView').style.display = mode === 'redact' ? '' : 'none';
-    document.getElementById('watermarkDestActions').style.display = mode === 'watermark' ? '' : 'none';
-    document.getElementById('redactDestActions').style.display = mode === 'redact' ? '' : 'none';
-    closeAllDestPopovers();
-    if (mode === 'redact') {
-        initPrivacyRedactTab();
-        loadRedactDestPath();
-        loadRedactAutoOpen();
-    }
 }
 
 const redactDestControls = makeDestPathControls('redact');

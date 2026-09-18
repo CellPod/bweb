@@ -93,6 +93,9 @@
   <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3.6 3H20.4C20.7314 3 21 3.26863 21 3.6V20.4C21 20.7314 20.7314 21 20.4 21H3.6C3.26863 21 3 20.7314 3 20.4V3.6C3 3.26863 3.26863 3 3.6 3Z"/><path d="M3 12H21"/><path d="M12 3V21"/>
   </symbol>
+  <symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 12H4"/><path d="M10 6L4 12L10 18"/>
+  </symbol>
 </svg>
 
 <div class="app-shell">
@@ -432,11 +435,18 @@
                             <span class="tool-tile-desc" data-i18n="compress.subtitle">Reduce the file size of an image or PDF, right on your computer</span>
                         </span>
                     </button>
-                    <button class="tool-tile" data-tool="privacy" onclick="switchTab('privacy')">
+                    <button class="tool-tile" data-tool="watermark" onclick="switchTab('watermark')">
                         <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-shield"/></svg></span>
                         <span class="tool-tile-text">
-                            <span class="tool-tile-title" data-i18n="nav.privacy">Privacy</span>
-                            <span class="tool-tile-desc" data-i18n="privacy.subtitle">Watermark or redact a file, right on your computer</span>
+                            <span class="tool-tile-title" data-i18n="nav.watermark">Watermark</span>
+                            <span class="tool-tile-desc" data-i18n="watermark.subtitle">Stamp a text or logo watermark onto a file, right on your computer</span>
+                        </span>
+                    </button>
+                    <button class="tool-tile" data-tool="redact" onclick="switchTab('redact')">
+                        <span class="tool-tile-icon"><svg class="icon-svg" width="20" height="20"><use href="#ic-eye-off"/></svg></span>
+                        <span class="tool-tile-text">
+                            <span class="tool-tile-title" data-i18n="nav.redact">Redact</span>
+                            <span class="tool-tile-desc" data-i18n="redact.subtitle">Permanently black out, blur, or pixelate parts of a file</span>
                         </span>
                     </button>
                     <button class="tool-tile" data-tool="qrcode" onclick="switchTab('qrcode')">
@@ -460,6 +470,10 @@
             <div id="tab-convert" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
                         <h1 class="view-title" data-i18n="convert.title">Convert</h1>
                     </div>
                     <div class="view-header-actions">
@@ -741,6 +755,10 @@
             <div id="tab-compress" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
                         <h1 class="view-title" data-i18n="compress.title">Compress</h1>
                     </div>
                     <div class="view-header-actions">
@@ -834,15 +852,16 @@
             </div>
 
             <!-- Privacy view -->
-            <div id="tab-privacy" class="view">
+            <div id="tab-watermark" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
-                        <h1 class="view-title" data-i18n="privacy.title">Privacy</h1>
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
+                        <h1 class="view-title" data-i18n="watermark.title">Watermark</h1>
                     </div>
                     <div class="view-header-actions">
-                        <!-- Watermark and Redact are mutually exclusive sub-views (see setPrivacyMode) so
-                             each gets its own trigger/popover pair, shown/hidden together with its view
-                             rather than trying to share one popover between two different destinations. -->
                         <div id="watermarkDestActions">
                             <button class="dest-popover-trigger" id="watermarkDestTrigger" onclick="toggleDestPopover('watermark')" aria-label="Save location">
                                 <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
@@ -861,36 +880,7 @@
                                 </label>
                             </div>
                         </div>
-                        <div id="redactDestActions" style="display:none">
-                            <button class="dest-popover-trigger" id="redactDestTrigger" onclick="toggleDestPopover('redact')" aria-label="Save location">
-                                <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
-                                <span class="dest-popover-trigger-text">
-                                    <span class="dest-popover-trigger-label" data-i18n="dest.trigger.label">Saving to</span>
-                                    <span class="dest-popover-trigger-folder" id="redactDestFolderName">—</span>
-                                </span>
-                            </button>
-                            <div class="dest-popover" id="redactDestPopover">
-                                <div class="dest-popover-label" data-i18n="privacy.dest.label">Saving to</div>
-                                <div class="dest-popover-path" id="redactDestPath">—</div>
-                                <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseRedactDestPath()">Change</button>
-                                <label class="autoopen-label dest-popover-autoopen">
-                                    <input type="checkbox" id="redactAutoOpenCheck" onchange="onRedactAutoOpenChange(this.checked)" />
-                                    <span data-i18n="redact.dest.autoopen">Open folder after redacting</span>
-                                </label>
-                            </div>
-                        </div>
                     </div>
-                </div>
-
-                <div class="dl-mode-tabs">
-                    <button class="dl-mode-tab active" data-mode="watermark" onclick="setPrivacyMode('watermark')">
-                        <svg class="icon-svg" width="13" height="13"><use href="#ic-shield"/></svg>
-                        <span data-i18n="privacy.mode.watermark">Watermark</span>
-                    </button>
-                    <button class="dl-mode-tab" data-mode="redact" onclick="setPrivacyMode('redact')">
-                        <svg class="icon-svg" width="13" height="13"><use href="#ic-eye-off"/></svg>
-                        <span data-i18n="privacy.mode.redact">Redact</span>
-                    </button>
                 </div>
 
                 <!-- Watermark sub-view -->
@@ -971,9 +961,42 @@
                 </div>
                 </div><!-- /convert-center-wrapper -->
                 </div><!-- /privacyWatermarkView -->
+            </div>
+
+            <!-- Redact view -->
+            <div id="tab-redact" class="view">
+                <div class="view-header">
+                    <div class="view-header-text">
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
+                        <h1 class="view-title" data-i18n="redact.title">Redact</h1>
+                    </div>
+                    <div class="view-header-actions">
+                        <div id="redactDestActions">
+                            <button class="dest-popover-trigger" id="redactDestTrigger" onclick="toggleDestPopover('redact')" aria-label="Save location">
+                                <svg class="icon-svg" width="16" height="16"><use href="#ic-folder-open"/></svg>
+                                <span class="dest-popover-trigger-text">
+                                    <span class="dest-popover-trigger-label" data-i18n="dest.trigger.label">Saving to</span>
+                                    <span class="dest-popover-trigger-folder" id="redactDestFolderName">—</span>
+                                </span>
+                            </button>
+                            <div class="dest-popover" id="redactDestPopover">
+                                <div class="dest-popover-label" data-i18n="privacy.dest.label">Saving to</div>
+                                <div class="dest-popover-path" id="redactDestPath">—</div>
+                                <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseRedactDestPath()">Change</button>
+                                <label class="autoopen-label dest-popover-autoopen">
+                                    <input type="checkbox" id="redactAutoOpenCheck" onchange="onRedactAutoOpenChange(this.checked)" />
+                                    <span data-i18n="redact.dest.autoopen">Open folder after redacting</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Redact sub-view -->
-                <div id="privacyRedactView" style="display:none">
+                <div id="privacyRedactView">
                 <div class="convert-center-wrapper">
                 <div class="convert-container redact-container">
                     <div class="convert-drop-zone" id="redactDropZone" onclick="doRedactChooseFile()">
@@ -1072,6 +1095,10 @@
             <div id="tab-qrcode" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
                         <h1 class="view-title" data-i18n="qrcode.title">QR Code</h1>
                     </div>
                     <div class="view-header-actions">
@@ -1174,6 +1201,10 @@
             <div id="tab-bgremove" class="view">
                 <div class="view-header">
                     <div class="view-header-text">
+                        <button class="tool-back-link" onclick="switchTab('tools')">
+                            <svg class="icon-svg" width="14" height="14"><use href="#ic-arrow-left"/></svg>
+                            <span data-i18n="tools.back">Tools</span>
+                        </button>
                         <h1 class="view-title" data-i18n="bgremove.title">Background Remover</h1>
                     </div>
                     <div class="view-header-actions">

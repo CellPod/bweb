@@ -13,7 +13,8 @@ const TRANSLATIONS = {
         'nav.history':   'History',
         'nav.convert':   'Convert',
         'nav.compress':  'Compress',
-        'nav.privacy':   'Privacy',
+        'nav.watermark': 'Watermark',
+        'nav.redact':    'Redact',
         'nav.qrcode':    'QR Code',
         'nav.bgremove':  'Background Remover',
         'nav.tools':     'Tools',
@@ -45,6 +46,7 @@ const TRANSLATIONS = {
         // Tools hub view
         'tools.title':             'Tools',
         'tools.subtitle':          'Local file tools, pick one to get started',
+        'tools.back':              'Tools',
 
         // Background Remover view
         'bgremove.title':          'Background Remover',
@@ -203,11 +205,11 @@ const TRANSLATIONS = {
         'compress.status.compressing': 'Compressing…',
         'compress.status.error':      'Failed',
 
-        // Privacy / Watermark view
-        'privacy.title':          'Privacy',
-        'privacy.subtitle':       'Watermark or redact a file, right on your computer',
-        'privacy.mode.watermark': 'Watermark',
-        'privacy.mode.redact':    'Redact',
+        // Watermark / Redact views
+        'watermark.title':        'Watermark',
+        'watermark.subtitle':     'Stamp a text or logo watermark onto a file, right on your computer',
+        'redact.title':           'Redact',
+        'redact.subtitle':        'Permanently black out, blur, or pixelate parts of a file',
         'privacy.dest.label':     'Saving to:',
         'watermark.dest.autoopen': 'Open folder after watermarking',
         'redact.dest.autoopen':   'Open folder after redacting',
@@ -375,7 +377,8 @@ const TRANSLATIONS = {
         'nav.history':   'Historique',
         'nav.convert':   'Convertir',
         'nav.compress':  'Compresser',
-        'nav.privacy':   'Confidentialité',
+        'nav.watermark': 'Filigrane',
+        'nav.redact':    'Masquage',
         'nav.qrcode':    'QR Code',
         'nav.bgremove':  'Retrait de fond',
         'nav.tools':     'Outils',
@@ -407,6 +410,7 @@ const TRANSLATIONS = {
         // Tools hub view
         'tools.title':             'Outils',
         'tools.subtitle':          'Outils locaux sur tes fichiers, choisis-en un pour commencer',
+        'tools.back':              'Outils',
 
         // Background Remover view
         'bgremove.title':          'Retrait de fond',
@@ -565,11 +569,11 @@ const TRANSLATIONS = {
         'compress.status.compressing': 'Compression…',
         'compress.status.error':      'Échec',
 
-        // Privacy / Watermark view
-        'privacy.title':          'Confidentialité',
-        'privacy.subtitle':       'Filigraner ou masquer un fichier, sur votre ordinateur',
-        'privacy.mode.watermark': 'Filigrane',
-        'privacy.mode.redact':    'Masquage',
+        // Watermark / Redact views
+        'watermark.title':        'Filigrane',
+        'watermark.subtitle':     'Apposer un filigrane texte ou logo sur un fichier, sur votre ordinateur',
+        'redact.title':           'Masquage',
+        'redact.subtitle':        'Masquer, flouter ou pixeliser définitivement une zone d\'un fichier',
         'privacy.dest.label':     'Enregistrer dans :',
         'watermark.dest.autoopen': 'Ouvrir le dossier après filigrane',
         'redact.dest.autoopen':   'Ouvrir le dossier après masquage',
