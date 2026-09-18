@@ -150,10 +150,12 @@
 
         <!-- margin-left:auto (in CSS) keeps this pinned to the far right whether or not
              #homeTopTabs is visible, so it doesn't collapse back toward the traffic lights
-             on tabs where the top tabs are hidden (Tools/Settings/About). -->
-        <button class="titlebar-brand" onclick="switchTab('download')" aria-label="Home">
-            <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
-            <span class="titlebar-brand-name">bWeb</span>
+             on tabs where the top tabs are hidden (Tools/Settings/About). Replaced the
+             "bWeb" text+logo brand with a quick theme toggle (2026-09-18): a text
+             wordmark wasn't a real logo and wasn't doing anything useful in that corner,
+             icon/label kept in sync with Settings' own toggle via updateThemeBtn(). -->
+        <button class="titlebar-theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <svg class="icon-svg" id="titlebarThemeIcon" width="16" height="16"><use href="#ic-moon"/></svg>
         </button>
     </div>
 
@@ -168,10 +170,37 @@
                     <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-home"/></svg>
                     <span class="nav-label" data-i18n="nav.home">Home</span>
                 </button>
-                <button class="nav-item" data-tab="tools" onclick="switchTab('tools')">
+                <button class="nav-item" data-tab="tools" onclick="toggleToolsFlyout()">
                     <svg class="nav-icon icon-svg" width="16" height="16"><use href="#ic-grid"/></svg>
                     <span class="nav-label" data-i18n="nav.tools">Tools</span>
+                    <svg class="nav-chevron icon-svg" width="12" height="12"><use href="#ic-chevron-down"/></svg>
                 </button>
+                <div class="sidebar-tools-flyout" id="sidebarToolsFlyout">
+                    <button class="sidebar-tools-flyout-item" data-tab="convert" data-tool="convert" onclick="switchTab('convert')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-scissors"/></svg>
+                        <span data-i18n="nav.convert">Convert</span>
+                    </button>
+                    <button class="sidebar-tools-flyout-item" data-tab="compress" data-tool="compress" onclick="switchTab('compress')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-compress"/></svg>
+                        <span data-i18n="nav.compress">Compress</span>
+                    </button>
+                    <button class="sidebar-tools-flyout-item" data-tab="watermark" data-tool="watermark" onclick="switchTab('watermark')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-shield"/></svg>
+                        <span data-i18n="nav.watermark">Watermark</span>
+                    </button>
+                    <button class="sidebar-tools-flyout-item" data-tab="redact" data-tool="redact" onclick="switchTab('redact')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-eye-off"/></svg>
+                        <span data-i18n="nav.redact">Redact</span>
+                    </button>
+                    <button class="sidebar-tools-flyout-item" data-tab="qrcode" data-tool="qrcode" onclick="switchTab('qrcode')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-qrcode"/></svg>
+                        <span data-i18n="nav.qrcode">QR Code</span>
+                    </button>
+                    <button class="sidebar-tools-flyout-item" data-tab="bgremove" data-tool="bgremove" onclick="switchTab('bgremove')">
+                        <svg class="icon-svg" width="15" height="15"><use href="#ic-wand"/></svg>
+                        <span data-i18n="nav.bgremove">Background Remover</span>
+                    </button>
+                </div>
             </div>
 
             <div class="sidebar-footer">

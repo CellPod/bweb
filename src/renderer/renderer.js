@@ -69,6 +69,7 @@ function updateThemeBtn() {
     const pairs = [
         ['themeIcon', 'themeToggleLabel', 'themeLabel'],
         ['onboardingThemeIcon', 'onboardingThemeToggleLabel', 'onboardingThemeLabel'],
+        ['titlebarThemeIcon', null, null],
     ];
     for (const [iconId, labelId, descId] of pairs) {
         const icon = document.getElementById(iconId);
@@ -296,11 +297,26 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.format-picker')) closeAllFormatMenus();
 });
 
+// Sidebar Tools flyout: an independent open/closed toggle (not tied to which tab is
+// active) so navigating between tools doesn't fight the user's own open/close choice.
+// Only clicking the Tools row itself changes it. See HISTORY.md 2026-09-18.
+let sidebarToolsExpanded = false;
+
+function toggleToolsFlyout() {
+    sidebarToolsExpanded = !sidebarToolsExpanded;
+    document.getElementById('sidebarToolsFlyout')?.classList.toggle('expanded', sidebarToolsExpanded);
+    document.querySelector('.nav-item[data-tab="tools"]')?.classList.toggle('expanded', sidebarToolsExpanded);
+    switchTab('tools');
+}
+
 function switchTab(tabId) {
     const navActiveId = TOOL_TABS.includes(tabId) ? 'tools' : HOME_TABS.includes(tabId) ? 'download' : tabId;
 
     document.querySelectorAll('.nav-item').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.tab === navActiveId);
+    });
+    document.querySelectorAll('.sidebar-tools-flyout-item').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
     document.querySelectorAll('.view').forEach((panel) => {
         panel.classList.toggle('active', panel.id === 'tab-' + tabId);

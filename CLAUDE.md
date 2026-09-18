@@ -40,6 +40,15 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   careful enough to catch a ~230px offset. A one-line `getBoundingClientRect()` comparison
   catches this instantly and doesn't degrade with reviewer attention/fatigue the way "does
   this look centered" does after several fixes in a row.
+- **Test a tool's loaded state (a file actually picked), not just its empty drop-zone
+  state.** Three real layout bugs (missing gap under `.tool-hero`, Redact's drop zone a
+  different width than every other tool's, a doubled-up margin on Compress's Presets/Target
+  size toggle once cards render below it) only showed up once a file was loaded, 2026-09-18.
+  The native file picker can't be driven from CDP, but every tool's "file chosen" handler
+  calls a plain JS function taking a path array (`addFilesToCompressList([...])`,
+  `addFilesToConvertList([...])`, `addFilesToWatermarkList([...])`, `loadRedactFile(...)`).
+  Call that function directly with a real file already in the repo (e.g.
+  `src/renderer/bweb-logo.png`) to exercise the loaded state without touching the dialog.
 - **A fixed pixel width on a shared component can silently overflow a narrower context it's
   also used in, with no visible sign in a screenshot.** `.convert-btn`'s fixed `280px`
   (2026-09-18) overflowed QR Code's ~196px sidebar column invisibly, because
@@ -91,6 +100,11 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   while any tool tab is open via the `TOOL_TABS` array, don't forget to add a new tool's
   tabId there too. Every tool view needs a `.tool-back-link` (see Convert/Compress/Watermark/
   Redact/QR/BgRemove in `index.html`) since there's no sidebar row of its own to click back to.
+  The sidebar's "Tools" row also has `#sidebarToolsFlyout` (2026-09-18): a collapsible list of
+  the same 6 tools (icon + label, colored via the same `--tool-<name>` tokens), toggled open/
+  closed independently of navigation by `toggleToolsFlyout()`, not tied to which tab is
+  active. A new tool needs a matching `.sidebar-tools-flyout-item` row here too, reusing its
+  hub-tile icon, not just a new tile in the grid.
   **Each tool is its own tile and its own tab, full stop, don't merge two tools behind an
   internal mode-switcher again** (this was tried once for Watermark/Redact under a shared
   "Privacy" tab and reverted 2026-09-18: it made no sense once the tile grid itself already
@@ -133,7 +147,12 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
   `.app-body`'s `--sidebar-bg`, not a flush panel. Don't reintroduce a header row inside
   `.sidebar` or `.content-area` (that's what caused two independent traffic-light-clearance
   zones stacked instead of one, the original bug this restructure fixed). Any new chrome-level
-  element (brand, global tabs, future search/actions) belongs in `.app-titlebar`.
+  element (global tabs, future search/actions) belongs in `.app-titlebar`. The far-right slot
+  there is `.titlebar-theme-toggle` (2026-09-18, replacing an earlier "bWeb" text+logo brand
+  that wasn't a real logo and wasn't doing anything useful): an icon-only button calling
+  `toggleTheme()`, kept in sync with Settings' own theme toggle via `updateThemeBtn()`'s
+  `pairs` array in `renderer.js`. A new persistent titlebar control belongs in that same
+  `pairs`-style sync mechanism if it duplicates existing state, not a separate one-off.
 - **`#tab-download` centers vertically, other views don't** (as of 2026-09-18). It's the only
   `.view` with `justify-content: safe center` (`#tab-download.view.active` in `index.css`): the
   `safe` keyword falls back to top alignment once fetched results make it taller than the
