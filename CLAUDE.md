@@ -50,6 +50,15 @@ credit obligation is real and must actually ship — see `licenses/` and the Abo
 - **Match each model's own reference implementation's postprocessing exactly** (sigmoid vs.
   min-max stretch vs. plain clip) — a generic recipe applied to every model manufactures
   false confidence on one that was never meant to be stretched.
+- **`playwright-cli`/CDP clicks cannot verify `-webkit-app-region` drag-region bugs, in either
+  direction.** A CDP-injected click goes straight to the renderer and never exercises the
+  native window's drag-region hit-test, so a button trapped inside a `drag` region (missing
+  its own `no-drag`) still reports as "clicked successfully" in automated testing while being
+  completely dead in real usage (this shipped once, 2026-09-18: `#homeTopTabs` moved into
+  `.app-titlebar`, a drag region, without its own `no-drag`). Whenever new interactive markup
+  lands inside a `-webkit-app-region: drag` element, check `getComputedStyle(el)
+  .getPropertyValue('-webkit-app-region')` resolves to `no-drag` on it or an ancestor. That's
+  as far as automated verification goes; real click confirmation needs the user.
 
 ## Architecture rules
 

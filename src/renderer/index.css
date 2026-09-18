@@ -317,7 +317,6 @@ body::before {
     height: 52px;
     padding: 0 20px;
     background: var(--sidebar-bg);
-    border-bottom: 1px solid var(--border);
     -webkit-app-region: drag;
 }
 
@@ -390,14 +389,6 @@ html.platform-mac .update-banner {
     height: 22px;
     border-radius: 5px;
     flex-shrink: 0;
-    -webkit-app-region: no-drag;
-}
-
-.sidebar-app-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.01em;
     -webkit-app-region: no-drag;
 }
 
@@ -544,6 +535,11 @@ html.platform-mac .update-banner {
     display: none;
     flex: 1;
     justify-content: center;
+    /* .app-titlebar is a drag region: without this, the buttons sit inside it and are
+       unclickable (Electron treats a drag region as consuming clicks, not just window
+       moves). Easy to miss with CDP-driven testing, since a synthetic click() dispatches
+       straight to the DOM and never exercises the native drag-region check at all. */
+    -webkit-app-region: no-drag;
 }
 
 /* Same recipe as .dl-mode-tab's Single video/Batch toggle just below it in the hero
@@ -2697,25 +2693,37 @@ textarea::placeholder {
     margin: 0 0 var(--space-4);
 }
 
-/* Home hero: brand mark, replacing the old left-aligned page title. The top tabs
-   (Fetch/Queue/History) now carry the "where am I" job the title used to. */
+/* Home hero: logo + headline + tagline, replacing the old left-aligned page title (the
+   top tabs now carry the "where am I" job that used to do). Headline and tagline live up
+   here rather than near the url-bar so pasting a link (clip preview appearing) never
+   shifts them: everything below the mode tabs is free to grow/shrink on its own. */
 .dl-hero {
     display: flex;
-    justify-content: center;
-    margin: 8px 0 20px;
+    flex-direction: column;
+    align-items: center;
+    margin: 4px 0 28px;
 }
 
 .dl-hero-logo {
-    width: 76px;
-    height: 76px;
-    border-radius: 17px;
+    width: 106px;
+    height: 106px;
+    border-radius: 22px;
+    margin-bottom: 20px;
 }
 
-/* Sits below the destination line rather than under the logo, so it reads as a closing
-   line ("here's what this supports") instead of repeating the URL bar's own placeholder. */
+.dl-hero-headline {
+    margin: 0 0 10px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-align: center;
+    text-wrap: balance;
+}
+
 .dl-hero-tagline {
     max-width: 480px;
-    margin: 0 auto;
+    margin: 0;
     font-size: var(--fs-sm);
     color: var(--text-3);
     line-height: 1.5;

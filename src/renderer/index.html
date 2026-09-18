@@ -113,11 +113,6 @@
          brand and the Home top tabs. Sits above the sidebar (not just above the content
          card), see HISTORY.md 2026-09-18 for the OmniGet-driven restructure. -->
     <div class="app-titlebar">
-        <button class="titlebar-brand" onclick="switchTab('download')" aria-label="Home">
-            <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
-            <span class="sidebar-app-name">bWeb</span>
-        </button>
-
         <!-- Home top tabs: Fetch/Queue/History, shown only while one of those three views
              is active (see switchTab() in renderer.js) -->
         <div id="homeTopTabs" class="content-top-tabs" style="display:flex">
@@ -139,6 +134,12 @@
                 </button>
             </div>
         </div>
+
+        <!-- Small reminder mark, not a full brand lockup: Home nav item and this go to the
+             same place, no need for both a titlebar brand and a sidebar row for it. -->
+        <button class="titlebar-brand" onclick="switchTab('download')" aria-label="Home">
+            <img class="sidebar-logo bweb-logo" src="./bweb-logo.png" alt="bWeb" />
+        </button>
     </div>
 
     <div class="app-body">
@@ -177,6 +178,8 @@
             <div id="tab-download" class="view active">
                 <div class="dl-hero">
                     <img class="dl-hero-logo" src="./bweb-logo.png" alt="" />
+                    <h1 class="dl-hero-headline" data-i18n="dl.hero.headline">One link, your file. It's that easy.</h1>
+                    <p class="dl-hero-tagline" data-i18n="dl.subtitle">Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally</p>
                 </div>
                 <div class="dl-mode-tabs">
                     <button class="dl-mode-tab active" data-mode="single" onclick="setDlMode('single')">
@@ -207,8 +210,6 @@
                     <span class="dl-destination-path">—</span>
                     <button class="dl-destination-change" data-i18n="dl.dest.change" onclick="doChooseFolder()">Change</button>
                 </div>
-
-                <p class="dl-hero-tagline" data-i18n="dl.subtitle">Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally</p>
 
                 <div id="clipPreview" class="clip-preview" style="display:none">
                     <img id="clipThumb" class="clip-thumb" src="" alt="" />

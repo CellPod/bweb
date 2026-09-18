@@ -66,6 +66,7 @@ const TRANSLATIONS = {
 
         // Download view
         'dl.title':           'Download',
+        'dl.hero.headline':   'One link, your file. It\'s that easy.',
         'dl.subtitle':        'Paste a video or playlist link from YouTube, Vimeo, Instagram, Twitter/X, and 1000+ other sites to download it locally',
         'dl.mode.single':     'Single video',
         'dl.mode.batch':      'Batch',
@@ -428,6 +429,7 @@ const TRANSLATIONS = {
 
         // Download view
         'dl.title':           'Télécharger',
+        'dl.hero.headline':   'Un lien, votre fichier. Aussi simple que ça.',
         'dl.subtitle':        'Collez un lien de vidéo ou de playlist depuis YouTube, Vimeo, Instagram, Twitter/X et plus de 1000 autres sites pour le télécharger localement',
         'dl.mode.single':     'Vidéo unique',
         'dl.mode.batch':      'Lot d\'URLs',
