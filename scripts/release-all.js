@@ -86,7 +86,11 @@ function fetchBinariesFor(platform, arch) {
 // not load the sharp module" error dialog itself); this generalizes that for any package
 // using the same per-platform-optionalDependency pattern.
 function fetchNativePkgFor(pkgName, platform, arch) {
-    run(`npm install --no-save --os=${platform} --cpu=${arch} ${pkgName}`);
+    // These packages provide prebuilt optional dependencies for the target OS.
+    // Running install scripts here can try to compile a host addon while its
+    // native dependency has already been swapped for a different platform.
+    const pkg = JSON.parse(fs.readFileSync(path.join(NODE_MODULES_DIR, pkgName, 'package.json'), 'utf8'));
+    run(`npm install --ignore-scripts --no-save --os=${platform} --cpu=${arch} ${pkgName}@${pkg.version}`);
 }
 
 // Matches by directory name suffix (e.g. "sharp-darwin-arm64", "sharp-libvips-darwin-arm64"
