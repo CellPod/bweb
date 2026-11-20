@@ -316,6 +316,7 @@ class DownloadQueue {
             } else {
                 nextItem.state = STATE.FAILED;
                 nextItem.error = err.message || 'Download failed';
+                if (err.code === 'INSTAGRAM_RATE_LIMIT') this._paused = true;
                 this._emit('log', `Failed: ${nextItem.title} - ${nextItem.error}`);
                 logError('Queue: failed', nextItem.title, err.message);
             }
@@ -327,7 +328,7 @@ class DownloadQueue {
         this._emitQueueUpdate();
         this._persist();
 
-        // Continue to next, always, even after failure
+        // Continue to the next item unless the queue is paused or cancelled.
         // Use setTimeout to avoid stack buildup on large queues
         setTimeout(() => this._processNext(), 0);
     }

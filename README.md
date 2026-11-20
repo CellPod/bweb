@@ -252,15 +252,17 @@ Three sub-views for three different jobs: same tab, same "Saving to" destination
 
 ### Account sign-in
 - **YouTube**: Sign in to access age-restricted, private, and members-only videos. Your credentials go directly to Google through their standard login page
-- **Instagram**: Sign in to download from your saved collections. The app opens Instagram's login page directly: your password is never stored
+- **Instagram**: Sign in to list posts in your saved collections. The app opens Instagram's login page directly and keeps that session in the collection browser.
 - **Vimeo**: Sign in for Pro/private videos, or import your entire Vimeo library via a personal access token (title, description, upload date, direct download: bypasses yt-dlp's Vimeo bot detection entirely)
 
 ### Instagram saved collections
 yt-dlp doesn't support saved collections natively. bWeb bridges the gap with a built-in scraper:
 1. Sign in via **Settings → Instagram Account**
-2. Paste a saved collection URL
-3. The app opens the page in a hidden browser, scrolls through it, and collects all post links
-4. Results appear in a playlist-style picker: select what you want and queue
+2. Paste the URL of the collection you want (for example, `https://www.instagram.com/username/saved/collection-name/12345/`)
+3. The app opens that collection in a hidden browser and collects post and Reel links, including links that start with the creator's profile
+4. Select the links you want to queue. bWeb looks up and downloads Instagram videos without account cookies. Posts that require sign-in are skipped, and an Instagram rate limit pauses the queue.
+
+Resolution preferences use the shorter edge, so a vertical 1080 × 1920 Reel counts as 1080p. If the requested resolution is unavailable, bWeb selects the nearest available option.
 
 ### Interface
 - **French / English**: Full bilingual UI, toggle in Settings

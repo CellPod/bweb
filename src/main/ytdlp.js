@@ -8,17 +8,24 @@ const fs = require('fs');
 const { log, logError } = require('./utils');
 const cookies = require('./cookies');
 
-// Append --cookies flag if user is signed in.
-// Use Instagram cookies for Instagram URLs, YouTube cookies otherwise.
-async function appendCookieArgs(args, url) {
+function isInstagramUrl(url) {
     try {
-        if (url && url.includes('instagram.com')) {
-            const cookieFile = await cookies.getInstaCookieFile();
-            if (cookieFile) {
-                args.push('--cookies', cookieFile);
-                log('Using Instagram cookie file:', cookieFile);
-            }
-        } else if (url && url.includes('vimeo.com')) {
+        const { hostname, protocol } = new URL(url);
+        return protocol === 'instagram:' || /(?:^|\.)(?:instagram\.com|instagr\.am)$/i.test(hostname);
+    } catch {
+        return false;
+    }
+}
+
+// The Instagram sign-in session belongs to the collection browser only.
+async function appendCookieArgs(args, url) {
+    if (isInstagramUrl(url)) {
+        args.push('--no-cookies', '--no-cookies-from-browser');
+        return;
+    }
+
+    try {
+        if (url && url.includes('vimeo.com')) {
             const cookieFile = await cookies.getVimeoCookieFile();
             if (cookieFile) {
                 args.push('--cookies', cookieFile);
@@ -34,6 +41,18 @@ async function appendCookieArgs(args, url) {
     } catch (err) {
         logError('Cookie file error:', err.message);
     }
+}
+
+function instagramMediaError(message) {
+    if (/HTTP(?: Error)? 429\b|Too Many Requests|exceeded the rate[ -]limit|Please wait a few minutes before you try again/i.test(message)) {
+        const error = new Error('Instagram is limiting requests. The download queue was paused.');
+        error.code = 'INSTAGRAM_RATE_LIMIT';
+        return error;
+    }
+    if (/login required|restricted video|private (?:video|post)|registered users who follow|redirected to the login page|check if this post is accessible in your browser without being logged-in/i.test(message)) {
+        return new Error('This Instagram video could not be accessed without signing in.');
+    }
+    return new Error(message);
 }
 
 // Resolves a bundled binary by name, checking (in order): depUpdater.js's auto-updated
@@ -462,6 +481,7 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
     const { onProgress, onLog } = callbacks;
 
     const ytdlp = getYtdlpPath();
+    const isInstagram = isInstagramUrl(url);
     if (!ytdlp) throw new Error('yt-dlp not found');
 
     log('Starting download:', url);
@@ -484,6 +504,8 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
             : path.join(outputDir, '%(title)s [%(id)s].%(ext)s'),
     ];
 
+    if (isInstagram) args.push('--retries', '0', '--extractor-retries', '0', '--fragment-retries', '0');
+
     const ffmpeg = getFfmpegPath();
     if (ffmpeg && ffmpeg !== 'ffmpeg') {
         args.push('--ffmpeg-location', path.dirname(ffmpeg));
@@ -498,12 +520,18 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
             args.push('--embed-thumbnail');
         }
     } else if (formatId) {
+        // Normalize the quality presets used by Batch, playlists and saved queues.
+        // yt-dlp's res sort uses the shorter edge, so 1080x1920 is 1080p too.
+        const resolutionPreset = formatId.match(/^(?:bv\*|bestvideo)\[height<=(\d+)\]\+(?:ba|bestaudio)\/(?:b|best)\[height<=\1\](?:\/b)?$/);
+        const selectedFormat = resolutionPreset ? 'bv*+ba/b' : formatId;
+        if (resolutionPreset) args.push('-S', `res:${resolutionPreset[1]}`);
+
         if (noReencode) {
             // Lossless preset: mkv natively holds whatever video/audio codec the source
             // serves, so ffmpeg can merge with a straight stream copy — no re-encode.
-            args.push('-f', formatId, '--merge-output-format', 'mkv');
+            args.push('-f', selectedFormat, '--merge-output-format', 'mkv');
         } else {
-            args.push('-f', formatId, '--merge-output-format', 'mp4');
+            args.push('-f', selectedFormat, '--merge-output-format', 'mp4');
             // Re-encode audio to AAC for universal playback.
             // YouTube serves Opus audio which Windows Media Player can't decode in MP4.
             // AAC is fast to encode and works on every player on every OS.
@@ -608,7 +636,7 @@ async function download({ url, formatId, outputDir, extractAudio, audioFormat, v
                 const msg = stderrBuf.trim() || `yt-dlp exited with code ${code}`;
                 logError('Download failed:', msg);
                 onLog('Download failed.');
-                return reject(new Error(msg));
+                return reject(isInstagram ? instagramMediaError(msg) : new Error(msg));
             }
             if (alreadyDownloaded) {
                 log('Download skipped — file already exists');

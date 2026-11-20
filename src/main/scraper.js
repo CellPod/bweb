@@ -100,14 +100,22 @@ function scrapeCollection(url, parent, { onLog, onItem } = {}) {
                             const anchors = document.querySelectorAll('a[href]');
                             for (const a of anchors) {
                                 const h = a.getAttribute('href');
-                                if (h && (/^\\/p\\/[\\w-]+/.test(h) || /^\\/reel\\/[\\w-]+/.test(h))) {
-                                    const img = a.querySelector('img');
-                                    results.push({
-                                        url: new URL(h, window.location.origin).href,
-                                        thumbnail: img ? img.src : null,
-                                        alt: img ? (img.alt || '') : '',
-                                    });
-                                }
+                                if (!h) continue;
+                                let link;
+                                try { link = new URL(h, window.location.origin); } catch { continue; }
+                                if (link.origin !== window.location.origin) continue;
+                                // Saved tiles can include the creator's profile in the link.
+                                const match = link.pathname.match(/^\\/(?:[\\w.]+\\/)?(p|reel)\\/([\\w-]+)\\/?$/);
+                                if (!match) continue;
+                                const [, type, shortcode] = match;
+                                const img = a.querySelector('img');
+                                results.push({
+                                    url: link.origin + '/' + type + '/' + shortcode + '/',
+                                    type,
+                                    shortcode,
+                                    thumbnail: img ? img.src : null,
+                                    alt: img ? (img.alt || '') : '',
+                                });
                             }
                             return results;
                         })()
@@ -125,9 +133,7 @@ function scrapeCollection(url, parent, { onLog, onItem } = {}) {
                         // "Photo by" for image posts. Videos use the caption instead.
                         // If a photo slips through, yt-dlp will fail gracefully and the
                         // queue moves on to the next item.
-                        if (entry.alt.startsWith('Photo by ')) continue;
-
-                        const shortcode = extractShortcode(entry.url);
+                        if (entry.type === 'p' && entry.alt.startsWith('Photo by ')) continue;
 
                         // Use alt text as title, truncate long captions, fall back to generic
                         let title = entry.alt ? entry.alt.split('\n')[0].trim() : '';
@@ -135,7 +141,7 @@ function scrapeCollection(url, parent, { onLog, onItem } = {}) {
                         if (!title) title = `Post ${items.length + 1}`;
 
                         const item = {
-                            id: shortcode,
+                            id: entry.shortcode,
                             title,
                             url: entry.url,
                             webpage_url: entry.url,
@@ -186,11 +192,6 @@ function scrapeCollection(url, parent, { onLog, onItem } = {}) {
         _log('Opening collection page...');
         win.loadURL(url);
     });
-}
-
-function extractShortcode(url) {
-    const match = url.match(/\/(p|reel)\/([\w-]+)/);
-    return match ? match[2] : url;
 }
 
 function delay(ms) {

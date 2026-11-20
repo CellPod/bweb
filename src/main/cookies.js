@@ -36,14 +36,8 @@ function writeCookieLines(cookies, filePath) {
     fs.writeFileSync(filePath, lines.join('\n'), { encoding: 'utf8', mode: 0o600 });
 }
 
-// Shared shape behind YouTube/Instagram/Vimeo's cookie-based auth: a BrowserWindow-based
-// login flow (loaded against its own persistent session partition, detected as "logged in"
-// once navigation lands back on the site's own home/feed page) plus a Netscape cookie-file
-// export so yt-dlp can authenticate via --cookies. Each site differs only in its partition/
-// URL, how "authenticated" is decided from the raw cookie list, which cookies are relevant
-// to export, and the exact log wording below (kept as explicit strings per site rather than
-// derived from `label`, since YouTube's wording predates Instagram/Vimeo's and doesn't
-// follow the same "<Site> ..." pattern they do).
+// Each sign-in uses a persistent browser partition. YouTube and Vimeo can also
+// export a cookie file for yt-dlp. Instagram keeps its session in the browser.
 function createCookieProvider({
     partition,
     loginUrl,
@@ -91,6 +85,7 @@ function createCookieProvider({
     }
 
     async function getCookieFile() {
+        if (!cookieDomainFilter) return null;
         const has = await hasCookies();
         if (!has) return null;
 
@@ -208,10 +203,6 @@ const instagram = createCookieProvider({
     loginDelayMs: 1500,
     navLogMsg: 'Instagram login nav:',
     loginDetectedMsg: 'Instagram login detected',
-    cookieDomainFilter: (c) => {
-        const d = c.domain || '';
-        return d.includes('instagram.com') || d.includes('facebook.com') || d.includes('fbcdn.net');
-    },
     label: 'Instagram',
 });
 
@@ -248,7 +239,6 @@ module.exports = {
 
     // Instagram
     hasInstaCookies: instagram.hasCookies,
-    getInstaCookieFile: instagram.getCookieFile,
     openInstaLoginWindow: instagram.openLoginWindow,
     clearInstaCookies: instagram.clearCookies,
 
